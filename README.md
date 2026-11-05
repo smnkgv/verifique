@@ -181,6 +181,9 @@ On macOS, a small app adds a tick to the menu bar. Click it to see what needs yo
 what's queued and recent verdicts with their proof, and to change how many checks run at once. It
 reads the CLI's `--json` output and acts only through the CLI, so it can't do anything the CLI can't.
 
+The tick turns amber with the number of checks left while they run, green for five minutes after the
+last one passes, and red with a count when something needs you.
+
 ```bash
 panel/bundle.sh
 open panel/target/verifique.app
