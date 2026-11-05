@@ -141,6 +141,15 @@ h1 {
     color: var(--text);
 }
 
+.install .repo {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.install .repo:hover code {
+    border-color: var(--muted);
+}
+
 .term {
     min-width: 0;
     border: 1px solid var(--line);
