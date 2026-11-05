@@ -265,6 +265,7 @@ ol li + li {
 const REFRESH_MS = 1500;
 const MAX_SLOTS = 8;
 const MAX_HEIGHT = 640;
+const PASSED_SHOWN_S = 300;
 
 const tauri = window.__TAURI__;
 const invoke = (name, args) => tauri.core.invoke(name, args);
@@ -348,11 +349,19 @@ function paint() {
     invoke("set_height", { height: Math.min(MAX_HEIGHT, Math.ceil(panel.scrollHeight) + 2) });
 }
 
+function showProgress(s) {
+    const left = s.running.length + s.queued.length;
+    const last = s.recent.find((job) => job.check !== "hold");
+    const justPassed = last?.status === "passed" && since(last.finished_at) < PASSED_SHOWN_S;
+    const look = s.needs_you.length ? "needs" : left ? "working" : justPassed ? "passed" : "idle";
+    invoke("show_progress", { look, count: s.needs_you.length || left });
+}
+
 async function refresh() {
     try {
         state = JSON.parse(await invoke("status"));
         lastError = "";
-        invoke("show_progress", { needs: state.needs_you.length, left: state.running.length + state.queued.length });
+        showProgress(state);
     } catch (error) {
         lastError = String(error);
     }

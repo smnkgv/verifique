@@ -2,7 +2,6 @@
 
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -18,9 +17,11 @@ const REOPEN_GAP: Duration = Duration::from_millis(250);
 const GAP_BELOW_ICON: f64 = 6.0;
 
 const IDLE_ICON: &[u8] = include_bytes!("../icons/tray.png");
+const WORKING_ICON: &[u8] = include_bytes!("../icons/tray-working.png");
+const PASSED_ICON: &[u8] = include_bytes!("../icons/tray-passed.png");
 const NEEDS_ICON: &[u8] = include_bytes!("../icons/tray-needs.png");
 
-static NEEDS_SHOWN: AtomicBool = AtomicBool::new(false);
+static LOOK: Mutex<String> = Mutex::new(String::new());
 static HIDDEN_AT: Mutex<Option<Instant>> = Mutex::new(None);
 
 /// `--pinned` keeps the panel open in the corner of the screen, so people watching a demo can follow it.
@@ -114,18 +115,26 @@ fn open_logs() -> Result<(), String> {
     open_path(home().join(".verifique/server.log").display().to_string())
 }
 
-/// The number is how many checks are left, or how many need you when the tick is red.
+/// Amber while checks run, green when they have just passed, and red when something needs you. The
+/// number is how many checks are left, or how many need you.
 #[tauri::command]
-fn show_progress(app: AppHandle, needs: usize, left: usize) -> Result<(), String> {
+fn show_progress(app: AppHandle, look: String, count: usize) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("no tray icon")?;
-    let count = if needs > 0 { needs } else { left };
     tray.set_title((count > 0).then(|| count.to_string())).map_err(|error| error.to_string())?;
-    if NEEDS_SHOWN.swap(needs > 0, Ordering::Relaxed) == (needs > 0) {
+    let mut shown = LOOK.lock().map_err(|error| error.to_string())?;
+    if *shown == look {
         return Ok(());
     }
-    let (bytes, template) = if needs > 0 { (NEEDS_ICON, false) } else { (IDLE_ICON, true) };
+    let (bytes, template) = match look.as_str() {
+        "needs" => (NEEDS_ICON, false),
+        "working" => (WORKING_ICON, false),
+        "passed" => (PASSED_ICON, false),
+        _ => (IDLE_ICON, true),
+    };
     let icon = Image::from_bytes(bytes).map_err(|error| error.to_string())?;
-    tray.set_icon_with_as_template(Some(icon), template).map_err(|error| error.to_string())
+    tray.set_icon_with_as_template(Some(icon), template).map_err(|error| error.to_string())?;
+    *shown = look;
+    Ok(())
 }
 
 #[tauri::command]
