@@ -980,6 +980,42 @@ fn mongo_and_redis_start_clean_too() {
 }
 
 #[test]
+fn a_slot_redis_has_no_database_for_leaves_database_zero_alone() {
+    let mut world = World::new();
+    let port = (world.base_port + 40).to_string();
+    let mut redis = Command::new("redis-server")
+        .args(["--port", &port, "--save", "", "--appendonly", "no", "--bind", "127.0.0.1"])
+        .current_dir(&world.root)
+        .stdout(Stdio::null())
+        .spawn()
+        .unwrap();
+    let cli = |args: &[&str]| {
+        let out = Command::new("redis-cli").args(["-p", &port]).args(args).output().unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
+    let started = Instant::now();
+    while cli(&["PING"]) != "PONG" && started.elapsed() < Duration::from_secs(5) {
+        sleep(Duration::from_millis(50));
+    }
+    cli(&["SET", "canary", "alive"]);
+    world.use_isolation(
+        &format!("redis: {{ url: redis://127.0.0.1:{port} }}"),
+        r#"REDIS_URL: "{redis.url}""#,
+        "'true'",
+        r#"  look: { stack: web, run: 'true' }"#,
+    );
+    world.serve_from(20, 1, &[]);
+    let job = world.submit("look", "");
+    let (code, out) = world.wait(&job);
+    let canary = cli(&["GET", "canary"]);
+    redis.kill().unwrap();
+    let _ = redis.wait();
+    assert_eq!(canary, "alive");
+    assert_eq!(code, 2, "{out}");
+    assert!(out.contains("redis.conf"), "{out}");
+}
+
+#[test]
 fn a_database_server_that_is_not_there_is_named_plainly() {
     let mut world = World::new();
     world.use_isolation(

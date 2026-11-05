@@ -45,7 +45,7 @@ source. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 Database servers must already be running, however you installed them. verifique never installs one, and
 only ever creates and drops databases named `verifique_*`. It supports Postgres, Mongo and Redis, using
-`psql`, `mongosh` and `redis-cli`.
+`psql`, `mongosh` and `redis-cli`. Redis is the exception to the naming: each slot owns the numbered database that matches it, and clears it for every check, so keep nothing else in those. A slot Redis has no database for is refused.
 
 **Your `.env` is live.** Checks run your app unattended with the project's own `.env`, so anything in it
 is real: a check can send real email, charge real cards or write to any service it points at. Only

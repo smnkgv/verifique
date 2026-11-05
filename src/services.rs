@@ -113,6 +113,9 @@ pub struct Service {
 
 impl Service {
     pub fn new(kind: &str, url: Option<&str>, repo: &str, slot: u32) -> Result<Self> {
+        if kind == "redis" && slot == 0 {
+            bail!("slot 0 would use Redis database 0, which everything else on this machine shares. Start the queue with a --first-slot of 1 or more");
+        }
         Ok(Self {
             kind: kind.to_string(),
             server: Url::parse(url.unwrap_or(default_url(kind)))?,
@@ -158,6 +161,13 @@ impl Service {
             .output()
             .map_err(|_| anyhow!("{tool} is not installed, and {} needs it", self.kind))?;
         let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if String::from_utf8_lossy(&out.stderr).contains("DB index is out of range") {
+            bail!(
+                "Redis at {} has no database for slot {}. Raise `databases` in redis.conf, or start the queue with a lower --first-slot",
+                self.server.address(),
+                self.slot
+            );
+        }
         // redis-cli reports a refused connection on stdout and still exits 0 for some commands.
         let refused = stdout.contains("Connection refused") || stdout.starts_with("ERR");
         if !out.status.success() || refused {
@@ -189,6 +199,9 @@ impl Service {
         let url = self.server.with_path("");
         let number = database.to_string();
         let mut all = vec!["-u", url.as_str(), "--no-auth-warning", "-n", number.as_str()];
+        // redis-cli runs the command in database 0 when it can't select the one asked for, and still
+        // exits 0, so FLUSHDB on a missing database would wipe everything. Prove it exists first.
+        self.run(&[all.as_slice(), &["PING"]].concat())?;
         all.extend(args);
         self.run(&all)
     }
@@ -284,5 +297,6 @@ mod tests {
         let redis = Service::new("redis", None, "/x/app", 6).unwrap();
         assert_eq!(redis.url(), "redis://127.0.0.1:6379/6");
         assert_eq!(redis.tokens()["redis.prefix"], "verifique_app_s6:");
+        assert!(Service::new("redis", None, "/x/app", 0).is_err());
     }
 }
