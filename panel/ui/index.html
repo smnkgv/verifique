@@ -352,7 +352,7 @@ async function refresh() {
     try {
         state = JSON.parse(await invoke("status"));
         lastError = "";
-        invoke("set_badge", { count: state.needs_you.length });
+        invoke("show_progress", { needs: state.needs_you.length, left: state.running.length + state.queued.length, running: state.running.length > 0 });
     } catch (error) {
         lastError = String(error);
     }

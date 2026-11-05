@@ -2,7 +2,9 @@
 
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Mutex;
+use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
@@ -16,6 +18,30 @@ use tauri::{ActivationPolicy, AppHandle, LogicalSize, Manager, PhysicalPosition,
 const REOPEN_GAP: Duration = Duration::from_millis(250);
 const GAP_BELOW_ICON: f64 = 6.0;
 
+const FRAME_GAP: Duration = Duration::from_millis(160);
+const IDLE_ICON: &[u8] = include_bytes!("../icons/tray.png");
+const NEEDS_ICON: &[u8] = include_bytes!("../icons/tray-needs.png");
+const BUSY_ICONS: [&[u8]; 8] = [
+    include_bytes!("../icons/tray-busy-0.png"),
+    include_bytes!("../icons/tray-busy-1.png"),
+    include_bytes!("../icons/tray-busy-2.png"),
+    include_bytes!("../icons/tray-busy-3.png"),
+    include_bytes!("../icons/tray-busy-4.png"),
+    include_bytes!("../icons/tray-busy-5.png"),
+    include_bytes!("../icons/tray-busy-6.png"),
+    include_bytes!("../icons/tray-busy-7.png"),
+];
+
+#[derive(Clone, Copy)]
+enum Look {
+    Idle,
+    Busy,
+    Needs,
+}
+const BUSY: u8 = Look::Busy as u8;
+const NEEDS: u8 = Look::Needs as u8;
+
+static LOOK: AtomicU8 = AtomicU8::new(Look::Idle as u8);
 static HIDDEN_AT: Mutex<Option<Instant>> = Mutex::new(None);
 
 /// `--pinned` keeps the panel open in the corner of the screen, so people watching a demo can follow it.
@@ -109,12 +135,44 @@ fn open_logs() -> Result<(), String> {
     open_path(home().join(".verifique/server.log").display().to_string())
 }
 
-/// The icon shows a number only when something needs you.
+/// A turning ring means a check is running. The number is how many are left, or how many need you
+/// when the tick is red.
 #[tauri::command]
-fn set_badge(app: AppHandle, count: usize) -> Result<(), String> {
+fn show_progress(app: AppHandle, needs: usize, left: usize, running: bool) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("no tray icon")?;
-    let title = (count > 0).then(|| count.to_string());
-    tray.set_title(title).map_err(|error| error.to_string())
+    let count = if needs > 0 { needs } else { left };
+    tray.set_title((count > 0).then(|| count.to_string())).map_err(|error| error.to_string())?;
+    let look = if needs > 0 {
+        Look::Needs
+    } else if running {
+        Look::Busy
+    } else {
+        Look::Idle
+    } as u8;
+    if LOOK.swap(look, Ordering::Relaxed) == look {
+        return Ok(());
+    }
+    let (bytes, template) = match look {
+        NEEDS => (NEEDS_ICON, false),
+        BUSY => (BUSY_ICONS[0], true),
+        _ => (IDLE_ICON, true),
+    };
+    let icon = Image::from_bytes(bytes).map_err(|error| error.to_string())?;
+    tray.set_icon_with_as_template(Some(icon), template).map_err(|error| error.to_string())
+}
+
+fn turn_ring(app: AppHandle) {
+    let mut frame = 0;
+    loop {
+        sleep(FRAME_GAP);
+        if LOOK.load(Ordering::Relaxed) != BUSY {
+            continue;
+        }
+        frame = (frame + 1) % BUSY_ICONS.len();
+        if let (Some(tray), Ok(icon)) = (app.tray_by_id("main"), Image::from_bytes(BUSY_ICONS[frame])) {
+            let _ = tray.set_icon_with_as_template(Some(icon), true);
+        }
+    }
 }
 
 #[tauri::command]
@@ -148,10 +206,12 @@ fn toggle(app: &AppHandle, icon_x: f64, icon_y: f64, icon_w: f64, icon_h: f64) {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![status, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, set_badge, set_height, quit])
+        .invoke_handler(tauri::generate_handler![status, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);
-            let icon = Image::from_bytes(include_bytes!("../icons/tray.png"))?;
+            let icon = Image::from_bytes(IDLE_ICON)?;
+            let handle = app.handle().clone();
+            std::thread::spawn(move || turn_ring(handle));
             TrayIconBuilder::with_id("main")
                 .icon(icon)
                 .icon_as_template(true)
