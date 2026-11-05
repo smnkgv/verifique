@@ -113,6 +113,7 @@ content, and a verdict with proof.
 -   A checker's powers depend on the user's agent settings, so verdicts can rest on different
     abilities from one machine to another.
 -   The panel is signed for one machine: sharing it needs an Apple Developer ID.
+-   `doctor` pauses every check on the machine while it runs, which on a slow build is minutes.
 -   A server a checker starts by hand can outlive its job, using memory until the next job in that
     slot stops it.
 -   An agent can dodge the failure limit by moving to a new branch.
