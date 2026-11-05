@@ -1,17 +1,30 @@
 # verifique
 
-Run swarms of coding agents across several repositories on one laptop, and verify their work
-locally without verifications colliding. Agents hand over what they want checked and carry on; the
-laptop runs each check when a slot is free, and every check ends in a verdict with proof.
+A verification queue for coding agents, running on your own laptop.
 
-Early, and not released yet: it is being proven on real projects first, so for now you build it from
-source. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+## What it's for
+
+Writing code scales to dozens of agents. Verifying it on one laptop doesn't.
+
+Run fifteen agents and they tend to finish around the same time. Each one starts a copy of your app
+to check its work, and they collide over ports, databases and memory. Worktrees separate your files,
+not any of that. Moving to the cloud avoids the collisions, but gives up the fast feedback of working
+locally.
+
+verifique keeps verification on your laptop and runs only what the laptop can carry. Agents stop
+waiting for each other, and an agent no longer marks its own homework.
 
 ## How it works
 
-One server runs per machine and serves every project on it, because projects share the machine's
-memory and ports. Apps run as normal processes on the laptop, several copies at once, each on its own
-slot with its own ports and its own databases.
+1. **An agent hands its work over.** It submits your original request and how to reach the change.
+   Uncommitted work is captured for it.
+2. **It keeps working.** It waits in the background. Repositories take turns, and fixes go ahead of
+   new work.
+3. **The check runs when a slot is free.** Your app runs natively, with its own ports and fresh
+   databases on the servers you already have.
+4. **The check ends in a verdict with proof.** A check can be any command, such as a test suite, or
+   a fresh agent that compares the work with what you asked for. If it fails, the agent that
+   submitted it fixes it.
 
 ```
 agents, in any repo            server                       your laptop
@@ -20,8 +33,13 @@ verifique submit ───────▶ queue ─▶ a slot is free ───�
 verifique wait   ◀────── verdict stored against the content ◀─ pass, fail or blocked
 ```
 
-It knows nothing about your framework or how you test. Each check starts on clean data: its databases
-are created, your `seed` runs, and they are dropped afterwards.
+One server runs per machine and serves every project on it, because projects share the machine's
+memory and ports. It knows nothing about your framework or how you test.
+
+## Status
+
+Early, and not released yet: it is being proven on real projects first, so for now you build it from
+source. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 ## Prerequisites
 
