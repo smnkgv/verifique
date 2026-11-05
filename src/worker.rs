@@ -333,6 +333,9 @@ impl Run<'_> {
         git::checkout_slot(repo, &self.worktree, &job.commit)?;
         if let Some(stack) = &job.plan.stack {
             copy_env_files(stack, repo, &self.worktree)?;
+            for instance in instances.iter_mut() {
+                instance.load_env_files(stack, &self.worktree);
+            }
         }
 
         self.timed("prepare", |run| run.prepare(&instances[0]))?;

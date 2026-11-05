@@ -39,6 +39,28 @@ pub fn copy_env_files(stack: &Stack, repo: &Path, worktree: &Path) -> Result<()>
     Ok(())
 }
 
+/// Production start commands rarely read `.env` themselves, so the file reaches them through the
+/// environment. A line it can't read is skipped, as dotenv skips it.
+fn parse_env(raw: &str) -> Vec<(String, String)> {
+    raw.lines()
+        .filter_map(|line| {
+            let line = line.trim().trim_start_matches("export ");
+            if line.starts_with('#') {
+                return None;
+            }
+            let (key, value) = line.split_once('=')?;
+            let key = key.trim();
+            if key.is_empty() || key.contains(char::is_whitespace) {
+                return None;
+            }
+            let value = value.trim();
+            let quoted = value.len() >= 2 && (value.starts_with('"') && value.ends_with('"') || value.starts_with('\'') && value.ends_with('\''));
+            let value = if quoted { &value[1..value.len() - 1] } else { value.split(" #").next().unwrap_or("").trim_end() };
+            Some((key.to_string(), value.to_string()))
+        })
+        .collect()
+}
+
 impl Instance {
     pub fn new(
         stack: Option<&Stack>,
@@ -64,6 +86,16 @@ impl Instance {
             env.insert(name.clone(), values.expand(value));
         }
         Ok(Self { values, env, services, procs: Vec::new(), log_dir: log_dir.to_path_buf() })
+    }
+
+    /// Anything already set wins: the stack's own settings, and the slot's values above all.
+    pub fn load_env_files(&mut self, stack: &Stack, worktree: &Path) {
+        for file in stack.env_files() {
+            let Ok(raw) = fs::read_to_string(worktree.join(&file)) else { continue };
+            for (key, value) in parse_env(&raw) {
+                self.env.entry(key).or_insert(value);
+            }
+        }
     }
 
     pub fn reset_services(&self) -> Result<()> {
@@ -176,5 +208,24 @@ impl Instance {
             proc.stop();
         }
         self.procs.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_env;
+
+    #[test]
+    fn env_files_are_read_the_way_dotenv_reads_them() {
+        let raw = "# a comment\nPLAIN=one\nexport EXPORTED=two\nQUOTED=\"three # kept\"\nSINGLE='four'\nTRAILING=five # dropped\nEMPTY=\nno equals here\n";
+        let parsed = parse_env(raw);
+        let get = |key: &str| parsed.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str());
+        assert_eq!(get("PLAIN"), Some("one"));
+        assert_eq!(get("EXPORTED"), Some("two"));
+        assert_eq!(get("QUOTED"), Some("three # kept"));
+        assert_eq!(get("SINGLE"), Some("four"));
+        assert_eq!(get("TRAILING"), Some("five"));
+        assert_eq!(get("EMPTY"), Some(""));
+        assert_eq!(parsed.len(), 6);
     }
 }

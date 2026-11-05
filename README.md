@@ -146,6 +146,7 @@ verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 supers
     overrides that.
 -   A check with `slots` gets as many stacks as the machine has, and smaller jobs wait so it cannot
     starve.
+-   `maxSlots` at the top of `verifique.yaml` limits how many slots one project takes at once.
 -   Three failures in a row, or one `blocked`, put a branch in `needs-you` and raise a desktop
     notification. Submissions are then refused until `verifique clear`.
 

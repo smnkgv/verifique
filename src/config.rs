@@ -164,6 +164,9 @@ pub struct Config {
     pub base: Option<String>,
     #[serde(default)]
     pub retries: Option<u32>,
+    /// The most slots this project takes at once, so it can't crowd out the others on a machine.
+    #[serde(default, rename = "maxSlots")]
+    pub max_slots: Option<usize>,
     #[serde(default)]
     pub timeouts: Timeouts,
     #[serde(default)]
@@ -185,6 +188,8 @@ pub struct Plan {
     pub headed: bool,
     /// Set for a hold: a stack kept up for an investigation, with no check and no verdict.
     pub hold_minutes: Option<f64>,
+    #[serde(default)]
+    pub max_slots: Option<usize>,
 }
 
 impl Config {
@@ -268,6 +273,7 @@ impl Config {
             retries: self.retries.unwrap_or(DEFAULT_RETRIES),
             headed: check.browser == Browser::Headed,
             hold_minutes: None,
+            max_slots: self.max_slots,
         };
         Ok((chosen.to_string(), plan, needs))
     }
@@ -292,6 +298,7 @@ impl Config {
             retries: 0,
             headed: false,
             hold_minutes: Some(minutes),
+            max_slots: self.max_slots,
         };
         Ok((plan, stack.needs.clone()))
     }

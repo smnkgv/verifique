@@ -438,6 +438,10 @@ fn never_more_jobs_run_at_once_than_there_are_slots() {
 fn the_slot_count_changes_while_the_server_runs() {
     let mut world = World::new();
     world.serve(1, &[]);
+    let started = Instant::now();
+    while world.status_json()["server"] != true && started.elapsed() < Duration::from_secs(10) {
+        sleep(Duration::from_millis(50));
+    }
     assert!(world.run(&["slots", "2"]).status.success());
     assert!(!world.run(&["slots", "0"]).status.success());
     let jobs = detached(&world.repo, || {
@@ -448,6 +452,22 @@ fn the_slot_count_changes_while_the_server_runs() {
     }
     assert_eq!(world.peak_concurrency(), 2);
     assert_eq!(world.status_json()["slots"], 2);
+}
+
+#[test]
+fn a_project_can_limit_its_share_of_the_slots() {
+    let mut world = World::new();
+    let yaml = fs::read_to_string(world.repo.join("verifique.yaml")).unwrap();
+    fs::write(world.repo.join("verifique.yaml"), format!("maxSlots: 1\n{yaml}")).unwrap();
+    commit(&world.repo, "limit this project");
+    world.serve(2, &[]);
+    let jobs = detached(&world.repo, || {
+        (0..3).map(|_| world.submit("manual", "slow")).collect::<Vec<_>>()
+    });
+    for job in &jobs {
+        assert_eq!(world.wait(job).0, 0);
+    }
+    assert_eq!(world.peak_concurrency(), 1);
 }
 
 #[test]
@@ -873,6 +893,7 @@ fn an_app_gets_its_slots_port_and_database_and_those_win_over_env() {
     assert_eq!(env["PORT"], (world.base_port + FIRST_SLOT).to_string());
     let expected = format!("{POSTGRES}/{}", world.database(FIRST_SLOT));
     assert_eq!(env["DATABASE_URL"], expected);
+    assert_eq!(env["KEPT"], "from-env-file");
 }
 
 #[test]

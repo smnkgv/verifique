@@ -114,8 +114,8 @@ fn each_uses_its_own_data(instances: &[Instance]) -> Result<()> {
         let unused = instance.services_unused()?;
         if !unused.is_empty() {
             bail!(
-                "slot {}: nothing reached its {} database, so the app is probably still using the one in .env. \
-                 Point the setting it reads at the slot's value in verifique.yaml",
+                "slot {}: nothing reached its {} database. If the app uses one, it's still going to the one in .env: \
+                 point the setting it reads at the slot's value in verifique.yaml. If it doesn't, remove that service",
                 instance.values.slot,
                 unused.join(" or ")
             );
@@ -167,15 +167,18 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
         .map(|index| paths::slot_worktree(project.repo, if stack.apps.is_empty() { index } else { 0 }))
         .collect();
     let mut prepared: Vec<&PathBuf> = Vec::new();
-    for (instance, worktree) in instances.iter().zip(&worktrees) {
+    for (instance, worktree) in instances.iter_mut().zip(&worktrees) {
         if !prepared.contains(&worktree) {
             println!("  preparing {}", worktree.display());
             git::checkout_slot(repo, worktree, project.commit)?;
             copy_env_files(stack, repo, worktree)?;
+            instance.load_env_files(stack, worktree);
             for command in &stack.prepare {
                 run_step(command, instance, worktree, &log, "prepare", timeouts.prepare_sec)?;
             }
             prepared.push(worktree);
+        } else {
+            instance.load_env_files(stack, worktree);
         }
     }
 

@@ -74,6 +74,7 @@ struct Done {
 }
 
 struct Running {
+    repo: String,
     indices: Vec<usize>,
     needs: Needs,
     hold: bool,
@@ -127,6 +128,10 @@ impl Server {
         self.store.setting(KEY_SLOTS).ok().flatten().and_then(|value| value.parse().ok()).unwrap_or(self.options.slots)
     }
 
+    fn slots_of(&self, repo: &str) -> usize {
+        self.busy.values().filter(|running| running.repo == repo).map(|running| running.indices.len()).sum()
+    }
+
     fn free_indices(&self) -> Vec<usize> {
         let taken: Vec<usize> = self.busy.values().flat_map(|running| running.indices.iter().copied()).collect();
         (0..self.slots()).filter(|index| !taken.contains(index)).collect()
@@ -141,7 +146,7 @@ impl Server {
 
         let worktree_index = indices[0];
         let hold = job.plan.hold_minutes.is_some();
-        self.busy.insert(job.id, Running { indices, needs: job.needs.clone(), hold });
+        self.busy.insert(job.id, Running { repo: job.repo.clone(), indices, needs: job.needs.clone(), hold });
         let stop = Arc::clone(&self.stop);
         let done = self.done.clone();
         thread::spawn(move || {
@@ -165,6 +170,7 @@ impl Server {
         if self.paused()? {
             return Ok(());
         }
+        runnable.retain(|job| job.plan.max_slots.is_none_or(|limit| self.slots_of(&job.repo) < limit));
         let free = self.free_indices();
         if free.is_empty() {
             return Ok(());
@@ -189,7 +195,8 @@ impl Server {
         };
         // A check gets as many slots as this machine has. When it needs more than are free, nothing
         // else starts: smaller jobs slipping past would otherwise keep it waiting for ever.
-        let width = job.plan.check.slots.unwrap_or(1).min(self.slots());
+        let room = job.plan.max_slots.unwrap_or(usize::MAX).saturating_sub(self.slots_of(&job.repo));
+        let width = job.plan.check.slots.unwrap_or(1).min(self.slots()).min(room);
         if free.len() >= width {
             self.launch((*job).clone(), free[..width].to_vec())?;
         }
