@@ -52,6 +52,10 @@ is real: a check can send real email, charge real cards or write to any service 
 slot ports and the settings in `verifique.yaml` are replaced. `verifique doctor` names remote databases it
 finds, but it cannot see everything.
 
+## Try it
+
+[examples/shop](examples/shop) is a one-page shop with a broken Search button. A real agent fails it, you fix it, and the same check passes, in about two minutes.
+
 ## Connect a project
 
 Run this and give the output to your coding agent:

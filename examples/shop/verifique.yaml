@@ -1,0 +1,16 @@
+stacks:
+    web:
+        apps:
+            shop:
+                run: python3 server.py
+                port: 4200
+                ready: /
+                env:
+                    PORT: "{port}"
+
+checks:
+    manual:
+        type: agent
+        stack: web
+        agent: claude
+        notes: The shop is one page. Search filters the product list when you press the Search button.

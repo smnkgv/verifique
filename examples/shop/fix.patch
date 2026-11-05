@@ -1,0 +1,12 @@
+--- a/index.html
++++ b/index.html
+@@ -17,8 +17,7 @@
+ const list = document.getElementById("products");
+ function show(items) { list.innerHTML = items.map((p) => `<li>${p}</li>`).join(""); }
+ show(PRODUCTS);
+-document.getElementById("search").onsubmit = () => false;
+-document.getElementById("search").addEventListener("reset", (event) => {
++document.getElementById("search").addEventListener("submit", (event) => {
+     event.preventDefault();
+     const q = document.getElementById("q").value.toLowerCase();
+     show(PRODUCTS.filter((p) => p.toLowerCase().includes(q)));
