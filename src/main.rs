@@ -345,12 +345,14 @@ fn status(as_json: bool) -> Result<ExitCode> {
     let serving = server::is_running(&store)?;
     let slots: u32 = store.setting(server::KEY_SLOTS)?.and_then(|v| v.parse().ok()).unwrap_or(0);
     let low_disk = store.setting(server::KEY_LOW_DISK)?.filter(|_| !queued.is_empty());
+    let paused = server::is_paused(&store)?;
 
     if as_json {
         let out = json!({
             "server": serving,
             "slots": slots,
             "low_disk": low_disk,
+            "paused": paused,
             "running": running,
             "queued": queued,
             "needs_you": needs_you,
@@ -365,6 +367,9 @@ fn status(as_json: bool) -> Result<ExitCode> {
     }
     if let Some(message) = &low_disk {
         println!("{message}\n");
+    }
+    if paused {
+        println!("paused: `{} doctor` is running, and checks start again when it ends\n", paths::NAME);
     }
     println!("{}/{slots} slots busy, {} queued", running.len(), queued.len());
     let line = |job: &Job| {

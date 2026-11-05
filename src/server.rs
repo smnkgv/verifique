@@ -47,6 +47,11 @@ pub fn is_running(store: &Store) -> Result<bool> {
     Ok(beat.is_some_and(|beat| now().saturating_sub(beat) < HEARTBEAT_LIMIT))
 }
 
+pub fn is_paused(store: &Store) -> Result<bool> {
+    let holder = store.setting(KEY_PAUSED_BY)?.and_then(|value| value.parse::<i32>().ok());
+    Ok(holder.is_some_and(alive))
+}
+
 fn publish(job: &Job, finished: &Finished) -> Result<()> {
     let path = paths::verdict_file(&job.tree, &job.check);
     if let Some(parent) = path.parent() {
@@ -121,11 +126,6 @@ impl Server {
         used
     }
 
-    fn paused(&self) -> Result<bool> {
-        let holder = self.store.setting(KEY_PAUSED_BY)?.and_then(|value| value.parse::<i32>().ok());
-        Ok(holder.is_some_and(alive))
-    }
-
     /// Read fresh each time, because `verifique slots` changes it while the server runs.
     fn slots(&self) -> usize {
         self.store.setting(KEY_SLOTS).ok().flatten().and_then(|value| value.parse().ok()).unwrap_or(self.options.slots)
@@ -194,7 +194,7 @@ impl Server {
                 None => runnable.push(job),
             }
         }
-        if self.paused()? {
+        if is_paused(&self.store)? {
             return Ok(());
         }
         runnable.retain(|job| job.plan.max_slots.is_none_or(|limit| self.slots_of(&job.repo) < limit));
