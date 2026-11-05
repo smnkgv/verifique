@@ -1,6 +1,9 @@
 use std::env;
+use std::ffi::CString;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
+use anyhow::{bail, Result};
 use sha2::{Digest, Sha256};
 
 pub const NAME: &str = "verifique";
@@ -30,6 +33,20 @@ pub fn repo_slots(repo: &str) -> PathBuf {
 
 pub fn slot_worktree(repo: &str, slot_index: usize) -> PathBuf {
     repo_slots(repo).join(slot_index.to_string())
+}
+
+/// Whole gigabytes free on the disk that holds the slot worktrees.
+pub fn free_gb() -> Result<u64> {
+    let path = CString::new(home().as_os_str().as_bytes())?;
+    // SAFETY: statvfs fills the zeroed struct and reads a valid C string.
+    let (code, stats) = unsafe {
+        let mut stats: libc::statvfs = std::mem::zeroed();
+        (libc::statvfs(path.as_ptr(), &mut stats), stats)
+    };
+    if code != 0 {
+        bail!("can't read free disk: {}", std::io::Error::last_os_error());
+    }
+    Ok(stats.f_bavail as u64 * stats.f_frsize / (1024 * 1024 * 1024))
 }
 
 pub fn repo_label(repo: &str) -> String {

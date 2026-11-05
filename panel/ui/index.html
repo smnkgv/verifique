@@ -299,6 +299,7 @@ function main(s) {
     const busy = new Set(s.running.flatMap((job) => job.slots)).size;
     let html = `<header><h1>verifique</h1><span class="count">${busy}/${s.slots} slots busy, ${s.queued.length} queued</span></header>`;
     if (!s.server) html += `<section class="needs"><h2>The queue isn't running</h2><p>Checks wait until it starts. Run: verifique service install</p></section>`;
+    if (s.low_disk) html += `<section class="needs"><h2>Disk nearly full</h2><p>${esc(s.low_disk)}</p></section>`;
     if (s.needs_you.length) {
         html += `<section class="needs"><h2>Needs you</h2>`;
         s.needs_you.forEach((item, n) => {

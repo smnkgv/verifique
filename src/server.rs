@@ -11,6 +11,7 @@ use anyhow::{bail, Result};
 use serde_json::json;
 
 use crate::config::Needs;
+use crate::git;
 use crate::notify::Notifier;
 use crate::paths;
 use crate::process::{alive, kill_group};
@@ -23,6 +24,7 @@ pub const KEY_HEARTBEAT: &str = "server_heartbeat";
 pub const KEY_SLOTS: &str = "server_slots";
 pub const KEY_FIRST_SLOT: &str = "server_first_slot";
 pub const KEY_PAUSED_BY: &str = "paused_by";
+pub const KEY_LOW_DISK: &str = "low_disk";
 
 /// A heartbeat older than this means the server is gone, however it ended.
 pub const HEARTBEAT_LIMIT: u64 = 15;
@@ -31,6 +33,7 @@ pub struct Options {
     pub slots: usize,
     pub first_slot: u32,
     pub resources: Needs,
+    pub min_free_gb: u64,
     pub poll: Duration,
 }
 
@@ -137,6 +140,30 @@ impl Server {
         (0..self.slots()).filter(|index| !taken.contains(index)).collect()
     }
 
+    /// A check that runs out of disk fails in ways that read as a fault in the change, so the builds
+    /// in idle slots go first, and if that isn't enough checks wait.
+    fn enough_disk(&self) -> Result<bool> {
+        let floor = self.options.min_free_gb;
+        if paths::free_gb()? < floor {
+            let in_use: Vec<_> = self
+                .busy
+                .values()
+                .map(|running| paths::slot_worktree(&running.repo, running.indices[0]))
+                .collect();
+            let removed = git::remove_idle_worktrees(&in_use)?;
+            if removed > 0 {
+                println!("removed {removed} idle slot worktree(s) to free disk");
+            }
+        }
+        let free = paths::free_gb()?;
+        if free < floor {
+            self.store.set(KEY_LOW_DISK, &format!("Only {free} GB of disk is free, so checks are waiting until {floor} GB is"))?;
+            return Ok(false);
+        }
+        self.store.unset(KEY_LOW_DISK)?;
+        Ok(true)
+    }
+
     fn launch(&mut self, job: Job, indices: Vec<usize>) -> Result<()> {
         let slots: Vec<u32> = indices.iter().map(|index| self.options.first_slot + *index as u32).collect();
         self.store.claim(job.id, &slots)?;
@@ -197,7 +224,7 @@ impl Server {
         // else starts: smaller jobs slipping past would otherwise keep it waiting for ever.
         let room = job.plan.max_slots.unwrap_or(usize::MAX).saturating_sub(self.slots_of(&job.repo));
         let width = job.plan.check.slots.unwrap_or(1).min(self.slots()).min(room);
-        if free.len() >= width {
+        if free.len() >= width && self.enough_disk()? {
             self.launch((*job).clone(), free[..width].to_vec())?;
         }
         Ok(())

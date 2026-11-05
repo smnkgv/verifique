@@ -189,9 +189,14 @@ impl World {
     }
 
     fn serve_from(&mut self, first: u32, slots: u32, resources: &[&str]) {
+        self.serve_with(first, slots, resources, &[]);
+    }
+
+    fn serve_with(&mut self, first: u32, slots: u32, resources: &[&str], extra: &[&str]) {
         let slots = slots.to_string();
         let first = first.to_string();
         let mut args = vec!["serve", "--slots", &slots, "--first-slot", &first];
+        args.extend(extra);
         for resource in resources {
             args.extend(["--resource", resource]);
         }
@@ -452,6 +457,34 @@ fn the_slot_count_changes_while_the_server_runs() {
     }
     assert_eq!(world.peak_concurrency(), 2);
     assert_eq!(world.status_json()["slots"], 2);
+}
+
+#[test]
+fn checks_wait_for_disk_after_idle_slots_are_cleared() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let first = detached(&world.repo, || world.submit("manual", "pass"));
+    assert_eq!(world.wait(&first).0, 0);
+    world.stop_server();
+    let slots = fs::read_dir(world.home.join("worktrees")).unwrap().next().unwrap().unwrap().path();
+    assert!(slots.join("0").exists());
+
+    world.serve_with(FIRST_SLOT, 1, &[], &["--min-free-gb", "100000000"]);
+    commit(&world.repo, "more work");
+    let second = detached(&world.repo, || world.submit("manual", "pass"));
+    let started = Instant::now();
+    while !world.status_json()["low_disk"].is_string() && started.elapsed() < Duration::from_secs(10) {
+        sleep(Duration::from_millis(50));
+    }
+    let status = world.status_json();
+    assert!(status["low_disk"].as_str().unwrap().contains("GB"), "{status}");
+    assert_eq!(status["queued"].as_array().unwrap().len(), 1);
+    assert!(!slots.join("0").exists());
+    world.stop_server();
+
+    world.serve(1, &[]);
+    assert_eq!(world.wait(&second).0, 0);
+    assert!(world.status_json()["low_disk"].is_null());
 }
 
 #[test]

@@ -131,6 +131,9 @@ struct Machine {
     slots: usize,
     #[arg(long, default_value_t = 4)]
     first_slot: u32,
+    /// Start no check with less disk free than this, in GB
+    #[arg(long, default_value_t = 5)]
+    min_free_gb: u64,
     /// Something limited on this machine, such as simulator=1
     #[arg(long = "resource", value_name = "NAME=COUNT")]
     resources: Vec<String>,
@@ -341,11 +344,13 @@ fn status(as_json: bool) -> Result<ExitCode> {
     let recent = store.finished(5)?;
     let serving = server::is_running(&store)?;
     let slots: u32 = store.setting(server::KEY_SLOTS)?.and_then(|v| v.parse().ok()).unwrap_or(0);
+    let low_disk = store.setting(server::KEY_LOW_DISK)?.filter(|_| !queued.is_empty());
 
     if as_json {
         let out = json!({
             "server": serving,
             "slots": slots,
+            "low_disk": low_disk,
             "running": running,
             "queued": queued,
             "needs_you": needs_you,
@@ -357,6 +362,9 @@ fn status(as_json: bool) -> Result<ExitCode> {
 
     if !serving {
         println!("{}\n", server::no_server_message());
+    }
+    if let Some(message) = &low_disk {
+        println!("{message}\n");
     }
     println!("{}/{slots} slots busy, {} queued", running.len(), queued.len());
     let line = |job: &Job| {
@@ -520,22 +528,11 @@ fn clean() -> Result<ExitCode> {
         })
         .collect();
 
-    let root = paths::home().join("worktrees");
-    let mut removed = 0;
-    for repo_dir in fs::read_dir(&root).into_iter().flatten().flatten() {
+    let removed = git::remove_idle_worktrees(&in_use)?;
+    for repo_dir in fs::read_dir(paths::home().join("worktrees")).into_iter().flatten().flatten() {
         let Ok(repo) = fs::read_to_string(repo_dir.path().join("repo")) else { continue };
-        let repo_path = Path::new(&repo);
-        for slot in fs::read_dir(repo_dir.path())?.flatten() {
-            let path = slot.path();
-            if path.is_dir() && !in_use.contains(&path) {
-                if git::remove_worktree(repo_path, &path).is_err() {
-                    fs::remove_dir_all(&path)?;
-                }
-                removed += 1;
-            }
-        }
         let keep: Vec<String> = active.iter().filter(|job| job.repo == repo).map(|job| job.tree.clone()).collect();
-        git::delete_snapshot_refs(repo_path, &keep)?;
+        git::delete_snapshot_refs(Path::new(&repo), &keep)?;
     }
     println!("removed {removed} slot worktree(s)");
     Ok(ExitCode::SUCCESS)
@@ -549,6 +546,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 slots: machine.slots,
                 first_slot: machine.first_slot,
                 resources: parse_resources(&machine.resources)?,
+                min_free_gb: machine.min_free_gb,
                 poll: Duration::from_millis(poll),
             })?;
             Ok(ExitCode::SUCCESS)

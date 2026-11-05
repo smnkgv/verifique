@@ -131,6 +131,24 @@ pub fn remove_worktree(repo: &Path, path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Slot worktrees no job is using. A check rebuilds whatever it finds missing, so only time is lost.
+pub fn remove_idle_worktrees(in_use: &[PathBuf]) -> Result<usize> {
+    let mut removed = 0;
+    for repo_dir in fs::read_dir(paths::home().join("worktrees")).into_iter().flatten().flatten() {
+        let Ok(repo) = fs::read_to_string(repo_dir.path().join("repo")) else { continue };
+        for slot in fs::read_dir(repo_dir.path())?.flatten() {
+            let path = slot.path();
+            if path.is_dir() && !in_use.contains(&path) {
+                if remove_worktree(Path::new(&repo), &path).is_err() {
+                    fs::remove_dir_all(&path)?;
+                }
+                removed += 1;
+            }
+        }
+    }
+    Ok(removed)
+}
+
 pub fn delete_snapshot_refs(repo: &Path, keep: &[String]) -> Result<usize> {
     let refs = git(repo, &["for-each-ref", "--format=%(refname)", SNAPSHOT_REFS])?;
     let mut removed = 0;

@@ -147,6 +147,7 @@ verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 supers
 -   A check with `slots` gets as many stacks as the machine has, and smaller jobs wait so it cannot
     starve.
 -   `maxSlots` at the top of `verifique.yaml` limits how many slots one project takes at once.
+-   Slot copies and their builds use real disk. When less than 5 GB is free, verifique deletes the copies no check is using, and if that isn't enough, checks wait. Change the limit with `verifique serve --min-free-gb`.
 -   Three failures in a row, or one `blocked`, put a branch in `needs-you` and raise a desktop
     notification. Submissions are then refused until `verifique clear`.
 
