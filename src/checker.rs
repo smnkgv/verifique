@@ -13,6 +13,8 @@ yourself. Your job is to find out whether the original request was met, not to c
 Rules:
 - The original request is what counts. If the brief, the diff and the request disagree, the request
   wins, and work the request asked for that is missing is a failure.
+- A request met at the cost of something else is a failure. If the change breaks what used to work,
+  or a rule the project states, the verdict is "failed", never "passed" with a warning.
 - Read the diff to find what changed, including anything the brief does not mention.
 - Use the product as its user would: click and type. Say so if a state cannot be reached that way.
 - Judge what is on screen. An error page, a blank page, a spinner that never ends or a sign-in page
