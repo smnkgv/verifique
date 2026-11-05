@@ -1,0 +1,406 @@
+:root {
+    --bg: #0a0a0a;
+    --panel: #111111;
+    --line: #232323;
+    --text: #ededed;
+    --muted: #9a9a9a;
+    --accent: #3ddc84;
+    --red: #ff6b5e;
+    --sans: Geist, ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 72px;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p, ol, ul, dl, dd, pre, figure {
+    margin: 0;
+    padding: 0;
+}
+
+ol, ul {
+    list-style: none;
+}
+
+a {
+    color: inherit;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+code, pre {
+    font-family: var(--mono);
+}
+
+.wrap {
+    width: min(1080px, 100%);
+    margin-inline: auto;
+    padding-inline: 24px;
+}
+
+.top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 1px solid var(--line);
+    background: rgb(10 10 10 / 0.86);
+    backdrop-filter: blur(10px);
+}
+
+.top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+}
+
+.logo {
+    font: 500 0.98rem var(--mono);
+    letter-spacing: -0.02em;
+    text-decoration: none;
+}
+
+.top nav {
+    display: flex;
+    gap: 24px;
+    font-size: 0.9rem;
+}
+
+.top nav a {
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 120ms ease;
+}
+
+.top nav a:hover {
+    color: var(--text);
+}
+
+.hero {
+    padding-block: 88px 72px;
+}
+
+h1 {
+    max-width: 14em;
+    font-size: clamp(2.5rem, 6vw, 4.25rem);
+    font-weight: 600;
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+}
+
+.lede {
+    max-width: 38em;
+    margin-top: 22px;
+    color: var(--muted);
+    font-size: clamp(1.08rem, 1.7vw, 1.25rem);
+    line-height: 1.5;
+}
+
+.install {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    margin-top: 28px;
+    font-size: 0.92rem;
+}
+
+.install code {
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--panel);
+    font-size: 0.88rem;
+}
+
+.install a {
+    color: var(--muted);
+    text-underline-offset: 3px;
+}
+
+.install a:hover {
+    color: var(--text);
+}
+
+.term {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+    overflow: hidden;
+}
+
+.term figcaption {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font: 400 0.8rem var(--mono);
+}
+
+.term pre {
+    padding: 18px 16px;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    overflow-x: auto;
+}
+
+.hero-term {
+    margin-top: 48px;
+}
+
+.p,
+.d {
+    color: var(--muted);
+}
+
+.b {
+    font-weight: 500;
+}
+
+.g {
+    color: var(--accent);
+}
+
+.r {
+    color: var(--red);
+}
+
+.caption {
+    padding: 0 16px 14px;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.band {
+    padding-block: 72px;
+    border-top: 1px solid var(--line);
+}
+
+main > .band {
+    border-top: 0;
+    position: relative;
+}
+
+main > .band::before {
+    content: "";
+    position: absolute;
+    inset: 0 24px auto;
+    height: 1px;
+    background: var(--line);
+}
+
+h2 {
+    color: var(--accent);
+    font: 500 0.85rem var(--mono);
+}
+
+.big {
+    max-width: 22em;
+    margin-top: 12px;
+    color: var(--text) !important;
+    font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+    font-weight: 600;
+    line-height: 1.14;
+    letter-spacing: -0.028em;
+}
+
+.big.small {
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+}
+
+.band p:not(.big):not(.caption) {
+    margin-top: 16px;
+    max-width: 38em;
+    color: var(--muted);
+}
+
+.band p code {
+    color: var(--text);
+    font-size: 0.9em;
+}
+
+.split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 56px;
+    align-items: start;
+}
+
+#why {
+    grid-template-columns: 180px minmax(0, 1fr);
+}
+
+#why .big {
+    margin-top: 0;
+}
+
+.steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 32px;
+    margin-top: 28px;
+    counter-reset: step;
+}
+
+.steps li {
+    counter-increment: step;
+}
+
+.steps li::before {
+    content: counter(step);
+    color: var(--muted);
+    font: 400 0.85rem var(--mono);
+}
+
+h3 {
+    margin-top: 6px;
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.steps p {
+    margin-top: 6px !important;
+    font-size: 0.95rem;
+}
+
+.rules {
+    margin-top: 24px;
+    border-top: 1px solid var(--line);
+}
+
+.rules li {
+    padding-block: 10px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.rules strong {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 32px;
+    margin-top: 24px;
+}
+
+.features dt {
+    font-weight: 600;
+}
+
+.features dd {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.lists {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px 56px;
+    max-width: 760px;
+    margin-top: 28px;
+}
+
+.lists li {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 24px;
+    padding-block: 28px 44px;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+footer .logo {
+    color: var(--text);
+}
+
+@media (max-width: 900px) {
+    .split,
+    #why {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 28px;
+    }
+
+    #why {
+        gap: 12px;
+    }
+
+    .steps,
+    .features {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 620px) {
+    .wrap {
+        padding-inline: 16px;
+    }
+
+    main > .band::before {
+        inset-inline: 16px;
+    }
+
+    .top nav a:nth-child(3),
+    .top nav a:nth-child(5) {
+        display: none;
+    }
+
+    .top nav {
+        gap: 18px;
+    }
+
+    .hero {
+        padding-block: 56px;
+    }
+
+    .band {
+        padding-block: 56px;
+    }
+
+    .steps,
+    .features,
+    .lists {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .term pre {
+        font-size: 0.74rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+}

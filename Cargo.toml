@@ -1,0 +1,27 @@
+[package]
+name = "verifique"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Let many coding agents write in parallel while one laptop verifies their work."
+
+[[bin]]
+name = "verifique"
+path = "src/main.rs"
+
+
+[profile.release]
+strip = true
+lto = "thin"
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+libc = "0.2.191"
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+serde_yaml_ng = "0.10.0"
+sha2 = "0.11.1"
+signal-hook = "0.4.6"
+ureq = { version = "2", default-features = false }
