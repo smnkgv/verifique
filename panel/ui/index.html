@@ -266,6 +266,7 @@ const REFRESH_MS = 1500;
 const MAX_SLOTS = 8;
 const MAX_HEIGHT = 640;
 const PASSED_SHOWN_S = 300;
+const QUEUED_SHOWN = 5;
 
 const tauri = window.__TAURI__;
 const invoke = (name, args) => tauri.core.invoke(name, args);
@@ -310,11 +311,13 @@ function main(s) {
         });
         html += `</section>`;
     }
+    if (s.queued.length) {
+        const shown = [...s.queued].sort((a, b) => b.priority - a.priority).slice(0, QUEUED_SHOWN).reverse();
+        const more = s.queued.length - shown.length;
+        html += `<section><h2>Queued</h2>${more ? `<div class="row quiet"><span>and ${more} more</span></div>` : ""}${shown.map((job) => `<div class="row"><span>${esc(label(job))}</span>${job.priority ? `<span>Next</span>` : `<button class="link" data-next="${job.id}">Run next</button>`}</div>`).join("")}</section>`;
+    }
     if (s.running.length) {
         html += `<section><h2>Running</h2>${s.running.map((job) => `<div class="row"><span>${esc(label(job))}</span><span>${esc(running(job))}</span></div>`).join("")}</section>`;
-    }
-    if (s.queued.length) {
-        html += `<section><h2>Queued</h2>${s.queued.map((job) => `<div class="row"><span>${esc(label(job))}</span>${job.priority ? `<span>Next</span>` : `<button class="link" data-next="${job.id}">Run next</button>`}</div>`).join("")}</section>`;
     }
     const recent = s.recent.filter((job) => job.check !== "hold").slice(0, 4);
     if (recent.length) {
