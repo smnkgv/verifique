@@ -164,12 +164,6 @@ h1 {
     background: var(--panel);
 }
 
-.film figcaption {
-    margin-top: 12px;
-    color: var(--muted);
-    font-size: 0.9rem;
-}
-
 .term {
     min-width: 0;
     border: 1px solid var(--line);
