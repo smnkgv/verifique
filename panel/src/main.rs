@@ -2,9 +2,8 @@
 
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
@@ -18,30 +17,10 @@ use tauri::{ActivationPolicy, AppHandle, LogicalSize, Manager, PhysicalPosition,
 const REOPEN_GAP: Duration = Duration::from_millis(250);
 const GAP_BELOW_ICON: f64 = 6.0;
 
-const FRAME_GAP: Duration = Duration::from_millis(160);
 const IDLE_ICON: &[u8] = include_bytes!("../icons/tray.png");
 const NEEDS_ICON: &[u8] = include_bytes!("../icons/tray-needs.png");
-const BUSY_ICONS: [&[u8]; 8] = [
-    include_bytes!("../icons/tray-busy-0.png"),
-    include_bytes!("../icons/tray-busy-1.png"),
-    include_bytes!("../icons/tray-busy-2.png"),
-    include_bytes!("../icons/tray-busy-3.png"),
-    include_bytes!("../icons/tray-busy-4.png"),
-    include_bytes!("../icons/tray-busy-5.png"),
-    include_bytes!("../icons/tray-busy-6.png"),
-    include_bytes!("../icons/tray-busy-7.png"),
-];
 
-#[derive(Clone, Copy)]
-enum Look {
-    Idle,
-    Busy,
-    Needs,
-}
-const BUSY: u8 = Look::Busy as u8;
-const NEEDS: u8 = Look::Needs as u8;
-
-static LOOK: AtomicU8 = AtomicU8::new(Look::Idle as u8);
+static NEEDS_SHOWN: AtomicBool = AtomicBool::new(false);
 static HIDDEN_AT: Mutex<Option<Instant>> = Mutex::new(None);
 
 /// `--pinned` keeps the panel open in the corner of the screen, so people watching a demo can follow it.
@@ -135,44 +114,18 @@ fn open_logs() -> Result<(), String> {
     open_path(home().join(".verifique/server.log").display().to_string())
 }
 
-/// A turning ring means a check is running. The number is how many are left, or how many need you
-/// when the tick is red.
+/// The number is how many checks are left, or how many need you when the tick is red.
 #[tauri::command]
-fn show_progress(app: AppHandle, needs: usize, left: usize, running: bool) -> Result<(), String> {
+fn show_progress(app: AppHandle, needs: usize, left: usize) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("no tray icon")?;
     let count = if needs > 0 { needs } else { left };
     tray.set_title((count > 0).then(|| count.to_string())).map_err(|error| error.to_string())?;
-    let look = if needs > 0 {
-        Look::Needs
-    } else if running {
-        Look::Busy
-    } else {
-        Look::Idle
-    } as u8;
-    if LOOK.swap(look, Ordering::Relaxed) == look {
+    if NEEDS_SHOWN.swap(needs > 0, Ordering::Relaxed) == (needs > 0) {
         return Ok(());
     }
-    let (bytes, template) = match look {
-        NEEDS => (NEEDS_ICON, false),
-        BUSY => (BUSY_ICONS[0], true),
-        _ => (IDLE_ICON, true),
-    };
+    let (bytes, template) = if needs > 0 { (NEEDS_ICON, false) } else { (IDLE_ICON, true) };
     let icon = Image::from_bytes(bytes).map_err(|error| error.to_string())?;
     tray.set_icon_with_as_template(Some(icon), template).map_err(|error| error.to_string())
-}
-
-fn turn_ring(app: AppHandle) {
-    let mut frame = 0;
-    loop {
-        sleep(FRAME_GAP);
-        if LOOK.load(Ordering::Relaxed) != BUSY {
-            continue;
-        }
-        frame = (frame + 1) % BUSY_ICONS.len();
-        if let (Some(tray), Ok(icon)) = (app.tray_by_id("main"), Image::from_bytes(BUSY_ICONS[frame])) {
-            let _ = tray.set_icon_with_as_template(Some(icon), true);
-        }
-    }
 }
 
 #[tauri::command]
@@ -210,8 +163,6 @@ fn main() {
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);
             let icon = Image::from_bytes(IDLE_ICON)?;
-            let handle = app.handle().clone();
-            std::thread::spawn(move || turn_ring(handle));
             TrayIconBuilder::with_id("main")
                 .icon(icon)
                 .icon_as_template(true)

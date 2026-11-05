@@ -352,7 +352,7 @@ async function refresh() {
     try {
         state = JSON.parse(await invoke("status"));
         lastError = "";
-        invoke("show_progress", { needs: state.needs_you.length, left: state.running.length + state.queued.length, running: state.running.length > 0 });
+        invoke("show_progress", { needs: state.needs_you.length, left: state.running.length + state.queued.length });
     } catch (error) {
         lastError = String(error);
     }
