@@ -97,8 +97,8 @@ content, and a verdict with proof.
     gets stacks on a laptop. CI keeps its own path.
 28. **Proof of the whole:** one real working day of about 15 sessions across all three repositories,
     with no stack collisions and verdicts worth trusting.
-29. **Private until that day passes.** Project configuration and sign-in scripts stay in each
-    project's own repository, never here.
+29. **Built in public, released once that day passes.** Project configuration and sign-in scripts
+    stay in each project's own repository, never here.
 
 ## Known limits
 

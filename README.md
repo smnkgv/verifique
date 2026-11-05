@@ -4,7 +4,8 @@ Run swarms of coding agents across several repositories on one laptop, and verif
 locally without verifications colliding. Agents hand over what they want checked and carry on; the
 laptop runs each check when a slot is free, and every check ends in a verdict with proof.
 
-Private and early. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Early, and not released yet: it is being proven on real projects first, so for now you build it from
+source. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 ## How it works
 
