@@ -460,6 +460,20 @@ fn the_slot_count_changes_while_the_server_runs() {
 }
 
 #[test]
+fn a_repository_cloned_again_in_the_same_place_keeps_working() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let first = detached(&world.repo, || world.submit("manual", "pass"));
+    assert_eq!(world.wait(&first).0, 0);
+
+    fs::remove_dir_all(world.repo.join(".git")).unwrap();
+    world.write_repo(&world.repo.clone());
+    commit(&world.repo, "cloned again");
+    let second = detached(&world.repo, || world.submit("manual", "pass"));
+    assert_eq!(world.wait(&second).0, 0);
+}
+
+#[test]
 fn checks_wait_for_disk_after_idle_slots_are_cleared() {
     let mut world = World::new();
     world.serve(1, &[]);

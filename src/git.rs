@@ -114,6 +114,10 @@ pub fn checkout_slot(repo: &Path, path: &Path, commit: &str) -> Result<()> {
     let parent = path.parent().context("slot worktree has no parent")?;
     fs::create_dir_all(parent)?;
     fs::write(parent.join("repo"), repo.to_string_lossy().as_bytes())?;
+    // A fresh clone in the same place leaves this copy pointing at a repository that no longer exists.
+    if path.exists() && git(path, &["rev-parse", "--git-dir"]).is_err() {
+        fs::remove_dir_all(path)?;
+    }
     if !path.exists() {
         git(repo, &["worktree", "prune"])?;
         let target = path.to_string_lossy();
