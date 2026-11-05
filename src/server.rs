@@ -95,6 +95,7 @@ struct Server {
     last_served: BTreeMap<String, u64>,
     turn: u64,
     stop: Arc<AtomicBool>,
+    freeing: Arc<AtomicBool>,
     done: Sender<Done>,
     notifier: Notifier,
 }
@@ -141,27 +142,34 @@ impl Server {
     }
 
     /// A check that runs out of disk fails in ways that read as a fault in the change, so the builds
-    /// in idle slots go first, and if that isn't enough checks wait.
+    /// in idle slots go first, and checks wait until there is room. Deleting them can take minutes,
+    /// which is why it happens off this loop: the loop's heartbeat is how people know the queue is up.
     fn enough_disk(&self) -> Result<bool> {
-        let floor = self.options.min_free_gb;
-        if paths::free_gb()? < floor {
-            let in_use: Vec<_> = self
-                .busy
-                .values()
-                .map(|running| paths::slot_worktree(&running.repo, running.indices[0]))
-                .collect();
-            let removed = git::remove_idle_worktrees(&in_use)?;
-            if removed > 0 {
-                println!("removed {removed} idle slot worktree(s) to free disk");
-            }
-        }
-        let free = paths::free_gb()?;
-        if free < floor {
-            self.store.set(KEY_LOW_DISK, &format!("Only {free} GB of disk is free, so checks are waiting until {floor} GB is"))?;
+        if self.freeing.load(Ordering::Relaxed) {
             return Ok(false);
         }
-        self.store.unset(KEY_LOW_DISK)?;
-        Ok(true)
+        let (floor, free) = (self.options.min_free_gb, paths::free_gb()?);
+        if free >= floor {
+            self.store.unset(KEY_LOW_DISK)?;
+            return Ok(true);
+        }
+        self.store.set(KEY_LOW_DISK, &format!("Only {free} GB of disk is free, so checks are waiting until {floor} GB is"))?;
+        let in_use: Vec<_> = self
+            .busy
+            .values()
+            .map(|running| paths::slot_worktree(&running.repo, running.indices[0]))
+            .collect();
+        let freeing = Arc::clone(&self.freeing);
+        freeing.store(true, Ordering::Relaxed);
+        thread::spawn(move || {
+            match git::remove_idle_worktrees(&in_use) {
+                Ok(0) => {}
+                Ok(removed) => println!("removed {removed} idle slot worktree(s) to free disk"),
+                Err(error) => eprintln!("could not free disk: {error:#}"),
+            }
+            freeing.store(false, Ordering::Relaxed);
+        });
+        Ok(false)
     }
 
     fn launch(&mut self, job: Job, indices: Vec<usize>) -> Result<()> {
@@ -281,6 +289,7 @@ pub fn serve(options: Options) -> Result<()> {
         last_served: BTreeMap::new(),
         turn: 0,
         stop: Arc::clone(&stop),
+        freeing: Arc::new(AtomicBool::new(false)),
         done: done_tx,
         notifier: Notifier::default(),
     };

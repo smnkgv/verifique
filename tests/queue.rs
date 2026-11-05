@@ -487,10 +487,12 @@ fn checks_wait_for_disk_after_idle_slots_are_cleared() {
     commit(&world.repo, "more work");
     let second = detached(&world.repo, || world.submit("manual", "pass"));
     let started = Instant::now();
-    while !world.status_json()["low_disk"].is_string() && started.elapsed() < Duration::from_secs(10) {
+    let cleared = || world.status_json()["low_disk"].is_string() && !slots.join("0").exists();
+    while !cleared() && started.elapsed() < Duration::from_secs(10) {
         sleep(Duration::from_millis(50));
     }
     let status = world.status_json();
+    assert_eq!(status["server"], true);
     assert!(status["low_disk"].as_str().unwrap().contains("GB"), "{status}");
     assert_eq!(status["queued"].as_array().unwrap().len(), 1);
     assert!(!slots.join("0").exists());
