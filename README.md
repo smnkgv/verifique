@@ -158,3 +158,7 @@ cargo test
 ```
 
 The tests need `git`, `python3` and running Postgres, Mongo and Redis.
+
+## Licence
+
+Apache-2.0. See [LICENSE](LICENSE).

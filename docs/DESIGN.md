@@ -1,6 +1,6 @@
 # Design
 
-The licence (Apache-2.0 proposed) is open. The project is owned personally by its author.
+Licensed under Apache-2.0. The project is owned personally by its author.
 
 ## The problem
 
