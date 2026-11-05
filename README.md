@@ -162,9 +162,25 @@ stays free of holds, and it runs the code as it was when taken, so take a new on
 A check runs its browser headless unless it sets `browser: headed`, and `verifique submit --headed`
 opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
 
+`verifique slots <n>` changes how many checks run at once while the server runs. A check that's
+already running is never stopped, and restarting the service goes back to the installed number.
+
 `verifique status` shows the queue and what needs you. `verifique show <job>` gives one job's proof, and
 every command that reads state takes `--json`. Slots keep their worktrees between checks so builds
 stay fast; `verifique clean` removes them.
+
+## Status-bar panel
+
+On macOS, a small app adds a tick to the menu bar. Click it to see what needs you, what's running,
+what's queued and recent verdicts with their proof, and to change how many checks run at once. It
+reads the CLI's `--json` output and acts only through the CLI, so it can't do anything the CLI can't.
+
+```bash
+panel/bundle.sh
+open panel/target/verifique.app
+```
+
+The build is signed for your own machine only. `--pinned` keeps the panel open on screen.
 
 ## Build
 
@@ -173,6 +189,12 @@ Rust 1.85 or later, on macOS or Linux.
 ```bash
 cargo build --release
 cargo test
+```
+
+Then put the binary on your `PATH`, for example:
+
+```bash
+ln -s "$PWD/target/release/verifique" ~/.local/bin/verifique
 ```
 
 The tests need `git`, `python3` and running Postgres, Mongo and Redis.

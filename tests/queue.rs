@@ -435,6 +435,22 @@ fn never_more_jobs_run_at_once_than_there_are_slots() {
 }
 
 #[test]
+fn the_slot_count_changes_while_the_server_runs() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    assert!(world.run(&["slots", "2"]).status.success());
+    assert!(!world.run(&["slots", "0"]).status.success());
+    let jobs = detached(&world.repo, || {
+        (0..4).map(|_| world.submit("manual", "slow")).collect::<Vec<_>>()
+    });
+    for job in &jobs {
+        assert_eq!(world.wait(job).0, 0);
+    }
+    assert_eq!(world.peak_concurrency(), 2);
+    assert_eq!(world.status_json()["slots"], 2);
+}
+
+#[test]
 fn two_repositories_share_one_machines_slots_and_take_turns() {
     let mut world = World::new();
     let other = world.root.join("project").join("other");

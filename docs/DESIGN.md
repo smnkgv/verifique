@@ -65,7 +65,7 @@ content, and a verdict with proof.
     a resubmission after a failure goes first, then oldest first. `next` overrides this for one job.
 17. **Fixed slots.** The number is set per machine and defaults to 2. `verifique slots <n>` changes it
     while the server runs, and the status-bar panel uses the same command. Lowering it never stops a
-    running check. Not built yet.
+    running check. A restart of the service goes back to the installed number.
 18. **A check can take several slots,** for a suite with several workers. It gets as many as the
     machine has, sharing one build, and the scheduler holds slots back so it cannot starve.
 19. **Apps use the project's own `.env`,** as a user would. Slot values override it. Installing warns
@@ -87,8 +87,8 @@ content, and a verdict with proof.
     Tauri so one codebase covers the macOS menu bar first, then the Windows tray and Linux. The icon shows a count only when something needs
     you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
     with actions limited to viewing proof, handing a branch back and running a job next. It reads the
-    core's `--json` output and acts only through the CLI. A CLI-only install stays available. It comes after the core works on all
-    three repositories, and Windows also needs the core ported.
+    core's `--json` output and acts only through the CLI. A CLI-only install stays available. The
+    macOS panel is built. Windows also needs the core ported.
 26. **Rehearsal:** three real repositories, web first and then native mobile, followed by an unrelated
     project, each from a stripped copy. A rehearsal passes on: setup by a fresh agent with no help, `doctor` passing,
     a real change reaching a verdict you have reviewed, at least 4 of 5 planted bugs caught with no good
@@ -112,6 +112,7 @@ content, and a verdict with proof.
     and `setup` steps have to test something real, and planted bugs measure how far to trust a pass.
 -   A checker's powers depend on the user's agent settings, so verdicts can rest on different
     abilities from one machine to another.
+-   The panel is signed for one machine: sharing it needs an Apple Developer ID.
 -   A server a checker starts by hand can outlive its job, using memory until the next job in that
     slot stops it.
 -   An agent can dodge the failure limit by moving to a new branch.

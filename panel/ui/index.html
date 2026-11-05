@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>verifique</title>
+<style>
+:root {
+    --surface: rgb(250 250 248 / 0.96);
+    --raised: rgb(0 0 0 / 0.05);
+    --line: rgb(0 0 0 / 0.1);
+    --text: #1c1d1c;
+    --muted: #6d716c;
+    --good: #16894d;
+    --bad: #cf3b2e;
+    --bad-soft: rgb(207 59 46 / 0.1);
+    --accent: #16894d;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --surface: rgb(29 31 29 / 0.97);
+        --raised: rgb(255 255 255 / 0.07);
+        --line: rgb(255 255 255 / 0.11);
+        --text: #eff0ec;
+        --muted: #a2a6a0;
+        --good: #3ddc84;
+        --bad: #ff7b6e;
+        --bad-soft: rgb(255 107 94 / 0.14);
+        --accent: #3ddc84;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    background: transparent;
+    overflow: hidden;
+}
+
+body {
+    color: var(--text);
+    font: 400 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    cursor: default;
+}
+
+h1, h2, p, dl, dd, ol {
+    margin: 0;
+    padding: 0;
+}
+
+button {
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: none;
+    font: inherit;
+}
+
+#panel {
+    width: 360px;
+    max-height: 640px;
+    overflow-y: auto;
+    border: 0.5px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 0.5px solid var(--line);
+}
+
+h1 {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.count {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+section {
+    padding: 10px 14px;
+    border-bottom: 0.5px solid var(--line);
+}
+
+h2 {
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 3px 0;
+    text-align: left;
+}
+
+.row > :first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.row > :last-child {
+    flex: none;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+button.row:hover > :first-child {
+    text-decoration: underline;
+}
+
+.passed { color: var(--good) !important; }
+.failed { color: var(--bad) !important; }
+
+.row > .link {
+    color: var(--accent);
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+
+.needs {
+    background: var(--bad-soft);
+    color: var(--bad);
+}
+
+.needs h2 {
+    color: var(--bad);
+    font-weight: 600;
+}
+
+.needs p + p {
+    margin-top: 8px;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.pill {
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: var(--raised);
+    color: var(--text);
+    font-size: 12px;
+}
+
+.pill:hover {
+    background: var(--line);
+}
+
+.quiet {
+    color: var(--muted);
+}
+
+.slots {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.stepper {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: 7px;
+    background: var(--raised);
+}
+
+.stepper button {
+    width: 28px;
+    height: 24px;
+    border-radius: 7px;
+    font-size: 15px;
+}
+
+.stepper button:hover:not(:disabled) {
+    background: var(--line);
+}
+
+.stepper button:disabled {
+    color: var(--muted);
+    opacity: 0.5;
+}
+
+.stepper span {
+    min-width: 20px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    color: var(--muted);
+}
+
+footer button:hover {
+    color: var(--text);
+}
+
+.back {
+    color: var(--muted);
+}
+
+.back:hover {
+    color: var(--text);
+}
+
+.verdict {
+    margin-bottom: 4px;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.body {
+    user-select: text;
+    line-height: 1.45;
+}
+
+.shot {
+    display: block;
+    width: 100%;
+    border: 0.5px solid var(--line);
+    border-radius: 6px;
+}
+
+ol {
+    padding-left: 18px;
+}
+
+ol li + li {
+    margin-top: 4px;
+}
+</style>
+</head>
+<body>
+<main id="panel" aria-live="polite"></main>
+<script>
+const REFRESH_MS = 1500;
+const MAX_SLOTS = 8;
+const MAX_HEIGHT = 640;
+
+const tauri = window.__TAURI__;
+const invoke = (name, args) => tauri.core.invoke(name, args);
+const panel = document.getElementById("panel");
+let state = null, proof = null, lastError = "";
+
+const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+const repoName = (repo) => repo.split("/").filter(Boolean).pop();
+const label = (job) => `${repoName(job.repo)} · ${job.check}`;
+const since = (stamp) => (Date.now() - Date.parse(`${stamp.replace(" ", "T")}Z`)) / 1000;
+
+function span(seconds) {
+    if (seconds < 60) return `${Math.max(0, Math.round(seconds))}s`;
+    return `${Math.round(seconds / 60)}m`;
+}
+
+function running(job) {
+    const slot = `slot ${job.slots.join(", ")}`;
+    if (job.hold_until) return `${slot} · ${span(job.hold_until - Date.now() / 1000)} left`;
+    return job.started_at ? `${slot} · ${span(since(job.started_at))}` : slot;
+}
+
+const WORDS = { passed: "Passed", failed: "Failed", blocked: "Blocked", error: "Error", superseded: "Replaced" };
+const tone = (status) => (status === "passed" ? "passed" : status === "failed" || status === "blocked" || status === "error" ? "failed" : "");
+
+function needsLine(item) {
+    const where = `${repoName(item.repo)} / ${item.branch}`;
+    return item.failures >= 3 ? `${where} failed ${item.failures} times in a row` : `${where}: ${item.reason}`;
+}
+
+function main(s) {
+    const busy = new Set(s.running.flatMap((job) => job.slots)).size;
+    let html = `<header><h1>verifique</h1><span class="count">${busy}/${s.slots} slots busy, ${s.queued.length} queued</span></header>`;
+    if (!s.server) html += `<section class="needs"><h2>The queue isn't running</h2><p>Checks wait until it starts. Run: verifique service install</p></section>`;
+    if (s.needs_you.length) {
+        html += `<section class="needs"><h2>Needs you</h2>`;
+        s.needs_you.forEach((item, n) => {
+            const last = s.recent.find((job) => job.repo === item.repo && job.branch === item.branch && job.check === item.check);
+            html += `<p>${esc(needsLine(item))}</p><div class="actions">${last ? `<button class="pill" data-proof="${last.id}">View proof</button>` : ""}<button class="pill" data-back="${n}">Hand back</button></div>`;
+        });
+        html += `</section>`;
+    }
+    if (s.running.length) {
+        html += `<section><h2>Running</h2>${s.running.map((job) => `<div class="row"><span>${esc(label(job))}</span><span>${esc(running(job))}</span></div>`).join("")}</section>`;
+    }
+    if (s.queued.length) {
+        html += `<section><h2>Queued</h2>${s.queued.map((job) => `<div class="row"><span>${esc(label(job))}</span>${job.priority ? `<span>Next</span>` : `<button class="link" data-next="${job.id}">Run next</button>`}</div>`).join("")}</section>`;
+    }
+    const recent = s.recent.filter((job) => job.check !== "hold").slice(0, 4);
+    if (recent.length) {
+        html += `<section><h2>Recent</h2>${recent.map((job) => `<button class="row" data-proof="${job.id}"><span>${esc(label(job))}</span><span class="${tone(job.status)}">${esc(WORDS[job.status] ?? job.status)}</span></button>`).join("")}</section>`;
+    }
+    if (!s.running.length && !s.queued.length && !recent.length) html += `<section class="quiet">Nothing in the queue yet.</section>`;
+    html += `<section class="slots"><span>Checks at once</span><div class="stepper"><button data-slots="${s.slots - 1}" aria-label="Fewer" ${s.slots <= 1 ? "disabled" : ""}>−</button><span>${s.slots}</span><button data-slots="${s.slots + 1}" aria-label="More" ${s.slots >= MAX_SLOTS ? "disabled" : ""}>+</button></div></section>`;
+    if (lastError) html += `<section class="needs"><p>${esc(lastError)}</p></section>`;
+    html += `<footer><button data-logs>Open logs</button><button data-quit>Quit panel</button></footer>`;
+    return html;
+}
+
+function proofView(p) {
+    const job = p.job, verdict = p.verdict ?? {};
+    const status = verdict.status ?? job.status;
+    let html = `<header><button class="back" data-home>‹ Back</button><span class="count">${esc(label(job))}</span></header>`;
+    html += `<section><p class="verdict ${tone(status)}">${esc(WORDS[status] ?? status)}</p><p class="body">${esc(verdict.summary ?? job.summary ?? "")}</p></section>`;
+    if (p.image) html += `<section><h2>What it saw</h2><img class="shot" alt="Screenshot from the check" src="${p.image}"></section>`;
+    if (verdict.steps?.length) html += `<section><h2>Steps</h2><ol class="body">${verdict.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol></section>`;
+    if (verdict.not_checked) html += `<section><h2>Not checked</h2><p class="body">${esc(verdict.not_checked)}</p></section>`;
+    html += `<footer><button data-open="${esc(p.dir)}">Open all evidence</button><button data-home>Done</button></footer>`;
+    return html;
+}
+
+panel.addEventListener("load", () => proof && invoke("set_height", { height: Math.min(MAX_HEIGHT, Math.ceil(panel.scrollHeight) + 2) }), true);
+
+function paint() {
+    if (!state && !proof) return;
+    const scroll = panel.scrollTop;
+    panel.innerHTML = proof ? proofView(proof) : main(state);
+    panel.scrollTop = scroll;
+    invoke("set_height", { height: Math.min(MAX_HEIGHT, Math.ceil(panel.scrollHeight) + 2) });
+}
+
+async function refresh() {
+    try {
+        state = JSON.parse(await invoke("status"));
+        lastError = "";
+        invoke("set_badge", { count: state.needs_you.length });
+    } catch (error) {
+        lastError = String(error);
+    }
+    if (!proof) paint();
+}
+
+async function act(name, args) {
+    try {
+        await invoke(name, args);
+        lastError = "";
+    } catch (error) {
+        lastError = String(error);
+    }
+    refresh();
+}
+
+panel.addEventListener("click", async (event) => {
+    const target = event.target.closest("button");
+    if (!target) return;
+    const d = target.dataset;
+    if (d.proof) {
+        proof = JSON.parse(await invoke("proof", { job: Number(d.proof) }));
+        const shot = (proof.verdict?.evidence ?? []).filter((file) => /\.(png|jpe?g)$/i.test(file)).pop();
+        if (shot) proof.image = await invoke("evidence_image", { path: shot }).catch(() => null);
+        panel.scrollTop = 0;
+        paint();
+    } else if (d.home !== undefined) {
+        proof = null;
+        panel.scrollTop = 0;
+        paint();
+    } else if (d.next) {
+        act("run_next", { job: Number(d.next) });
+    } else if (d.slots) {
+        act("set_slots", { count: Number(d.slots) });
+    } else if (d.back) {
+        const item = state.needs_you[Number(d.back)];
+        act("hand_back", { repo: item.repo, branch: item.branch });
+    } else if (d.open) {
+        invoke("open_path", { path: d.open });
+    } else if (d.logs !== undefined) {
+        invoke("open_logs");
+    } else if (d.quit !== undefined) {
+        invoke("quit");
+    }
+});
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>

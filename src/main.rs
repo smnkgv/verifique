@@ -99,6 +99,8 @@ enum Commands {
     },
     /// Run one queued job next
     Next { job: i64 },
+    /// Change how many checks run at once, while the server runs
+    Slots { count: usize },
     /// Hand a branch in needs-you back to its agents
     Clear {
         #[arg(long)]
@@ -566,6 +568,14 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 bail!("job {job} is not queued");
             }
             println!("job {job} runs next");
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Slots { count } => {
+            if count == 0 {
+                bail!("the queue needs at least one slot");
+            }
+            Store::open()?.set(server::KEY_SLOTS, &count.to_string())?;
+            println!("{count} slot(s)");
             Ok(ExitCode::SUCCESS)
         }
         Commands::Clear { branch, check } => clear(branch, check),

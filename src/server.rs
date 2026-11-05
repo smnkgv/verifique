@@ -122,9 +122,14 @@ impl Server {
         Ok(holder.is_some_and(alive))
     }
 
+    /// Read fresh each time, because `verifique slots` changes it while the server runs.
+    fn slots(&self) -> usize {
+        self.store.setting(KEY_SLOTS).ok().flatten().and_then(|value| value.parse().ok()).unwrap_or(self.options.slots)
+    }
+
     fn free_indices(&self) -> Vec<usize> {
         let taken: Vec<usize> = self.busy.values().flat_map(|running| running.indices.iter().copied()).collect();
-        (0..self.options.slots).filter(|index| !taken.contains(index)).collect()
+        (0..self.slots()).filter(|index| !taken.contains(index)).collect()
     }
 
     fn launch(&mut self, job: Job, indices: Vec<usize>) -> Result<()> {
@@ -166,7 +171,7 @@ impl Server {
         }
         // Holds never take the last slot, so an investigation cannot stop every check.
         let holds = self.busy.values().filter(|running| running.hold).count();
-        let room_for_hold = holds < self.options.slots.saturating_sub(1).max(1);
+        let room_for_hold = holds < self.slots().saturating_sub(1).max(1);
         runnable.retain(|job| room_for_hold || job.plan.hold_minutes.is_none());
         let candidates: Vec<Candidate> = runnable
             .iter()
@@ -184,7 +189,7 @@ impl Server {
         };
         // A check gets as many slots as this machine has. When it needs more than are free, nothing
         // else starts: smaller jobs slipping past would otherwise keep it waiting for ever.
-        let width = job.plan.check.slots.unwrap_or(1).min(self.options.slots);
+        let width = job.plan.check.slots.unwrap_or(1).min(self.slots());
         if free.len() >= width {
             self.launch((*job).clone(), free[..width].to_vec())?;
         }

@@ -4,3 +4,4 @@ node_modules/
 film/**/out/
 film/**/storyboard.html
 film/01-the-queue/
+panel/gen/
