@@ -93,6 +93,8 @@ stacks:
 
 checks:
     tests:
+        prepare:                # a check with no stack starts from a clean checkout
+            - npm ci
         run: npm test
     e2e:
         stack: web
