@@ -1,0 +1,9 @@
+{
+    "name": "verifique-film",
+    "private": true,
+    "type": "module",
+    "description": "Renders verifique's film from a page whose every frame is a pure function of time.",
+    "devDependencies": {
+        "playwright": "^1.64.1"
+    }
+}

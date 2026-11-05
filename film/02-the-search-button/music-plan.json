@@ -1,0 +1,350 @@
+{
+ "title": "The search button: documentary score",
+ "film": "02-the-search-button",
+ "timing": "/Users/smnkgv/src/verifique/film/02-the-search-button/timing.json",
+ "film_length_ms": 120360,
+ "covers_ms": [
+  0,
+  120360
+ ],
+ "model_id": "music_v2_5",
+ "seed": 3101,
+ "take": "1",
+ "out_stem": "/Users/smnkgv/src/verifique-film-assets/02-the-search-button/music/score-1",
+ "formats": [
+  "pcm_48000",
+  "mp3_48000_320",
+  "mp3_48000_192"
+ ],
+ "shared_styles": {
+  "open": [
+   "documentary score",
+   "piano and strings",
+   "gentle",
+   "warm"
+  ],
+  "close": [
+   "70 BPM",
+   "instrumental"
+  ],
+  "negative": [
+   "vocals",
+   "singing",
+   "lyrics",
+   "spoken word"
+  ]
+ },
+ "cues": [
+  {
+   "name": "The request",
+   "from_s": 0,
+   "to_s": 16.62,
+   "shots": "1.1-1.3",
+   "picture": "your desk in the evening; you ask an agent for a search bar and try it"
+  },
+  {
+   "name": "Nothing happens",
+   "from_s": 16.62,
+   "to_s": 27.38,
+   "shots": "1.4-1.5",
+   "picture": "the button does nothing; the agent never tried it"
+  },
+  {
+   "name": "Ten agents",
+   "from_s": 27.38,
+   "to_s": 41.92,
+   "shots": "2.1-2.2",
+   "picture": "one agent becomes ten and the evening slips away testing them by hand"
+  },
+  {
+   "name": "The laptop struggles",
+   "from_s": 41.92,
+   "to_s": 51.44,
+   "shots": "2.3",
+   "picture": "all the copies start at once and the laptop overheats"
+  },
+  {
+   "name": "Morning",
+   "from_s": 51.44,
+   "to_s": 57.88,
+   "shots": "3.1",
+   "picture": "morning light; the laptop is calm and verifique appears"
+  },
+  {
+   "name": "Handing it in",
+   "from_s": 57.88,
+   "to_s": 82.56,
+   "shots": "4.1-4.3",
+   "picture": "agents hand in their work and keep going; a separate agent tests it"
+  },
+  {
+   "name": "Nothing happens again",
+   "from_s": 82.56,
+   "to_s": 85.88,
+   "shots": "4.4",
+   "picture": "the same broken button, caught by verifique this time"
+  },
+  {
+   "name": "Sent back and fixed",
+   "from_s": 85.88,
+   "to_s": 96.7,
+   "shots": "4.5-4.6",
+   "picture": "the work goes back to its agent with what went wrong, and it is fixed"
+  },
+  {
+   "name": "It works",
+   "from_s": 96.7,
+   "to_s": 104.34,
+   "shots": "4.7",
+   "picture": "the results come up and the proof is saved"
+  },
+  {
+   "name": "You come back",
+   "from_s": 104.34,
+   "to_s": 120.36,
+   "shots": "5.1-5.2",
+   "picture": "a bright morning, a coffee, and a shop that works"
+  }
+ ],
+ "composition_plan": {
+  "chunks": [
+   {
+    "text": "[The request]\n{Solo piano introduces a simple, gentle main theme, light and a little curious, with soft strings coming in quietly beneath it.}",
+    "duration_ms": 16620,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "evening",
+     "curious",
+     "light",
+     "main theme introduced on solo piano",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[Nothing happens]\n{The music thins to a few slow, quiet piano notes over one soft held string note, thoughtful and a little deflated.}",
+    "duration_ms": 10760,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "sparse",
+     "thoughtful",
+     "quiet",
+     "a little deflated",
+     "slow piano notes",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[Ten agents]\n{A flowing piano figure with gentle forward motion, busier as more strings join, the evening passing, growing a little weary.}",
+    "duration_ms": 14540,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "light forward motion",
+     "flowing piano",
+     "growing",
+     "busy",
+     "evening passing",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[The laptop struggles]\n{Strings grow uneasy and restless under a repeating piano figure, tense but never loud, then settle onto a quiet held chord.}",
+    "duration_ms": 9520,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "uneasy",
+     "restless",
+     "tense but gentle",
+     "repeating piano figure",
+     "settling at the end",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[Morning]\n{The main theme returns on piano, warm and clear, as the strings open up like morning light, calm and hopeful.}",
+    "duration_ms": 6440,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "morning",
+     "hopeful",
+     "opening up",
+     "main theme returns",
+     "calm",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[Handing it in]\n{A light, steady, flowing piano figure over soft strings, orderly and unhurried, with quiet curiosity building towards the end.}",
+    "duration_ms": 24680,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "light forward motion",
+     "steady",
+     "orderly",
+     "unhurried",
+     "quiet curiosity",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[Nothing happens again]\n{The music thins to the same few slow, quiet piano notes over one soft held string note.}",
+    "duration_ms": 3320,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "sparse",
+     "quiet",
+     "slow piano notes",
+     "held string note",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[Sent back and fixed]\n{Gentle forward motion returns on piano, purposeful and quietly confident, with strings slowly gathering.}",
+    "duration_ms": 10820,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "purposeful",
+     "quietly confident",
+     "gentle forward motion",
+     "strings gathering",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[It works]\n{The main theme lifts on piano and strings, warm and bright, a quiet moment of relief, then it settles.}",
+    "duration_ms": 7640,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "bright",
+     "relief",
+     "warm lift",
+     "main theme",
+     "settling",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   },
+   {
+    "text": "[You come back]\n{The main theme on solo piano with soft strings beneath, peaceful and warm, ending softly on a long held chord that fades to silence.}",
+    "duration_ms": 16020,
+    "positive_styles": [
+     "documentary score",
+     "piano and strings",
+     "gentle",
+     "warm",
+     "peaceful",
+     "morning",
+     "main theme returns",
+     "soft ending",
+     "fading to silence",
+     "70 BPM",
+     "instrumental"
+    ],
+    "negative_styles": [
+     "vocals",
+     "singing",
+     "lyrics",
+     "spoken word"
+    ],
+    "context_adherence": "high"
+   }
+  ]
+ }
+}

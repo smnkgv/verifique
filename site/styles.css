@@ -150,6 +150,26 @@ h1 {
     border-color: var(--muted);
 }
 
+.film {
+    margin-top: 44px;
+}
+
+.film video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+}
+
+.film figcaption {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
 .term {
     min-width: 0;
     border: 1px solid var(--line);
@@ -170,10 +190,6 @@ h1 {
     font-size: 0.82rem;
     line-height: 1.65;
     overflow-x: auto;
-}
-
-.hero-term {
-    margin-top: 48px;
 }
 
 .p,

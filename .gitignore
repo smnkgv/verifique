@@ -1,3 +1,6 @@
 target/
 node_modules/
 .claude/
+film/**/out/
+film/**/storyboard.html
+film/01-the-queue/

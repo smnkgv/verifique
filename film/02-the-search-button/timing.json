@@ -1,0 +1,553 @@
+{
+ "fps": 30,
+ "shots": [
+  {
+   "lines": [
+    {
+     "id": "1.1",
+     "chunks": [
+      {
+       "text": "You ask an AI agent to add a search bar to your shop."
+      }
+     ],
+     "voiceAt": 2.0,
+     "seconds": 3.76,
+     "voiced": "You ask an AI agent to add a search bar to your shop.",
+     "captions": [
+      {
+       "text": "You ask an AI agent to add a search bar to your shop.",
+       "from": 2.0,
+       "to": 5.76
+      }
+     ]
+    }
+   ],
+   "start": 0,
+   "dur": 6.26
+  },
+  {
+   "lines": [
+    {
+     "id": "1.2",
+     "chunks": [
+      {
+       "text": "It gets to work, and a few minutes later, it tells you it's done."
+      }
+     ],
+     "voiceAt": 6.26,
+     "seconds": 4.0,
+     "voiced": "It gets to work, and a few minutes later, it tells you it's done.",
+     "captions": [
+      {
+       "text": "It gets to work, and a few minutes later,",
+       "from": 6.26,
+       "to": 8.7
+      },
+      {
+       "text": "it tells you it's done.",
+       "from": 8.74,
+       "to": 10.34
+      }
+     ]
+    }
+   ],
+   "start": 6.26,
+   "dur": 4.6
+  },
+  {
+   "lines": [
+    {
+     "id": "1.3",
+     "chunks": [
+      {
+       "text": "So you open the shop, type \"red shoes\", and press Search."
+      }
+     ],
+     "voiceAt": 10.86,
+     "seconds": 4.56,
+     "voiced": "So you open the shop, type \"red shoes\", and press Search.",
+     "captions": [
+      {
+       "text": "So you open the shop, type \"red shoes\",",
+       "from": 10.86,
+       "to": 13.9
+      },
+      {
+       "text": "and press Search.",
+       "from": 13.98,
+       "to": 15.42
+      }
+     ]
+    }
+   ],
+   "start": 10.86,
+   "dur": 5.76
+  },
+  {
+   "lines": [
+    {
+     "id": "1.4",
+     "chunks": [
+      {
+       "text": "Nothing happens."
+      }
+     ],
+     "voiceAt": 16.62,
+     "seconds": 1.52,
+     "voiced": "Nothing happens.",
+     "captions": [
+      {
+       "text": "Nothing happens.",
+       "from": 16.62,
+       "to": 18.14
+      }
+     ]
+    }
+   ],
+   "start": 16.62,
+   "dur": 3.32
+  },
+  {
+   "lines": [
+    {
+     "id": "1.5",
+     "chunks": [
+      {
+       "text": "The agent wrote the code, but it never opened the shop to try it. That part was left to you."
+      }
+     ],
+     "voiceAt": 19.94,
+     "seconds": 6.24,
+     "voiced": "The agent wrote the code, but it never opened the shop to try it. That part was left to you.",
+     "captions": [
+      {
+       "text": "The agent wrote the code,",
+       "from": 19.94,
+       "to": 21.62
+      },
+      {
+       "text": "but it never opened the shop to try it.",
+       "from": 21.66,
+       "to": 24.1
+      },
+      {
+       "text": "That part was left to you.",
+       "from": 24.18,
+       "to": 26.18
+      }
+     ]
+    }
+   ],
+   "start": 19.94,
+   "dur": 7.44
+  },
+  {
+   "lines": [
+    {
+     "id": "2.1",
+     "chunks": [
+      {
+       "text": "With one agent, that's fine. But it works so well that soon you're running ten."
+      }
+     ],
+     "voiceAt": 27.38,
+     "seconds": 5.6,
+     "voiced": "With one agent, that's fine. But it works so well that soon you're running ten.",
+     "captions": [
+      {
+       "text": "With one agent, that's fine.",
+       "from": 27.38,
+       "to": 29.58
+      },
+      {
+       "text": "But it works so well that soon you're running ten.",
+       "from": 29.62,
+       "to": 33.06
+      }
+     ]
+    }
+   ],
+   "start": 27.38,
+   "dur": 6.1
+  },
+  {
+   "lines": [
+    {
+     "id": "2.2",
+     "chunks": [
+      {
+       "text": "They all finish around the same time, and now you're the one testing all ten, by hand, one after another."
+      }
+     ],
+     "voiceAt": 33.48,
+     "seconds": 7.84,
+     "voiced": "They all finish around the same time, and now you're the one testing all ten, by hand, one after another.",
+     "captions": [
+      {
+       "text": "They all finish around the same time,",
+       "from": 33.48,
+       "to": 35.8
+      },
+      {
+       "text": "and now you're the one testing all ten,",
+       "from": 35.88,
+       "to": 38.64
+      },
+      {
+       "text": "by hand, one after another.",
+       "from": 38.68,
+       "to": 41.4
+      }
+     ]
+    }
+   ],
+   "start": 33.48,
+   "dur": 8.44
+  },
+  {
+   "lines": [
+    {
+     "id": "2.3",
+     "chunks": [
+      {
+       "text": "You could ask each agent to test its own work. But then they all start your shop at once, and your laptop can't keep up."
+      }
+     ],
+     "voiceAt": 41.92,
+     "seconds": 7.92,
+     "voiced": "You could ask each agent to test its own work. But then they all start your shop at once, and your laptop can't keep up.",
+     "captions": [
+      {
+       "text": "You could ask each agent to test its own work.",
+       "from": 41.92,
+       "to": 45.24
+      },
+      {
+       "text": "But then they all start your shop at once,",
+       "from": 45.28,
+       "to": 47.71
+      },
+      {
+       "text": "and your laptop can't keep up.",
+       "from": 47.73,
+       "to": 49.92
+      }
+     ]
+    }
+   ],
+   "start": 41.92,
+   "dur": 9.52
+  },
+  {
+   "lines": [
+    {
+     "id": "3.1",
+     "chunks": [
+      {
+       "text": "That's what verifeek is for. It's a verification queue that runs on your laptop."
+      }
+     ],
+     "voiceAt": 51.44,
+     "seconds": 5.44,
+     "voiced": "That's what verifeek is for. It's a verification queue that runs on your laptop.",
+     "captions": [
+      {
+       "text": "That's what verifique is for.",
+       "from": 51.44,
+       "to": 53.64
+      },
+      {
+       "text": "It's a verification queue that runs on your laptop.",
+       "from": 53.68,
+       "to": 56.96
+      }
+     ]
+    }
+   ],
+   "start": 51.44,
+   "dur": 6.44
+  },
+  {
+   "lines": [
+    {
+     "id": "4.1",
+     "chunks": [
+      {
+       "text": "Now, when an agent finishes, it hands its work to the queue and moves on to the next job."
+      }
+     ],
+     "voiceAt": 57.88,
+     "seconds": 5.92,
+     "voiced": "Now, when an agent finishes, it hands its work to the queue and moves on to the next job.",
+     "captions": [
+      {
+       "text": "Now, when an agent finishes,",
+       "from": 57.88,
+       "to": 59.96
+      },
+      {
+       "text": "it hands its work to the queue and moves on to the next job.",
+       "from": 60.04,
+       "to": 63.88
+      }
+     ]
+    }
+   ],
+   "start": 57.88,
+   "dur": 6.52
+  },
+  {
+   "lines": [
+    {
+     "id": "4.2",
+     "chunks": [
+      {
+       "text": "Verifeek starts a copy of your shop for each piece of work, a few at a time, so your laptop keeps up."
+      }
+     ],
+     "voiceAt": 64.4,
+     "seconds": 6.96,
+     "voiced": "Verifeek starts a copy of your shop for each piece of work, a few at a time, so your laptop keeps up.",
+     "captions": [
+      {
+       "text": "verifique starts a copy of your shop for each piece of work,",
+       "from": 64.4,
+       "to": 68.16
+      },
+      {
+       "text": "a few at a time, so your laptop keeps up.",
+       "from": 68.24,
+       "to": 71.44
+      }
+     ]
+    }
+   ],
+   "start": 64.4,
+   "dur": 7.56
+  },
+  {
+   "lines": [
+    {
+     "id": "4.3",
+     "chunks": [
+      {
+       "text": "Then a separate agent, one that didn't write the code, uses it like a real user. It types \"red shoes\", and presses Search."
+      }
+     ],
+     "voiceAt": 71.96,
+     "seconds": 9.2,
+     "voiced": "Then a separate agent, one that didn't write the code, uses it like a real user. It types \"red shoes\", and presses Search.",
+     "captions": [
+      {
+       "text": "Then a separate agent,",
+       "from": 71.96,
+       "to": 73.64
+      },
+      {
+       "text": "one that didn't write the code,",
+       "from": 73.72,
+       "to": 75.4
+      },
+      {
+       "text": "uses it like a real user.",
+       "from": 75.48,
+       "to": 77.64
+      },
+      {
+       "text": "It types \"red shoes\", and presses Search.",
+       "from": 77.72,
+       "to": 81.16
+      }
+     ]
+    }
+   ],
+   "start": 71.96,
+   "dur": 10.6
+  },
+  {
+   "lines": [
+    {
+     "id": "4.4",
+     "chunks": [
+      {
+       "text": "Nothing happens."
+      }
+     ],
+     "voiceAt": 82.56,
+     "seconds": 1.52,
+     "voiced": "Nothing happens.",
+     "captions": [
+      {
+       "text": "Nothing happens.",
+       "from": 82.56,
+       "to": 84.08
+      }
+     ]
+    }
+   ],
+   "start": 82.56,
+   "dur": 3.32
+  },
+  {
+   "lines": [
+    {
+     "id": "4.5",
+     "chunks": [
+      {
+       "text": "So the work goes back to the agent that wrote it, along with exactly what went wrong."
+      }
+     ],
+     "voiceAt": 85.88,
+     "seconds": 5.36,
+     "voiced": "So the work goes back to the agent that wrote it, along with exactly what went wrong.",
+     "captions": [
+      {
+       "text": "So the work goes back to the agent that wrote it,",
+       "from": 85.88,
+       "to": 88.72
+      },
+      {
+       "text": "along with exactly what went wrong.",
+       "from": 88.76,
+       "to": 91.32
+      }
+     ]
+    }
+   ],
+   "start": 85.88,
+   "dur": 5.86
+  },
+  {
+   "lines": [
+    {
+     "id": "4.6",
+     "chunks": [
+      {
+       "text": "The agent fixes the button, and the work joins the queue again."
+      }
+     ],
+     "voiceAt": 91.74,
+     "seconds": 4.16,
+     "voiced": "The agent fixes the button, and the work joins the queue again.",
+     "captions": [
+      {
+       "text": "The agent fixes the button,",
+       "from": 91.74,
+       "to": 93.63
+      },
+      {
+       "text": "and the work joins the queue again.",
+       "from": 93.69,
+       "to": 95.98
+      }
+     ]
+    }
+   ],
+   "start": 91.74,
+   "dur": 4.96
+  },
+  {
+   "lines": [
+    {
+     "id": "4.7",
+     "chunks": [
+      {
+       "text": "This time, the results come up. And verifeek saves what it did and what it saw, as proof."
+      }
+     ],
+     "voiceAt": 96.7,
+     "seconds": 6.64,
+     "voiced": "This time, the results come up. And verifeek saves what it did and what it saw, as proof.",
+     "captions": [
+      {
+       "text": "This time, the results come up.",
+       "from": 96.7,
+       "to": 99.02
+      },
+      {
+       "text": "And verifique saves what it did and what it saw,",
+       "from": 99.1,
+       "to": 102.3
+      },
+      {
+       "text": "as proof.",
+       "from": 102.38,
+       "to": 103.34
+      }
+     ]
+    }
+   ],
+   "start": 96.7,
+   "dur": 7.64
+  },
+  {
+   "lines": [
+    {
+     "id": "5.1",
+     "chunks": [
+      {
+       "text": "So when you come back, you don't have ten things to test. You have ten things that work."
+      }
+     ],
+     "voiceAt": 104.34,
+     "seconds": 6.32,
+     "voiced": "So when you come back, you don't have ten things to test. You have ten things that work.",
+     "captions": [
+      {
+       "text": "So when you come back,",
+       "from": 104.34,
+       "to": 105.86
+      },
+      {
+       "text": "you don't have ten things to test.",
+       "from": 105.94,
+       "to": 108.1
+      },
+      {
+       "text": "You have ten things that work.",
+       "from": 108.18,
+       "to": 110.66
+      }
+     ]
+    }
+   ],
+   "start": 104.34,
+   "dur": 7.52
+  },
+  {
+   "lines": [
+    {
+     "id": "5.2",
+     "chunks": [
+      {
+       "text": "Verifeek is free and open source. If you run a lot of agents, we'd love you to try it."
+      }
+     ],
+     "voiceAt": 111.86,
+     "seconds": 6.0,
+     "voiced": "Verifeek is free and open source. If you run a lot of agents, we'd love you to try it.",
+     "captions": [
+      {
+       "text": "verifique is free and open source.",
+       "from": 111.86,
+       "to": 114.62
+      },
+      {
+       "text": "If you run a lot of agents,",
+       "from": 114.66,
+       "to": 116.22
+      },
+      {
+       "text": "we'd love you to try it.",
+       "from": 116.26,
+       "to": 117.94
+      }
+     ]
+    }
+   ],
+   "start": 111.86,
+   "dur": 8.5
+  }
+ ],
+ "duration": 120.36
+}

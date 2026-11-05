@@ -1,0 +1,298 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>The search button</title>
+<style>
+@font-face {
+    font-family: Geist;
+    src: url("../fonts/Geist.woff2") format("woff2");
+    font-weight: 100 900;
+}
+
+html, body {
+    margin: 0;
+    height: 100%;
+    background: #0e1012;
+    overflow: hidden;
+}
+
+svg {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+}
+</style>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"></svg>
+<script src="timing.js"></script>
+<script>
+// Every frame is a pure function of time: nothing here reads the clock or uses chance.
+// There is one world, the room and everything inside the laptop's screen, and one camera moving through it.
+const C = { wall: "#1b1f24", desk: "#2c2622", inside: "#101316", panel: "#191d21", line: "#363c42", text: "#f0f1ee", muted: "#a7acb0", metal: "#d8dbd5", dark: "#0e1012", green: "#3ddc84", red: "#ff6b5e", amber: "#ffb648", person: "#7f97a8", paper: "#f0f1ee", ink: "#9aa09a", shoe: "#e2574c" };
+const SANS = "Geist, sans-serif";
+const CAPTIONS = new URLSearchParams(location.search).get("captions") !== "0";
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const smooth = (x) => { const v = clamp(x); return v * v * (3 - 2 * v); };
+const appear = (l, start, length = 0.5) => smooth((l - start) / length);
+const lerp = (a, b, p) => a + (b - a) * p;
+const frac = (x) => x - Math.floor(x);
+const settle = (p) => { const v = clamp(p); return 1 - (1 - v) * (1 - v) + 0.1 * Math.sin(v * Math.PI) * (1 - v); };
+
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const rect = (x, y, w, h, fill, r = 12, extra = "") => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" ${extra}/>`;
+const line = (x, y, w, h, fill, r = 12, stroke = C.line, sw = 3) => rect(x, y, w, h, fill, r, `stroke="${stroke}" stroke-width="${sw}"`);
+const write = (x, y, s, size, fill = C.text, weight = 600, anchor = "middle") =>
+    `<text x="${x}" y="${y}" fill="${fill}" font-family="${SANS}" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}">${esc(s)}</text>`;
+const place = (x, y, s, inner) => `<g transform="translate(${x} ${y}) scale(${s})">${inner}</g>`;
+const fade = (o, inner) => (o <= 0 ? "" : `<g opacity="${o}">${inner}</g>`);
+const pop = (x, y, p, inner) => (p <= 0 ? "" : `<g opacity="${clamp(p * 2)}" transform="translate(${x} ${y}) scale(${lerp(0.92, 1, settle(p))}) translate(${-x} ${-y})">${inner}</g>`);
+const between = (a, b, p) => [lerp(a[0], b[0], p), lerp(a[1], b[1], p)];
+const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+const mix = (a, b, p) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(lerp(v, y[i], p))).join(",")})`; };
+
+function writing(l, seed) {
+    return [0, 1, 2].map((n) => rect(-39, 54 + n * 15, 12 + 66 * frac(l * (0.3 + n * 0.08) + seed * 0.37 + n * 0.31), 8, C.ink, 3)).join("");
+}
+
+function robot(x, y, s = 1, o = {}) {
+    const c = o.colour ?? C.metal, light = o.light ?? c;
+    const bob = o.l === undefined ? 0 : 3 * Math.sin(o.l * 2 + (o.seed ?? 0) * 1.7);
+    let r = `<line x1="0" y1="-66" x2="0" y2="-92" stroke="${c}" stroke-width="6"/><circle cx="0" cy="-100" r="12" fill="${light}"/>`;
+    r += rect(-52, -68, 104, 76, c, 22);
+    r += `<circle cx="-22" cy="-32" r="9" fill="${C.dark}"/><circle cx="22" cy="-32" r="9" fill="${C.dark}"/>`;
+    r += rect(-38, 14, 76, 74, c, 18);
+    if (o.up) r += `<line x1="38" y1="34" x2="82" y2="-34" stroke="${c}" stroke-width="13" stroke-linecap="round"/><line x1="-38" y1="34" x2="-82" y2="-34" stroke="${c}" stroke-width="13" stroke-linecap="round"/>`;
+    let out = place(0, bob, 1, r);
+    if (o.desk) {
+        out += rect(-50, 42, 100, 72, C.paper, 6) + rect(-74, 114, 148, 11, C.line, 5);
+        if (o.working) out += writing(o.l, o.seed ?? 0);
+    }
+    return place(x, y, s, out);
+}
+
+const HERO = { light: C.amber };
+
+function bubble(x, y, s, size = 30) {
+    const w = s.length * size * 0.58 + 36, h = size + 28;
+    return rect(x - w / 2, y - h, w, h, C.text, 16) + `<polygon points="${x - 11},${y - 2} ${x + 11},${y - 2} ${x},${y + 15}" fill="${C.text}"/>` + write(x, y - h / 2 + size * 0.35, s, size, C.dark);
+}
+
+function sheet(x, y, w, h, bars = 3) {
+    let r = rect(x, y, w, h, C.paper, 6);
+    for (let n = 0; n < bars; n++) r += rect(x + w * 0.1, y + h * 0.12 + n * h * 0.13, w * [0.8, 0.62, 0.74, 0.5][n % 4], Math.max(5, h * 0.03), C.ink, 3);
+    return r;
+}
+
+function stamp(x, y, s, colour, size, p) {
+    if (p <= 0) return "";
+    const w = s.length * size * 0.72 + 44, h = size + 34;
+    return `<g opacity="${clamp(p * 3)}" transform="translate(${x} ${y}) rotate(-8) scale(${lerp(1.5, 1, settle(p))})"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" rx="10" fill="${C.paper}" stroke="${colour}" stroke-width="8"/>${write(0, size * 0.36, s, size, colour)}</g>`;
+}
+
+function cursor(x, y, colour = C.text, s = 1.4) {
+    return place(x, y, s, `<polygon points="0,0 0,46 13,34 23,56 34,51 24,31 41,30" fill="${colour}" stroke="${C.dark}" stroke-width="3"/>`);
+}
+
+function tile(x, y, w, shoe) {
+    let r = rect(x, y, w, w * 0.72, C.panel, 10);
+    if (shoe) {
+        r += rect(x + w * 0.24, y + w * 0.26, w * 0.3, w * 0.2, C.shoe, 14);
+        r += rect(x + w * 0.42, y + w * 0.34, w * 0.34, w * 0.12, C.shoe, 14);
+        r += rect(x + w * 0.22, y + w * 0.45, w * 0.56, w * 0.06, C.paper, 6);
+    }
+    return r;
+}
+
+function shop(x, y, w, h, o = {}) {
+    let r = line(x, y, w, h, C.inside, 16);
+    r += [0, 1, 2].map((n) => `<circle cx="${x + 30 + n * 26}" cy="${y + 32}" r="8" fill="${C.line}"/>`).join("");
+    r += write(x + 40, y + 96, "Your shop", 38, C.text, 600, "start");
+    const by = y + 128;
+    if (o.search !== false) {
+        const fw = w - 330;
+        r += fade(o.searchIn ?? 1, rect(x + 40, by, fw, 72, C.panel, 12) + rect(x + 56 + fw, by, 234, 72, o.pressed ? "#2aa763" : C.green, 12) + write(x + 173 + fw, by + 49, "Search", 36, C.dark));
+        if (o.typed) r += write(x + 62, by + 49, o.typed, 34, C.text, 500, "start");
+    }
+    const ty = o.search === false ? y + 130 : by + 104, tw = (w - 110) / 3;
+    [0, 1, 2].forEach((n) => {
+        const found = o.results ? clamp((o.results - n * 0.4) / 0.5) : 0;
+        r += tile(x + 40 + n * (tw + 15), ty, tw, false) + fade(found, tile(x + 40 + n * (tw + 15), ty, tw, true));
+    });
+    return r;
+}
+
+function tray(x, y, n, s = 1) {
+    let r = "";
+    for (let i = 0; i < n; i++) r += sheet(-90 + (i % 2 ? 7 : -5), -i * 11, 180, 120, 3);
+    r += rect(-136, 58, 272, 92, C.green, 14) + write(0, 118, "verifique", 44, C.dark);
+    return place(x, y, s, r);
+}
+
+const typedAt = (l, start, length = 1.5) => "red shoes".slice(0, Math.floor(clamp((l - start) / length) * 9));
+const windows = (n, heat, l) => Array.from({ length: n }, (_, i) => pop(610 + i * 92, 350 + i * 50, appear(l, i * 0.5, 0.4), line(200 + i * 92, 60 + i * 50, 820, 480, C.panel, 14, i >= 3 && heat > 0.5 ? C.red : C.line, 5))).join("");
+const TEN = [0, 1].flatMap((row) => [0, 1, 2, 3, 4].map((col) => [260 + col * 270, 250 + row * 370]));
+const FULL = [140, 60, 1320, 780], BUTTON = [1290, 236], FIELD = [520, 250];
+const box = (a, b, p) => a.map((v, i) => lerp(v, b[i], p));
+
+// What the laptop's screen shows, in its own 1600 by 900 picture. `l` is seconds into the shot and `d` its length.
+const SHOTS = {
+    "1.1": (l) => shop(200, 40, 1200, 760, { search: false }) + pop(800, 820, appear(l, 2.6, 0.4), bubble(800, 860, "Add a search bar", 40)),
+    "1.2": (l, d) => {
+        const [x, y, w, h] = box([200, 40, 1200, 760], [600, 60, 940, 780], appear(l, 0, 0.8));
+        const done = l > d - 1.3;
+        return shop(x, y, w, h, { searchIn: appear(l, d * 0.45, 0.6) }) + pop(280, 420, appear(l, 0.3), robot(280, 400, 1.7, { ...HERO, desk: !done, working: !done, up: done, l })) + (done ? pop(280, 170, appear(l, d - 1.3, 0.3), bubble(280, 170, "Done!", 38)) : "");
+    },
+    "1.3": (l) => {
+        const g = appear(l, 0, 0.8);
+        const [x, y, w, h] = box([600, 60, 940, 780], FULL, g);
+        const c = between(between([1200, 760], FIELD, appear(l, 0.7, 0.6)), BUTTON, appear(l, 3.2, 0.6));
+        return shop(x, y, w, h, { typed: typedAt(l, 1.3), pressed: l > 4.1 && l < 4.3 }) + fade(1 - g, robot(280, 400, 1.7, { ...HERO, up: true, l })) + fade(appear(l, 0.5, 0.3), cursor(c[0], c[1]));
+    },
+    "1.4": (l) => shop(...FULL, { typed: "red shoes", pressed: l > 1.9 && l < 2.1 }) + cursor(...BUTTON),
+    "1.5": (l) => {
+        const m = appear(l, 0, 0.9);
+        const [x, y, w, h] = box(FULL, [640, 90, 880, 720], m);
+        return fade(lerp(1, 0.26, m), shop(x, y, w, h, { typed: "red shoes" })) + fade(1 - m, cursor(...BUTTON)) + pop(340, 440, appear(l, 0.5), robot(340, 420, 2.1, { ...HERO, desk: true, l }));
+    },
+    "2.1": (l) => {
+        const m = appear(l, 0.2, 1.1);
+        const others = TEN.slice(1).map(([x, y], i) => pop(x, y, appear(l, 1.5 + i * 0.36, 0.3), robot(x, y, 1.08, { desk: true, working: true, l, seed: i })));
+        return fade(0.26 * (1 - appear(l, 0, 0.7)), shop(640, 90, 880, 720, {})) + robot(lerp(340, TEN[0][0], m), lerp(420, TEN[0][1], m), lerp(2.1, 1.08, m), { ...HERO, desk: true, working: true, l }) + others.join("");
+    },
+    "2.2": (l) => {
+        const gone = appear(l, 2.6, 0.7);
+        const robots = TEN.map(([x, y], i) => {
+            const done = l > 0.2 + i * 0.14;
+            return robot(x, y, 1.08, { ...(i === 0 ? HERO : {}), desk: !done, working: !done, up: done, l, seed: i }) + (done ? bubble(x, y - 86, "Done!", 28) : "");
+        }).join("");
+        const front = Math.min(6, Math.floor((l - 2.7) / 0.5));
+        const c = front < 0 ? null : [760 + front * 92, 340 + front * 50 + 26 * Math.sin(l * 3)];
+        return fade(1 - gone, robots) + (l > 2.6 ? windows(7, 0, l - 2.7) : "") + (c ? cursor(c[0], c[1]) : "");
+    },
+    "2.3": (l) => windows(7, appear(l, 2.6, 1), 10),
+    "3.1": (l) => fade(1 - appear(l, -0.2, 0.9), windows(7, 1, 10)) + pop(800, 450, appear(l, 0.4, 0.7), tray(800, 400, 1, 2.2)),
+    "4.1": (l) => {
+        const t = between([800, 400], [1120, 420], appear(l, 0, 0.9));
+        const go = appear(l, 1.9, 1.6), lands = go >= 1;
+        const s = between([440, 330], [1050, 350], go);
+        return pop(300, 340, appear(l, 0.5, 0.6), robot(300, 340, 1.5, { ...HERO, desk: l > 1.9, working: l > 3.6, up: l <= 1.9, l })) + tray(t[0], t[1], lands ? 4 : 3, lerp(2.2, 1.4, appear(l, 0, 0.9))) + (go > 0 && !lands ? sheet(s[0], s[1] - Math.sin(go * Math.PI) * 50, 140, 96) : "");
+    },
+    "4.2": (l) => {
+        const m = appear(l, 0, 0.9);
+        const t = between([1120, 420], [240, 460], m);
+        return fade(1 - m, robot(300, 340, 1.5, { ...HERO, desk: true, working: true, l })) + tray(t[0], t[1], l > 2.6 ? 2 : l > 1.4 ? 3 : 4, lerp(1.4, 1, m)) +
+            pop(730, 420, appear(l, 1.4, 0.6), shop(470, 110, 520, 620, {})) + pop(1290, 420, appear(l, 2.6, 0.6), shop(1030, 110, 520, 620, {}));
+    },
+    "4.3": (l) => {
+        const g = appear(l, 0, 0.9);
+        const [x, y, w, h] = box([470, 110, 520, 620], FULL, g);
+        const c = between(between([1200, 760], FIELD, appear(l, 4.4, 0.6)), BUTTON, appear(l, 7.2, 0.6));
+        return fade(1 - g, tray(240, 460, 2, 1) + shop(1030, 110, 520, 620, {})) + shop(x, y, w, h, { typed: typedAt(l, 5.6), pressed: l > 8.6 && l < 8.8 }) +
+            pop(1420, 650, appear(l, 1.1, 0.6), robot(1420, 640, 1.2, { colour: C.green, l })) + fade(appear(l, 3.9, 0.4), cursor(c[0], c[1], C.green));
+    },
+    "4.4": (l) => shop(...FULL, { typed: "red shoes", pressed: l > 1.9 && l < 2.1 }) + cursor(...BUTTON, C.green) + robot(1420, 640, 1.2, { colour: C.green, l }),
+    "4.5": (l) => {
+        const go = appear(l, 2.9, 1);
+        const paper = sheet(700, 70, 640, 720, 2) + write(1020, 330, "The Search button", 46, C.dark) + write(1020, 392, "does nothing.", 46, C.dark) + stamp(1020, 590, "FAILED", C.red, 84, appear(l, 1, 0.4));
+        return fade(1 - appear(l, 0, 0.6), shop(...FULL, { typed: "red shoes" })) + pop(280, 420, appear(l, 1.8, 0.6), robot(280, 400, 1.7, { ...HERO, desk: true, l })) +
+            pop(1020, 430, appear(l, 0.2, 0.5), fade(1 - appear(l, 3.7, 0.3), `<g transform="translate(${lerp(0, -5, go)} ${lerp(0, 350, go)}) scale(${lerp(1, 0.28, go)})">${paper}</g>`));
+    },
+    "4.6": (l, d) => {
+        const go = appear(l, 2.4, 1.3);
+        const m = appear(l, 0, 0.8);
+        const r = between([280, 400], [300, 340], m);
+        const s = between([430, 330], [1050, 350], go);
+        return robot(r[0], r[1], lerp(1.7, 1.5, m), { ...HERO, desk: true, working: true, l }) + pop(300, 130, appear(l, 0.2, 0.4) * (1 - appear(l, 2.4, 0.4)), bubble(300, 130, "Fixing it", 34)) + pop(1120, 420, appear(l, 0.6, 0.6), tray(1120, 420, go >= 1 ? 3 : 2, 1.4)) + (go > 0 && go < 1 ? sheet(s[0], s[1] - Math.sin(go * Math.PI) * 50, 140, 96) : "") + fade(appear(l, d - 0.9, 0.9), shop(...FULL, { typed: "red shoes" }) + robot(1420, 640, 1.2, { colour: C.green, l }));
+    },
+    "4.7": (l) => shop(...FULL, { typed: "red shoes", pressed: l > 0.5 && l < 0.7, results: clamp((l - 0.8) * 1.2) * 2 }) + cursor(...BUTTON, C.green) + robot(1420, 640, 1.2, { colour: C.green, l }) + stamp(1100, 740, "PASSED", C.green, 72, appear(l, 3.3, 0.4)),
+    "5.1": (l) => {
+        const list = appear(l, 0.4, 0.9);
+        let r = fade(1 - appear(l, 0, 0.8), shop(...FULL, { typed: "red shoes", results: 2 }));
+        let rows = line(240, 40, 1120, 800, C.panel, 16);
+        for (let n = 0; n < 10; n++) {
+            const p = appear(l, 1.4 + n * 0.32, 0.25), y = 86 + n * 74;
+            rows += pop(340, y + 12, p, `<circle cx="340" cy="${y + 12}" r="24" fill="${C.green}"/><path d="M329 ${y + 13} l8 9 l15 -18" fill="none" stroke="${C.dark}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`);
+            rows += fade(p, rect(400, y, 760 * [0.9, 0.7, 0.84, 0.6, 0.78, 0.66, 0.8, 0.72, 0.88, 0.64][n], 22, C.line, 10));
+        }
+        return r + fade(list, rows);
+    },
+    "5.2": (l) => {
+        const c = between(between([1200, 700], [560, 240], appear(l, 0.6, 0.6)), [1240, 226], appear(l, 2.9, 0.6));
+        return fade(appear(l, 0, 0.7), shop(200, 40, 1200, 760, { typed: typedAt(l, 1.1), pressed: l > 3.7 && l < 3.9, results: clamp((l - 3.9) * 1.2) * 2 }) + cursor(c[0], c[1]));
+    },
+};
+
+const SCREEN = { x: 424, y: 124, w: 772, h: 434 }, ZOOM = 1600 / SCREEN.w;
+const SKY = [[0, "#d98a4e"], [27, "#d98a4e"], [36, "#6a5a7c"], [43, "#16223a"], [50, "#16223a"], [56, "#a9cde2"], [999, "#a9cde2"]];
+
+function sky(t) {
+    for (let i = 1; i < SKY.length; i++) {
+        if (t <= SKY[i][0]) return mix(SKY[i - 1][1], SKY[i][1], smooth((t - SKY[i - 1][0]) / (SKY[i][0] - SKY[i - 1][0])));
+    }
+    return SKY[SKY.length - 1][1];
+}
+
+function room(t, screen, o) {
+    let r = rect(0, 0, 1600, 900, C.wall, 0);
+    r += rect(1120, 50, 400, 330, sky(t), 6) + `<line x1="1320" y1="50" x2="1320" y2="380" stroke="${C.wall}" stroke-width="10"/><line x1="1120" y1="215" x2="1520" y2="215" stroke="${C.wall}" stroke-width="10"/>`;
+    r += rect(0, 602, 1600, 298, C.desk, 0);
+    r += rect(410, 110, 800, 462, C.dark, 20, `stroke="${o.edge}" stroke-width="10"`) + rect(330, 572, 960, 30, o.edge, 12);
+    r += `<svg x="${SCREEN.x}" y="${SCREEN.y}" width="${SCREEN.w}" height="${SCREEN.h}" viewBox="0 0 1600 900">${rect(0, 0, 1600, 900, C.inside, 0)}${screen}</svg>`;
+    if (o.heat > 0) [0, 1, 2, 3, 4].forEach((n) => {
+        const x = 520 + n * 150, pts = Array.from({ length: 7 }, (_, k) => `${x + 13 * Math.sin(k * 1.4 + t * 3 + n)},${94 - k * 11}`).join(" ");
+        r += fade(o.heat, `<polyline points="${pts}" fill="none" stroke="${C.red}" stroke-width="6" stroke-linecap="round"/>`);
+    });
+    r += `<circle cx="210" cy="${640 + o.lean}" r="100" fill="${C.person}"/>` + rect(40, 742 + o.lean, 340, 300, C.person, 90);
+    if (o.hands > 0) {
+        const hy = lerp(860, 600, o.hands);
+        r += `<line x1="96" y1="800" x2="112" y2="${hy}" stroke="${C.person}" stroke-width="42" stroke-linecap="round"/><line x1="324" y1="800" x2="308" y2="${hy}" stroke="${C.person}" stroke-width="42" stroke-linecap="round"/>`;
+    }
+    if (o.mug > 0) r += fade(o.mug, rect(1320, 612, 92, 84, C.metal, 12) + `<path d="M1412 632 q40 8 0 46" fill="none" stroke="${C.metal}" stroke-width="10"/>`);
+    return r;
+}
+
+const ORDER = window.TIMING.shots.map((s) => ({ id: s.lines[0].id, start: s.start, d: s.dur, caps: s.lines[0].captions }));
+const shotAt = (id) => ORDER.find((s) => s.id === id);
+window.DURATION = window.TIMING.duration;
+
+// The camera: 0 is the room, 1 is right up to the screen, which then fills the frame.
+function camera(t) {
+    const l = (id) => t - shotAt(id).start, s = (id) => shotAt(id);
+    if (t < s("1.2").start) return Math.max(0.12 * smooth(t / s("1.2").start), appear(l("1.1"), s("1.1").d - 1.3, 1.3));
+    if (t < s("2.1").start) return 1;
+    if (t < s("2.2").start) return 1 - appear(l("2.1"), 0.1, 1.2);
+    if (t < s("3.1").start) return 0;
+    if (t < s("4.1").start) return appear(l("3.1"), s("3.1").d - 1.3, 1.3);
+    if (t < s("5.1").start) return 1;
+    return 1 - appear(l("5.1"), 0.1, 1.3);
+}
+
+const stage = document.getElementById("stage");
+
+window.seek = (time) => {
+    const t = clamp(time, 0, window.DURATION - 0.0001);
+    const shot = [...ORDER].reverse().find((s) => t >= s.start);
+    const l = t - shot.start, p = camera(t);
+    const hot = t < shotAt("2.3").start ? 0 : t < shotAt("3.1").start ? appear(t - shotAt("2.3").start, 2.6, 1) : 1 - appear(t - shotAt("3.1").start, 0, 0.9);
+    const calm = t >= shotAt("5.1").start ? 0 : appear(t - shotAt("3.1").start, 0.3, 0.9);
+    const edge = mix(mix(C.metal, C.green, calm).startsWith("rgb") ? rgbHex(mix(C.metal, C.green, calm)) : C.metal, C.red, hot);
+    const o = { edge, heat: hot, hands: t >= shotAt("2.3").start ? (t < shotAt("3.1").start ? appear(t - shotAt("2.3").start, 3.1, 0.8) : 1 - appear(t - shotAt("3.1").start, 0, 0.9)) : 0, lean: t >= shotAt("2.2").start && t < shotAt("3.1").start ? -18 : 0, mug: t >= shotAt("5.1").start ? appear(t - shotAt("5.1").start, 1.6, 0.7) : 0 };
+    const world = room(t, SHOTS[shot.id](l, shot.d), o);
+    const z = lerp(1, ZOOM, p), x = lerp(0, -SCREEN.x * ZOOM, p), y = lerp(0, -SCREEN.y * ZOOM, p);
+    let frame = `<g transform="translate(${x} ${y}) scale(${z})">${world}</g>`;
+    const open = appear(t, 0, 0.8), close = 1 - appear(t, window.DURATION - 1.6, 1.4);
+    if (CAPTIONS) {
+        const words = shot.caps.find((c) => t >= c.from - 0.1 && t <= c.to + 0.35);
+        if (words) {
+            const w = words.text.length * 21 + 56;
+            frame += rect(800 - w / 2, 800, w, 66, "#000000", 10, 'fill-opacity="0.62"') + write(800, 846, words.text, 38);
+        }
+    }
+    stage.innerHTML = `${rect(0, 0, 1600, 900, C.dark, 0)}${fade(Math.min(open, close), frame)}`;
+};
+
+function rgbHex(s) {
+    return `#${s.match(/\d+/g).map((v) => Number(v).toString(16).padStart(2, "0")).join("")}`;
+}
+
+window.seek(0);
+</script>

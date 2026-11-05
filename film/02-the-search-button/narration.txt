@@ -1,0 +1,18 @@
+You ask an AI agent to add a search bar to your shop.
+It gets to work, and a few minutes later, it tells you it's done.
+So you open the shop, type "red shoes", and press Search.
+Nothing happens.
+The agent wrote the code, but it never opened the shop to try it. That part was left to you.
+With one agent, that's fine. But it works so well that soon you're running ten.
+They all finish around the same time, and now you're the one testing all ten, by hand, one after another.
+You could ask each agent to test its own work. But then they all start your shop at once, and your laptop can't keep up.
+That's what verifique is for. It's a verification queue that runs on your laptop.
+Now, when an agent finishes, it hands its work to the queue and moves on to the next job.
+verifique starts a copy of your shop for each piece of work, a few at a time, so your laptop keeps up.
+Then a separate agent, one that didn't write the code, uses it like a real user. It types "red shoes", and presses Search.
+Nothing happens.
+So the work goes back to the agent that wrote it, along with exactly what went wrong.
+The agent fixes the button, and the work joins the queue again.
+This time, the results come up. And verifique saves what it did and what it saw, as proof.
+So when you come back, you don't have ten things to test. You have ten things that work.
+verifique is free and open source. If you run a lot of agents, we'd love you to try it.
