@@ -1,6 +1,7 @@
 //! Drives the real binary against throwaway git repositories, with a real server running.
 
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -143,6 +144,14 @@ impl World {
         fs::write(root.join("project/agent.sh"), AGENT).unwrap();
         fs::write(root.join("project/app.py"), APP).unwrap();
         fs::write(root.join("project/leave.sh"), LEAVE).unwrap();
+        // A test that reaches needs-you would otherwise raise a real notification on this machine.
+        let quiet = root.join("quiet");
+        fs::create_dir_all(&quiet).unwrap();
+        for tool in ["osascript", "notify-send"] {
+            let path = quiet.join(tool);
+            fs::write(&path, "#!/bin/sh\n").unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        }
         let world = Self { root, home, repo, base_port, server: None };
         world.write_repo(&world.repo.clone());
         world
@@ -162,6 +171,7 @@ impl World {
             .args(args)
             .env("VERIFIQUE_HOME", &self.home)
             .env("VERIFIQUE_POLL_MS", "50")
+            .env("PATH", format!("{}:{}", self.root.join("quiet").display(), std::env::var("PATH").unwrap()))
             .env("LOG", self.root.join("events.log"));
         command
     }
