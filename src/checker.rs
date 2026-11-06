@@ -92,6 +92,10 @@ fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', r"'\''"))
 }
 
+/// Pinned, because a new release fetches a new browser in the middle of a check. Playwright then
+/// deletes the old one, a signed app, which macOS stops and blames on this tool.
+const BROWSER_TOOL: &str = "@playwright/mcp@0.0.84";
+
 /// The command that runs the checker, from a project's own command or a preset. A preset is the
 /// only place that knows how an agent is launched and how its tools are limited.
 pub fn command(check: &Check, headed: bool, job_dir: &Path, evidence: &Path) -> Result<String> {
@@ -102,13 +106,14 @@ pub fn command(check: &Check, headed: bool, job_dir: &Path, evidence: &Path) -> 
 }
 
 fn claude(check: &Check, headed: bool, job_dir: &Path, evidence: &Path) -> Result<String> {
-    let mut browser = vec!["@playwright/mcp@latest".to_string(), "--isolated".to_string()];
+    let mut browser = vec![BROWSER_TOOL.to_string(), "--isolated".to_string()];
     if !headed {
         browser.push("--headless".to_string());
     }
     browser.push("--output-dir".to_string());
     browser.push(evidence.to_string_lossy().into_owned());
-    let mcp = json!({ "mcpServers": { "browser": { "command": "npx", "args": browser } } });
+    let env = json!({ "PLAYWRIGHT_SKIP_BROWSER_GC": "1" });
+    let mcp = json!({ "mcpServers": { "browser": { "command": "npx", "args": browser, "env": env } } });
     let mcp_file = job_dir.join("mcp.json");
     fs::write(&mcp_file, serde_json::to_vec_pretty(&mcp)?)?;
 
@@ -167,6 +172,8 @@ mod tests {
         assert!(command.contains("'mcp__browser__*'"));
         let mcp = fs::read_to_string(dir.join("mcp.json")).unwrap();
         assert!(mcp.contains("--headless"));
+        assert!(!mcp.contains("@latest"));
+        assert!(mcp.contains("PLAYWRIGHT_SKIP_BROWSER_GC"));
         assert!(command.contains("'Bash(adb *)'"));
         assert!(command.contains("--strict-mcp-config"));
         assert!(!command.contains("bypassPermissions"));
