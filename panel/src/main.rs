@@ -9,6 +9,8 @@ use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use objc2::msg_send;
+use objc2::runtime::{AnyClass, AnyObject};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::utils::config::WindowEffectsConfig;
@@ -20,6 +22,7 @@ use tauri::{ActivationPolicy, AppHandle, LogicalSize, Manager, PhysicalPosition,
 /// gap the same click would open it again straight away.
 const REOPEN_GAP: Duration = Duration::from_millis(250);
 const GAP_BELOW_ICON: f64 = 6.0;
+const BLUR_STRENGTH: f64 = 0.72;
 
 struct PinItem(CheckMenuItem<Wry>);
 
@@ -46,6 +49,8 @@ fn show_pinned(window: &WebviewWindow) {
     // Active, because a pinned panel is rarely the focused window and macOS drops the blur otherwise.
     let blur = EffectsBuilder::new().effect(Effect::HudWindow).state(EffectState::Active).radius(12.0).build();
     let _ = window.set_effects(blur);
+    let handle = window.clone();
+    let _ = window.run_on_main_thread(move || soften_blur(&handle));
     if let Ok(Some(monitor)) = window.current_monitor() {
         let scale = monitor.scale_factor();
         let width = window.outer_size().map(|size| size.width as f64).unwrap_or(360.0 * scale);
@@ -54,6 +59,28 @@ fn show_pinned(window: &WebviewWindow) {
         let _ = window.set_position(PhysicalPosition::new(x, y));
     }
     let _ = window.show();
+}
+
+/// macOS's blur is nearly opaque and takes no strength setting, so the blur view is faded instead,
+/// which lets some of what's behind the panel through.
+fn soften_blur(window: &WebviewWindow) {
+    let Ok(ns_window) = window.ns_window() else { return };
+    let Some(blur) = AnyClass::get(c"NSVisualEffectView") else { return };
+    // SAFETY: called on the main thread with the live window Tauri handed over, using only NSWindow
+    // and NSView messages that exist on every supported macOS.
+    unsafe {
+        let ns_window = ns_window as *mut AnyObject;
+        let content: *mut AnyObject = msg_send![ns_window, contentView];
+        let subviews: *mut AnyObject = msg_send![content, subviews];
+        let count: usize = msg_send![subviews, count];
+        for index in 0..count {
+            let view: *mut AnyObject = msg_send![subviews, objectAtIndex: index];
+            let is_blur: bool = msg_send![view, isKindOfClass: blur];
+            if is_blur {
+                let _: () = msg_send![view, setAlphaValue: BLUR_STRENGTH];
+            }
+        }
+    }
 }
 
 fn change_pin(app: &AppHandle, on: bool) {

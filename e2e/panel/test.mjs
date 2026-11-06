@@ -83,7 +83,7 @@ await page.getByRole("button", { name: "Pin panel" }).click();
 await page.waitForSelector("body.pinned");
 assert.equal(await page.evaluate(() => window.pinnedNow), true);
 const glass = await page.evaluate(() => getComputedStyle(document.getElementById("panel")).backgroundColor);
-assert.match(glass, /0\.3\)$/);
+assert.match(glass, /0\.25\)$/);
 await page.getByRole("button", { name: "Unpin panel" }).click();
 await page.waitForFunction(() => !document.body.classList.contains("pinned"));
 
