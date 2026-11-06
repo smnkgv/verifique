@@ -10,7 +10,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::paths::{self, NAME};
 
-const LABEL: &str = "dev.verifique.server";
+const DEFAULT_LABEL: &str = "dev.verifique.server";
 const BOOTSTRAP_ATTEMPTS: u32 = 20;
 const BOOTSTRAP_RETRY: Duration = Duration::from_millis(500);
 const MARKER: &str = "__VERIFIQUE_ENV__";
@@ -33,6 +33,14 @@ pub struct Install {
     pub slots: usize,
     pub first_slot: u32,
     pub resources: Vec<String>,
+}
+
+fn label() -> String {
+    paths::own_home_key().map_or(DEFAULT_LABEL.to_string(), |key| format!("{DEFAULT_LABEL}.{key}"))
+}
+
+fn unit_name() -> String {
+    paths::own_home_key().map_or(format!("{NAME}.service"), |key| format!("{NAME}-{key}.service"))
 }
 
 fn env_file() -> PathBuf {
@@ -91,7 +99,7 @@ fn xml(value: &str) -> String {
 }
 
 fn plist_path() -> PathBuf {
-    home_dir().join("Library/LaunchAgents").join(format!("{LABEL}.plist"))
+    home_dir().join("Library/LaunchAgents").join(format!("{}.plist", label()))
 }
 
 fn plist(binary: &Path, args: &[String], environment: &BTreeMap<String, String>) -> String {
@@ -105,12 +113,13 @@ fn plist(binary: &Path, args: &[String], environment: &BTreeMap<String, String>)
         .iter()
         .map(|(name, value)| format!("        <key>{}</key><string>{}</string>\n", xml(name), xml(value)))
         .collect();
+    let label = label();
     format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Label</key><string>{LABEL}</string>
+    <key>Label</key><string>{label}</string>
     <key>ProgramArguments</key>
     <array>
 {program}    </array>
@@ -128,7 +137,7 @@ fn plist(binary: &Path, args: &[String], environment: &BTreeMap<String, String>)
 }
 
 fn unit_path() -> PathBuf {
-    home_dir().join(".config/systemd/user").join(format!("{NAME}.service"))
+    home_dir().join(".config/systemd/user").join(unit_name())
 }
 
 fn unit(binary: &Path, args: &[String]) -> String {
@@ -170,7 +179,10 @@ fn bootstrap(domain: &str, plist: &Path) -> Result<()> {
 }
 
 pub fn install(options: &Install) -> Result<()> {
-    let environment = capture_shell_env()?;
+    let mut environment = capture_shell_env()?;
+    if paths::own_home_key().is_some() {
+        environment.insert("VERIFIQUE_HOME".to_string(), paths::home().to_string_lossy().into_owned());
+    }
     fs::create_dir_all(paths::home())?;
     let recorded: String = environment.iter().map(|(name, value)| format!("{name}={value}\n")).collect();
     fs::write(env_file(), recorded)?;
@@ -184,7 +196,7 @@ pub fn install(options: &Install) -> Result<()> {
         }
         let domain = format!("gui/{}", user_id());
         // Reinstalling replaces the service, so a missing one is fine here.
-        let _ = run("launchctl", &["bootout", &format!("{domain}/{LABEL}")]);
+        let _ = run("launchctl", &["bootout", &format!("{domain}/{}", label())]);
         fs::write(&path, plist(&binary, &args, &environment))?;
         bootstrap(&domain, &path)?;
     } else {
@@ -194,7 +206,7 @@ pub fn install(options: &Install) -> Result<()> {
         }
         fs::write(&path, unit(&binary, &args))?;
         run("systemctl", &["--user", "daemon-reload"])?;
-        run("systemctl", &["--user", "enable", "--now", &format!("{NAME}.service")])?;
+        run("systemctl", &["--user", "enable", "--now", &unit_name()])?;
     }
     println!("installed: {} slot(s), starting at login", options.slots);
     println!("\n{WARNING}\n");
@@ -203,9 +215,9 @@ pub fn install(options: &Install) -> Result<()> {
 
 pub fn restart() -> Result<()> {
     if cfg!(target_os = "macos") {
-        run("launchctl", &["kickstart", "-k", &format!("gui/{}/{LABEL}", user_id())])?;
+        run("launchctl", &["kickstart", "-k", &format!("gui/{}/{}", user_id(), label())])?;
     } else {
-        run("systemctl", &["--user", "restart", &format!("{NAME}.service")])?;
+        run("systemctl", &["--user", "restart", &unit_name()])?;
     }
     println!("restarted");
     Ok(())
@@ -213,10 +225,10 @@ pub fn restart() -> Result<()> {
 
 pub fn uninstall() -> Result<()> {
     if cfg!(target_os = "macos") {
-        let _ = run("launchctl", &["bootout", &format!("gui/{}/{LABEL}", user_id())]);
+        let _ = run("launchctl", &["bootout", &format!("gui/{}/{}", user_id(), label())]);
         let _ = fs::remove_file(plist_path());
     } else {
-        let _ = run("systemctl", &["--user", "disable", "--now", &format!("{NAME}.service")]);
+        let _ = run("systemctl", &["--user", "disable", "--now", &unit_name()]);
         let _ = fs::remove_file(unit_path());
     }
     let _ = fs::remove_file(env_file());

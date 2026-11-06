@@ -1,0 +1,31 @@
+services:
+    postgres: { url: postgres://postgres:postgres@127.0.0.1:5432 }
+    redis: {}
+
+stacks:
+    web:
+        seed: psql -c 'create table visits (who text)' && redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" set "${REDIS_PREFIX}seeded" 1
+        env:
+            PGHOST: "{postgres.host}"
+            PGPORT: "{postgres.port}"
+            PGUSER: "{postgres.user}"
+            PGPASSWORD: "{postgres.password}"
+            PGDATABASE: "{postgres.database}"
+            REDIS_HOST: "{redis.host}"
+            REDIS_PORT: "{redis.port}"
+            REDIS_PREFIX: "{redis.prefix}"
+        apps:
+            shop:
+                run: python3 server.py
+                port: 4600
+                ready: /
+                env:
+                    PORT: "{port}"
+
+checks:
+    fast:
+        run: python3 -m py_compile server.py check.py
+    isolation:
+        stack: web
+        run: python3 check.py
+        verdict: file

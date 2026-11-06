@@ -1,0 +1,14 @@
+diff --git a/index.html b/index.html
+index aff4649..ef64802 100644
+--- a/index.html
++++ b/index.html
+@@ -20,6 +20,8 @@ show(PRODUCTS);
+ document.getElementById("search").addEventListener("submit", (event) => {
+     event.preventDefault();
+     const q = document.getElementById("q").value.toLowerCase();
+-    show(PRODUCTS.filter((p) => p.toLowerCase().includes(q)));
++    const found = PRODUCTS.filter((p) => q && p.toLowerCase().includes(q));
++    list.innerHTML = found.length ? "" : "<li>No products found</li>";
++    show(found.length ? found : []);
+ });
+ </script>

@@ -16,6 +16,12 @@ pub fn home() -> PathBuf {
     }
 }
 
+/// Set when this queue has a home of its own, which sets its service apart from the default one.
+pub fn own_home_key() -> Option<String> {
+    let home = env::var_os("VERIFIQUE_HOME")?;
+    Some(hex(&Sha256::digest(home.as_bytes()))[..12].to_string())
+}
+
 pub fn job_dir(id: i64) -> PathBuf {
     home().join("jobs").join(id.to_string())
 }

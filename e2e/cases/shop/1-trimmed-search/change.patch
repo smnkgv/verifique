@@ -1,0 +1,14 @@
+diff --git a/index.html b/index.html
+index aff4649..5f081ee 100644
+--- a/index.html
++++ b/index.html
+@@ -19,7 +19,7 @@ function show(items) { list.innerHTML = items.map((p) => `<li>${p}</li>`).join("
+ show(PRODUCTS);
+ document.getElementById("search").addEventListener("submit", (event) => {
+     event.preventDefault();
+-    const q = document.getElementById("q").value.toLowerCase();
+-    show(PRODUCTS.filter((p) => p.toLowerCase().includes(q)));
++    const q = document.getElementById("q").value.trim();
++    show(PRODUCTS.filter((p) => p.includes(q)));
+ });
+ </script>

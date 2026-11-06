@@ -1,20 +1,25 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use tauri::image::Image;
+use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{ActivationPolicy, AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewWindow, WindowEvent};
+use tauri::{ActivationPolicy, AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewWindow, WindowEvent, Wry};
 
 /// Clicking the icon while the panel is open first takes focus from it, which hides it. Without this
 /// gap the same click would open it again straight away.
 const REOPEN_GAP: Duration = Duration::from_millis(250);
 const GAP_BELOW_ICON: f64 = 6.0;
+
+struct PinItem(CheckMenuItem<Wry>);
 
 const IDLE_ICON: &[u8] = include_bytes!("../icons/tray.png");
 const WORKING_ICON: &[u8] = include_bytes!("../icons/tray-working.png");
@@ -22,14 +27,20 @@ const PASSED_ICON: &[u8] = include_bytes!("../icons/tray-passed.png");
 const NEEDS_ICON: &[u8] = include_bytes!("../icons/tray-needs.png");
 
 static LOOK: Mutex<String> = Mutex::new(String::new());
+static PINNED: AtomicBool = AtomicBool::new(false);
 static HIDDEN_AT: Mutex<Option<Instant>> = Mutex::new(None);
 
-/// `--pinned` keeps the panel open in the corner of the screen, so people watching a demo can follow it.
+/// A pinned panel stays on screen in the corner, on every desktop, and survives a restart.
 fn pinned() -> bool {
-    std::env::args().any(|arg| arg == "--pinned")
+    PINNED.load(Ordering::Relaxed)
 }
 
-fn pin(window: &WebviewWindow) {
+fn pin_file() -> PathBuf {
+    home().join(".verifique/panel-pinned")
+}
+
+fn show_pinned(window: &WebviewWindow) {
+    let _ = window.set_visible_on_all_workspaces(true);
     if let Ok(Some(monitor)) = window.current_monitor() {
         let scale = monitor.scale_factor();
         let width = window.outer_size().map(|size| size.width as f64).unwrap_or(360.0 * scale);
@@ -38,6 +49,34 @@ fn pin(window: &WebviewWindow) {
         let _ = window.set_position(PhysicalPosition::new(x, y));
     }
     let _ = window.show();
+}
+
+fn change_pin(app: &AppHandle, on: bool) {
+    PINNED.store(on, Ordering::Relaxed);
+    let _ = if on {
+        pin_file().parent().map(fs::create_dir_all);
+        fs::write(pin_file(), "")
+    } else {
+        fs::remove_file(pin_file())
+    };
+    let _ = app.state::<PinItem>().0.set_checked(on);
+    let Some(window) = app.get_webview_window("panel") else { return };
+    if on {
+        show_pinned(&window);
+    } else {
+        let _ = window.set_visible_on_all_workspaces(false);
+        let _ = window.hide();
+    }
+}
+
+#[tauri::command]
+fn is_pinned() -> bool {
+    pinned()
+}
+
+#[tauri::command]
+fn set_pinned(app: AppHandle, on: bool) {
+    change_pin(&app, on);
 }
 
 fn home() -> PathBuf {
@@ -168,14 +207,26 @@ fn toggle(app: &AppHandle, icon_x: f64, icon_y: f64, icon_w: f64, icon_h: f64) {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![status, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
+        .invoke_handler(tauri::generate_handler![is_pinned, set_pinned, status, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);
             let icon = Image::from_bytes(IDLE_ICON)?;
+            PINNED.store(pin_file().exists(), Ordering::Relaxed);
+            let pin_item = CheckMenuItem::with_id(app, "pin", "Pin panel", true, pinned(), None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", "Quit panel", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&pin_item, &quit_item])?;
+            app.manage(PinItem(pin_item));
             TrayIconBuilder::with_id("main")
                 .icon(icon)
                 .icon_as_template(true)
                 .tooltip("verifique")
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "pin" => change_pin(app, !pinned()),
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, rect, .. } = event {
                         let scale = tray.app_handle().get_webview_window("panel").and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
@@ -187,7 +238,7 @@ fn main() {
                 .build(app)?;
             if pinned() {
                 if let Some(window) = app.get_webview_window("panel") {
-                    pin(&window);
+                    show_pinned(&window);
                 }
             }
             Ok(())

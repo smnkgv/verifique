@@ -1,0 +1,4 @@
+{
+    "expected": "failed",
+    "why": "Searching in lower case stops matching, because the change dropped the lower-casing."
+}

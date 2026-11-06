@@ -1,0 +1,13 @@
+diff --git a/index.html b/index.html
+index aff4649..3cd6861 100644
+--- a/index.html
++++ b/index.html
+@@ -10,7 +10,7 @@ ul { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 0
+ li { padding: 16px; border: 1px solid #ddd; border-radius: 8px; }
+ </style>
+ <h1>Your shop</h1>
+-<form id="search"><input id="q" placeholder="Search products" aria-label="Search"><button>Search</button></form>
++<form id="search"><input id="q" placeholder="Find a product" aria-label="Search"><button>Search</button></form>
+ <ul id="products"></ul>
+ <script>
+ const PRODUCTS = ["Red shoes", "Blue shoes", "Red scarf", "Green hat", "Black boots", "White socks"];

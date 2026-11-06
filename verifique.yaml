@@ -1,0 +1,15 @@
+# verifique checks itself. A check runs a queue of its own, so these can run from the real one.
+checks:
+    tests:
+        run: cargo test
+    e2e:
+        run: sh e2e/run.sh
+    newcomer:
+        type: agent
+        agent: claude
+        tools: [Bash]
+        notes: |
+            You are someone who has never seen this project. Read README.md, then build it and try
+            examples/shop the way the README says, with your own VERIFIQUE_HOME in a temporary folder
+            and a server you start yourself on slots 9 and 10. Fail the change if the README sends
+            you wrong, leaves you stuck, or doesn't match what happens.

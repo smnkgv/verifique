@@ -548,6 +548,12 @@ fn clean() -> Result<ExitCode> {
 }
 
 fn run(cli: Cli) -> Result<ExitCode> {
+    // Agents pipe output into `head` and `grep -q`, which stop reading early. A long-lived server
+    // should outlast its reader, and everything else should end quietly as other commands do.
+    if !matches!(cli.command, Commands::Serve(_)) {
+        // SAFETY: restores the default disposition, before any other thread exists.
+        unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+    }
     match cli.command {
         Commands::Serve(machine) => {
             let poll = std::env::var("VERIFIQUE_POLL_MS").ok().and_then(|ms| ms.parse().ok()).unwrap_or(500);

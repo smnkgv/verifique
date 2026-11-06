@@ -6,6 +6,7 @@
 <style>
 :root {
     --surface: rgb(250 250 248 / 0.96);
+    --glass: rgb(250 250 248 / 0.68);
     --raised: rgb(0 0 0 / 0.05);
     --line: rgb(0 0 0 / 0.1);
     --text: #1c1d1c;
@@ -19,6 +20,7 @@
 @media (prefers-color-scheme: dark) {
     :root {
         --surface: rgb(29 31 29 / 0.97);
+        --glass: rgb(29 31 29 / 0.68);
         --raised: rgb(255 255 255 / 0.07);
         --line: rgb(255 255 255 / 0.11);
         --text: #eff0ec;
@@ -85,8 +87,32 @@ h1 {
 }
 
 .count {
+    margin-left: auto;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+}
+
+.pin {
+    display: flex;
+    align-self: center;
+    color: var(--muted);
+}
+
+.pin:hover {
+    color: var(--text);
+}
+
+.pinned .pin {
+    color: var(--accent);
+}
+
+.pinned #panel {
+    background: var(--glass);
+    transition: background 0.15s;
+}
+
+.pinned #panel:hover {
+    background: var(--surface);
 }
 
 section {
@@ -267,11 +293,12 @@ const MAX_SLOTS = 8;
 const MAX_HEIGHT = 640;
 const PASSED_SHOWN_S = 300;
 const QUEUED_SHOWN = 5;
+const PIN_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.2 1.5 14.5 5.8l-1.4 1.1-.9-.2-2.5 2.5.2 3-1.2 1.2-2.7-2.7-3.2 3.2-.8-.8 3.2-3.2L2.5 7.200l1.2-1.200 3 .2 2.500-2.500-.2-.9z"/></svg>`;
 
 const tauri = window.__TAURI__;
 const invoke = (name, args) => tauri.core.invoke(name, args);
 const panel = document.getElementById("panel");
-let state = null, proof = null, lastError = "";
+let state = null, proof = null, lastError = "", pinned = false;
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 const repoName = (repo) => repo.split("/").filter(Boolean).pop();
@@ -299,7 +326,7 @@ function needsLine(item) {
 
 function main(s) {
     const busy = new Set(s.running.flatMap((job) => job.slots)).size;
-    let html = `<header><h1>verifique</h1><span class="count">${busy}/${s.slots} slots busy, ${s.queued.length} queued</span></header>`;
+    let html = `<header><h1>verifique</h1><span class="count">${busy}/${s.slots} slots busy, ${s.queued.length} queued</span><button class="pin" data-pin aria-label="${pinned ? "Unpin panel" : "Pin panel"}" aria-pressed="${pinned}" title="${pinned ? "Unpin" : "Keep on screen"}">${PIN_ICON}</button></header>`;
     if (!s.server) html += `<section class="needs"><h2>The queue isn't running</h2><p>Checks wait until it starts. Run: verifique service install</p></section>`;
     if (s.paused) html += `<section class="quiet">Paused while verifique doctor runs.</section>`;
     if (s.low_disk) html += `<section class="needs"><h2>Disk nearly full</h2><p>${esc(s.low_disk)}</p></section>`;
@@ -363,6 +390,8 @@ function showProgress(s) {
 async function refresh() {
     try {
         state = JSON.parse(await invoke("status"));
+        pinned = await invoke("is_pinned");
+        document.body.classList.toggle("pinned", pinned);
         lastError = "";
         showProgress(state);
     } catch (error) {
@@ -404,6 +433,8 @@ panel.addEventListener("click", async (event) => {
         act("hand_back", { repo: item.repo, branch: item.branch });
     } else if (d.open) {
         invoke("open_path", { path: d.open });
+    } else if (d.pin !== undefined) {
+        act("set_pinned", { on: !pinned });
     } else if (d.logs !== undefined) {
         invoke("open_logs");
     } else if (d.quit !== undefined) {

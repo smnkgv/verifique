@@ -189,7 +189,8 @@ panel/bundle.sh
 open panel/target/verifique.app
 ```
 
-The build is signed for your own machine only. `--pinned` keeps the panel open on screen.
+The build is signed for your own machine only. Press the pin in the panel, or right-click the tick,
+to keep it on screen in the top right corner, semi-transparent, on every desktop.
 
 ## Build
 
@@ -206,7 +207,7 @@ Then put the binary on your `PATH`, for example:
 ln -s "$PWD/target/release/verifique" ~/.local/bin/verifique
 ```
 
-The tests need `git`, `python3` and running Postgres, Mongo and Redis.
+The tests need `git`, `python3` and running Postgres, Mongo and Redis. [e2e/](e2e/README.md) tests everything from the outside, from a fresh install to a real agent.
 
 ## Licence
 

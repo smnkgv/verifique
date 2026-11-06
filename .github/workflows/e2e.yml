@@ -1,0 +1,30 @@
+name: e2e
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_dispatch:
+
+jobs:
+    free:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+            - run: sh e2e/services.sh
+            - run: sh e2e/run.sh
+
+    real:
+        if: github.event_name == 'workflow_dispatch'
+        runs-on: macos-latest
+        env:
+            ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        steps:
+            - uses: actions/checkout@v4
+            - run: sh e2e/services.sh
+            - run: npm install -g @anthropic-ai/claude-code
+            - run: sh e2e/run.sh real

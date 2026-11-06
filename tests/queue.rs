@@ -500,6 +500,13 @@ fn a_repository_cloned_again_in_the_same_place_keeps_working() {
 }
 
 #[test]
+fn output_piped_into_a_reader_that_stops_early_ends_quietly() {
+    let out = Command::new("sh").arg("-c").arg(format!("'{BIN}' init | head -1")).output().unwrap();
+    assert!(out.status.success());
+    assert_eq!(String::from_utf8_lossy(&out.stderr), "");
+}
+
+#[test]
 fn checks_wait_for_disk_after_idle_slots_are_cleared() {
     let mut world = World::new();
     world.serve(1, &[]);

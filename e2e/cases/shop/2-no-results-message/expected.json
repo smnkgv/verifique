@@ -1,0 +1,4 @@
+{
+    "expected": "failed",
+    "why": "The message is overwritten at once and clearing the box no longer brings the products back."
+}
