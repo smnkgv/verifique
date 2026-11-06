@@ -4,6 +4,7 @@ set -eu
 
 if [ "$(uname)" = Darwin ]; then
     brew tap mongodb/brew
+    brew trust mongodb/brew
     brew install postgresql@17 redis mongodb-community
     brew link --force postgresql@17
     brew services start postgresql@17
@@ -27,8 +28,8 @@ else
     version=$(ls /etc/postgresql)
     $SUDO pg_ctlcluster "$version" main start || true
     $SUDO mkdir -p /var/lib/mongodb
-    $SUDO mongod --fork --logpath /var/log/mongod-e2e.log --dbpath /var/lib/mongodb --replSet rs0 --bind_ip 127.0.0.1
-    until mongosh --quiet --eval 'rs.initiate()' >/dev/null 2>&1; do sleep 1; done
+    $SUDO mongod --fork --logpath /var/log/mongod-e2e.log --dbpath /var/lib/mongodb --bind_ip 127.0.0.1
+    until mongosh --quiet --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1; do sleep 1; done
     $SUDO redis-server --daemonize yes >/dev/null
     until pg_isready -q -h 127.0.0.1; do sleep 1; done
     $SUDO -u postgres psql -qc "ALTER ROLE postgres PASSWORD 'postgres'" 2>/dev/null || su postgres -c "psql -qc \"ALTER ROLE postgres PASSWORD 'postgres'\""
