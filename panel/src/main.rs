@@ -44,7 +44,7 @@ fn pin_file() -> PathBuf {
 fn show_pinned(window: &WebviewWindow) {
     let _ = window.set_visible_on_all_workspaces(true);
     // Active, because a pinned panel is rarely the focused window and macOS drops the blur otherwise.
-    let blur = EffectsBuilder::new().effect(Effect::Popover).state(EffectState::Active).radius(12.0).build();
+    let blur = EffectsBuilder::new().effect(Effect::HudWindow).state(EffectState::Active).radius(12.0).build();
     let _ = window.set_effects(blur);
     if let Ok(Some(monitor)) = window.current_monitor() {
         let scale = monitor.scale_factor();
