@@ -127,6 +127,11 @@ unless a check needs them, point those at nothing, for example `AWS_SHARED_CREDE
 Whatever `setup` prints reaches the checker agent and its model provider, so only print throwaway
 credentials.
 
+If the product is a phone app, a stack runs its backend and the app runs on a simulator or emulator.
+A phone is limited, so start the queue with `--resource simulator=1` and name it under `needs` on the
+check. Reach the slot the way the project's own device tests do: an emulator can't always use the
+host's address, and `doctor` only proves the backend, so prove the app reaches it with a real check.
+
 ## 4. Only if the app hardcodes something
 
 You may make small edits so the app reads a value from the environment, keeping today's value as
