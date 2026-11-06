@@ -157,7 +157,7 @@ pub struct Config {
 }
 
 /// Everything a job runs, frozen at submit so that later edits cannot change a queued job.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Plan {
     pub check: Check,
     pub stack: Option<Stack>,

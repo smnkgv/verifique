@@ -22,7 +22,10 @@ await page.addInitScript(() => {
         core: {
             invoke: async (name, args) => {
                 window.calls.push({ name, args });
-                if (name === "status") return JSON.stringify(window.sample);
+                if (name === "status") {
+                    if (window.sample === null) throw "the queue can't be read";
+                    return JSON.stringify(window.sample);
+                }
                 if (name === "is_pinned") return window.pinnedNow;
                 if (name === "set_pinned") window.pinnedNow = args.on;
                 return null;
@@ -31,6 +34,9 @@ await page.addInitScript(() => {
     };
 });
 await page.goto(fileURLToPath(PAGE).replace(/^/, "file://"));
+
+// A queue that can't be read says so, instead of leaving an empty line.
+await page.waitForFunction(() => document.getElementById("panel").innerText.includes("Can't read the queue"));
 
 async function show(state) {
     await page.evaluate(async (next) => {

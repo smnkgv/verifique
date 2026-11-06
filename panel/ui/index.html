@@ -352,6 +352,10 @@ function main(s) {
     return html;
 }
 
+function brokenView() {
+    return `<header><h1>verifique</h1></header><section class="needs"><h2>Can't read the queue</h2><p>${esc(lastError)}</p></section><footer><button data-logs>Open logs</button><button data-quit>Quit panel</button></footer>`;
+}
+
 function proofView(p) {
     const job = p.job, verdict = p.verdict ?? {};
     const status = verdict.status ?? job.status;
@@ -367,9 +371,9 @@ function proofView(p) {
 panel.addEventListener("load", () => proof && invoke("set_height", { height: Math.min(MAX_HEIGHT, Math.ceil(panel.scrollHeight) + 2) }), true);
 
 function paint() {
-    if (!state && !proof) return;
+    if (!state && !proof && !lastError) return;
     const scroll = panel.scrollTop;
-    panel.innerHTML = proof ? proofView(proof) : main(state);
+    panel.innerHTML = proof ? proofView(proof) : state ? main(state) : brokenView();
     panel.scrollTop = scroll;
     invoke("set_height", { height: Math.min(MAX_HEIGHT, Math.ceil(panel.scrollHeight) + 2) });
 }

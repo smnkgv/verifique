@@ -102,6 +102,23 @@ fn numbers<T: std::str::FromStr>(list: &str) -> Vec<T> {
     list.split(',').filter_map(|item| item.parse().ok()).collect()
 }
 
+/// A job queued before an upgrade can hold a plan this version can't read, so it can't run as asked.
+fn retire_unreadable(db: &Connection) -> Result<()> {
+    let mut waiting = db.prepare("SELECT id, plan FROM jobs WHERE status IN ('queued', 'running')")?;
+    let jobs = waiting
+        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (id, plan) in jobs {
+        if serde_json::from_str::<Plan>(&plan).is_err() {
+            db.execute(
+                "UPDATE jobs SET status = 'error', summary = ?1, finished_at = datetime('now') WHERE id = ?2",
+                params!["queued by an older version, so submit it again", id],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn job_from(row: &Row) -> rusqlite::Result<Job> {
     let json = |index: usize, error: serde_json::Error| {
         rusqlite::Error::FromSqlConversionFailure(index, rusqlite::types::Type::Text, Box::new(error))
@@ -118,7 +135,9 @@ fn job_from(row: &Row) -> rusqlite::Result<Job> {
         check: row.get("check_name")?,
         request: row.get("request")?,
         brief: row.get("brief")?,
-        plan: serde_json::from_str(&plan).map_err(|error| json(0, error))?,
+        // Only a job yet to run needs its plan, and `retire_unreadable` has dealt with those, so a
+        // plan written by an older version can't stop the queue being read.
+        plan: serde_json::from_str(&plan).unwrap_or_default(),
         needs: serde_json::from_str(&needs).map_err(|error| json(0, error))?,
         status: row.get("status")?,
         retry: row.get("retry")?,
@@ -163,6 +182,7 @@ impl Store {
         // Agents submit from many processes while the server claims and finishes jobs.
         db.busy_timeout(LOCK_WAIT)?;
         prepare(&db)?;
+        retire_unreadable(&db)?;
         Ok(Self { db })
     }
 

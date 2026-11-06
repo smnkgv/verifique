@@ -1,5 +1,5 @@
 #!/bin/sh
-# Postgres, Mongo and Redis on a clean Debian machine, for the Dockerfile beside it.
+# Postgres, Mongo and Redis on a clean Ubuntu machine, for the Dockerfile beside it.
 set -eu
 
 SUDO=$(command -v sudo || true)
@@ -7,11 +7,7 @@ SUDO=$(command -v sudo || true)
 $SUDO apt-get update -qq
 $SUDO apt-get install -y -qq curl gnupg lsof postgresql redis-server
 curl -fsSL https://pgp.mongodb.com/server-8.0.asc | $SUDO gpg --dearmor --yes -o /usr/share/keyrings/mongodb-8.0.gpg
-case "$ID" in
-debian) line="debian $VERSION_CODENAME/mongodb-org/8.0 main" ;;
-*) line="ubuntu $VERSION_CODENAME/mongodb-org/8.0 multiverse" ;;
-esac
-echo "deb [signed-by=/usr/share/keyrings/mongodb-8.0.gpg] https://repo.mongodb.org/apt/$line" | $SUDO tee /etc/apt/sources.list.d/mongodb.list >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/mongodb-8.0.gpg] https://repo.mongodb.org/apt/ubuntu $VERSION_CODENAME/mongodb-org/8.0 multiverse" | $SUDO tee /etc/apt/sources.list.d/mongodb.list >/dev/null
 $SUDO apt-get update -qq
 $SUDO apt-get install -y -qq mongodb-org
 version=$(ls /etc/postgresql)

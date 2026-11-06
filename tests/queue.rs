@@ -483,6 +483,32 @@ fn clean_carries_on_past_a_repository_that_no_longer_exists() {
 }
 
 #[test]
+fn an_upgrade_keeps_the_queue_readable() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let finished = detached(&world.repo, || world.submit("manual", "pass"));
+    assert_eq!(world.wait(&finished).0, 0);
+    world.stop_server();
+
+    // What an older version left behind: a setting this version has never heard of.
+    let db = rusqlite::Connection::open(world.home.join("queue.db")).unwrap();
+    let old = r#"{"check":{"browser":"headless"}}"#;
+    db.execute("UPDATE jobs SET plan = ?1", [old]).unwrap();
+    db.execute_batch(
+        "INSERT INTO jobs (repo, commit_sha, tree, check_name, request, brief, plan, needs, status)
+         SELECT repo, commit_sha, tree, check_name, request, brief, plan, needs, 'queued' FROM jobs",
+    )
+    .unwrap();
+    drop(db);
+
+    let status = world.status_json();
+    assert_eq!(status["queued"].as_array().unwrap().len(), 0);
+    assert_eq!(status["recent"].as_array().unwrap().len(), 2);
+    assert_eq!(status["recent"][0]["status"], "error");
+    assert_eq!(status["recent"][1]["status"], "passed");
+}
+
+#[test]
 fn a_repository_cloned_again_in_the_same_place_keeps_working() {
     let mut world = World::new();
     world.serve(1, &[]);
