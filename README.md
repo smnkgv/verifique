@@ -127,9 +127,6 @@ checks:
             What a newcomer would need to know.
 ```
 
-A project with its own isolation can give a stack a `start` command that takes `{slot}` instead of
-`apps`, and declare its own `ports` and `ready` URLs.
-
 Commands get `{slot}`, `{port}`, `{port.<app>}`, `{app.<app>.url}`, and for each service `.url`,
 `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and `.prefix`.
 
@@ -171,7 +168,6 @@ verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 supers
     overrides that.
 -   A check with `slots` gets as many stacks as the machine has, and smaller jobs wait so it cannot
     starve.
--   `maxSlots` at the top of `verifique.yaml` limits how many slots one project takes at once.
 -   Slot copies and their builds use real disk. When less than 5 GB is free, verifique deletes the copies no check is using, and if that isn't enough, checks wait. Change the limit with `verifique serve --min-free-gb`.
 -   Three failures in a row, or one `blocked`, put a branch in `needs-you` and raise a desktop
     notification. Submissions are then refused until `verifique clear`.
@@ -186,8 +182,7 @@ verifique release <job>       # or it ends by itself
 A hold goes through the same queue with the same isolation, and gives no verdict. One slot always
 stays free of holds, and it runs the code as it was when taken, so take a new one to see changes.
 
-A check runs its browser headless unless it sets `browser: headed`, and `verifique submit --headed`
-opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
+A check runs its browser headless, and `verifique submit --headed` opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
 
 `verifique slots <n>` changes how many checks run at once while the server runs. A check that's
 already running is never stopped, and restarting the service goes back to the installed number.

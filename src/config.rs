@@ -57,15 +57,7 @@ pub struct App {
 pub struct Stack {
     #[serde(default)]
     pub prepare: Vec<String>,
-    /// The project's own stack command, for a project that isolates itself.
-    #[serde(default)]
-    pub start: Option<String>,
-    #[serde(default)]
     pub apps: BTreeMap<String, App>,
-    #[serde(default)]
-    pub ready: Vec<String>,
-    #[serde(default)]
-    pub ports: BTreeMap<String, u32>,
     #[serde(default)]
     pub needs: Needs,
     #[serde(default)]
@@ -100,14 +92,6 @@ pub enum CheckType {
     #[default]
     Command,
     Agent,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Browser {
-    #[default]
-    Headless,
-    Headed,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -150,8 +134,6 @@ pub struct Check {
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
-    pub browser: Browser,
-    #[serde(default)]
     pub tools: Vec<String>,
     #[serde(default)]
     pub notes: Option<String>,
@@ -164,9 +146,6 @@ pub struct Config {
     pub base: Option<String>,
     #[serde(default)]
     pub retries: Option<u32>,
-    /// The most slots this project takes at once, so it can't crowd out the others on a machine.
-    #[serde(default, rename = "maxSlots")]
-    pub max_slots: Option<usize>,
     #[serde(default)]
     pub timeouts: Timeouts,
     #[serde(default)]
@@ -188,8 +167,6 @@ pub struct Plan {
     pub headed: bool,
     /// Set for a hold: a stack kept up for an investigation, with no check and no verdict.
     pub hold_minutes: Option<f64>,
-    #[serde(default)]
-    pub max_slots: Option<usize>,
 }
 
 impl Config {
@@ -209,8 +186,8 @@ impl Config {
             bail!("unknown service {kind}; have {}", KINDS.join(", "));
         }
         for (name, stack) in &self.stacks {
-            if stack.start.is_some() == !stack.apps.is_empty() {
-                bail!("stack {name} needs exactly one of \"start\" or \"apps\"");
+            if stack.apps.is_empty() {
+                bail!("stack {name} needs at least one app");
             }
             let settings = stack.env.values().chain(stack.apps.values().flat_map(|app| app.env.values()));
             for value in settings.chain(&stack.seed) {
@@ -230,11 +207,8 @@ impl Config {
             if check.slots.is_some_and(|slots| slots == 0) {
                 bail!("check {name} needs at least one slot");
             }
-            if check.slots.is_some_and(|slots| slots > 1) {
-                let own_apps = check.stack.as_ref().is_some_and(|stack| !self.stacks[stack].apps.is_empty());
-                if !own_apps {
-                    bail!("check {name}: several slots need a stack with \"apps\"");
-                }
+            if check.slots.is_some_and(|slots| slots > 1) && check.stack.is_none() {
+                bail!("check {name}: several slots need a stack");
             }
             match check.kind {
                 CheckType::Command if check.run.is_none() => bail!("check {name} needs \"run\""),
@@ -271,9 +245,8 @@ impl Config {
             stack,
             timeouts: self.timeouts.clone(),
             retries: self.retries.unwrap_or(DEFAULT_RETRIES),
-            headed: check.browser == Browser::Headed,
+            headed: false,
             hold_minutes: None,
-            max_slots: self.max_slots,
         };
         Ok((chosen.to_string(), plan, needs))
     }
@@ -298,7 +271,6 @@ impl Config {
             retries: 0,
             headed: false,
             hold_minutes: Some(minutes),
-            max_slots: self.max_slots,
         };
         Ok((plan, stack.needs.clone()))
     }
@@ -313,8 +285,7 @@ pub struct Values {
 
 impl Values {
     pub fn new(stack: Option<&Stack>, slot: u32, service_tokens: Vars) -> Self {
-        let mut ports: BTreeMap<String, u32> =
-            stack.iter().flat_map(|stack| &stack.ports).map(|(name, base)| (name.clone(), base + slot)).collect();
+        let mut ports = BTreeMap::new();
         let mut tokens = service_tokens;
         tokens.insert("slot".to_string(), slot.to_string());
         for (name, app) in stack.iter().flat_map(|stack| &stack.apps) {
@@ -361,7 +332,7 @@ mod tests {
     #[test]
     fn a_check_merges_what_its_stack_needs() {
         let config = parse(
-            "stacks: { ios: { start: x, needs: { simulator: 1 } } }\n\
+            "stacks: { ios: { apps: { a: { run: x } }, needs: { simulator: 1 } } }\n\
              checks: { mobile: { stack: ios, run: y, needs: { licence: 1 } } }",
         )
         .unwrap();
@@ -372,11 +343,8 @@ mod tests {
 
     #[test]
     fn a_slot_shifts_every_port() {
-        let stack = Stack {
-            start: Some("x".to_string()),
-            ports: BTreeMap::from([("web".to_string(), 3500)]),
-            ..Stack::default()
-        };
+        let web = App { run: "x".to_string(), port: Some(3500), ..App::default() };
+        let stack = Stack { apps: BTreeMap::from([("web".to_string(), web)]), ..Stack::default() };
         let values = Values::new(Some(&stack), 4, Vars::new());
         assert_eq!(values.expand("up {slot} on {port.web}"), "up 4 on 3504");
     }
@@ -391,9 +359,9 @@ mod tests {
     }
 
     #[test]
-    fn a_stack_is_either_a_command_or_a_set_of_apps() {
-        assert!(parse("stacks: { a: {} }\nchecks: { b: { run: x } }").unwrap_err().to_string().contains("exactly one"));
-        assert!(parse("stacks: { a: { start: x, apps: { b: { run: y } } } }\nchecks: { b: { run: x } }").is_err());
+    fn a_stack_needs_at_least_one_app() {
+        assert!(parse("stacks: { a: {} }\nchecks: { b: { run: x } }").unwrap_err().to_string().contains("apps"));
+        assert!(parse("stacks: { a: { apps: {} } }\nchecks: { b: { run: x } }").unwrap_err().to_string().contains("one app"));
     }
 
     #[test]
@@ -403,8 +371,8 @@ mod tests {
     }
 
     #[test]
-    fn several_slots_need_apps_because_only_apps_can_share_one_build() {
-        let yaml = "stacks: { a: { start: y } }\nchecks: { c: { run: x, stack: a, slots: 2 } }";
+    fn several_slots_need_a_stack_to_copy() {
+        let yaml = "checks: { c: { run: x, slots: 2 } }";
         assert!(parse(yaml).unwrap_err().to_string().contains("several slots"));
     }
 

@@ -128,7 +128,7 @@ fn stopped_cleanly(urls: &[String]) -> Result<()> {
     let deadline = Instant::now() + GONE_WITHIN;
     while urls.iter().any(|url| ureq::get(url).timeout(Duration::from_secs(1)).call().is_ok()) {
         if Instant::now() > deadline {
-            bail!("something still answers after the stack stopped: its start command left a process behind");
+            bail!("something still answers after the stack stopped: an app left a process behind");
         }
         sleep(Duration::from_millis(250));
     }
@@ -152,19 +152,13 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let urls: Vec<Vec<String>> = instances.iter().map(|instance| instance.ready_urls(stack)).collect();
-    if urls[0].is_empty() {
+    let urls: Vec<String> = instances.iter().flat_map(|instance| instance.ready_urls(stack)).collect();
+    if urls.is_empty() {
         bail!("stack {name} has no ready check, so nothing can prove it started");
     }
-    if let [first, second] = urls.as_slice() {
-        if first.iter().any(|url| second.contains(url)) {
-            bail!("stack {name}: two slots share a ready URL, so they would collide. Use {{slot}} or {{port.name}}");
-        }
-    }
-
-    // Apps share one build, as a job on several slots does. A custom stack may build in place.
+    // Copies share one build, as a job on several slots does.
     let worktrees: Vec<PathBuf> = (0..count)
-        .map(|index| paths::slot_worktree(project.repo, if stack.apps.is_empty() { index } else { 0 }))
+        .map(|_| paths::slot_worktree(project.repo, 0))
         .collect();
     let mut prepared: Vec<&PathBuf> = Vec::new();
     for (instance, worktree) in instances.iter_mut().zip(&worktrees) {
@@ -208,7 +202,7 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
         instance.remove_services();
     }
     proved?;
-    stopped_cleanly(&urls.concat())?;
+    stopped_cleanly(&urls)?;
     println!("  each slot used its own data, and both stopped cleanly");
     Ok(())
 }

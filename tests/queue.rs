@@ -35,21 +35,18 @@ fn config(base_port: u32, helpers: &Path) -> String {
 retries: 3
 stacks:
   web:
-    start: python3 -m http.server {{port.web}} --bind 127.0.0.1
-    ready: ["http://127.0.0.1:{{port.web}}/"]
-    ports: {{ web: {base_port} }}
+    apps:
+      web: {{ run: "python3 -m http.server {{port}} --bind 127.0.0.1", port: {base_port}, ready: / }}
   dying:
-    start: exit 1
-    ready: ["http://127.0.0.1:1/"]
+    apps:
+      web: {{ run: exit 1, port: {base_port}, ready: / }}
   device:
-    start: python3 -m http.server {{port.web}} --bind 127.0.0.1
-    ready: ["http://127.0.0.1:{{port.web}}/"]
-    ports: {{ web: {base_port} }}
+    apps:
+      web: {{ run: "python3 -m http.server {{port}} --bind 127.0.0.1", port: {base_port}, ready: / }}
     needs: {{ simulator: 1 }}
   signed-in:
-    start: python3 -m http.server {{port.web}} --bind 127.0.0.1
-    ready: ["http://127.0.0.1:{{port.web}}/"]
-    ports: {{ web: {base_port} }}
+    apps:
+      web: {{ run: "python3 -m http.server {{port}} --bind 127.0.0.1", port: {base_port}, ready: / }}
     setup: echo "sign in as throwaway@example.test"
 checks:
   manual: {{ stack: web, run: sh {helpers}/check.sh, verdict: file }}
@@ -537,22 +534,6 @@ fn checks_wait_for_disk_after_idle_slots_are_cleared() {
 }
 
 #[test]
-fn a_project_can_limit_its_share_of_the_slots() {
-    let mut world = World::new();
-    let yaml = fs::read_to_string(world.repo.join("verifique.yaml")).unwrap();
-    fs::write(world.repo.join("verifique.yaml"), format!("maxSlots: 1\n{yaml}")).unwrap();
-    commit(&world.repo, "limit this project");
-    world.serve(2, &[]);
-    let jobs = detached(&world.repo, || {
-        (0..3).map(|_| world.submit("manual", "slow")).collect::<Vec<_>>()
-    });
-    for job in &jobs {
-        assert_eq!(world.wait(job).0, 0);
-    }
-    assert_eq!(world.peak_concurrency(), 1);
-}
-
-#[test]
 fn two_repositories_share_one_machines_slots_and_take_turns() {
     let mut world = World::new();
     let other = world.root.join("project").join("other");
@@ -844,9 +825,8 @@ fn a_second_server_refuses_to_start() {
 fn doctor_starts_two_stacks_side_by_side_and_stops_them() {
     let world = World::new();
     let yaml = format!(
-        "stacks:\n  web:\n    start: python3 -m http.server {{port.web}} --bind 127.0.0.1\n    \
-         ready: [\"http://127.0.0.1:{{port.web}}/\"]\n    ports: {{ web: {} }}\n\
-         checks:\n  smoke: {{ stack: web, run: \"true\" }}\n",
+        "stacks:\n  web:\n    apps:\n      web: {{ run: \"python3 -m http.server {{port}} --bind 127.0.0.1\", \
+         port: {}, ready: / }}\nchecks:\n  smoke: {{ stack: web, run: \"true\" }}\n",
         world.base_port
     );
     fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
@@ -858,18 +838,15 @@ fn doctor_starts_two_stacks_side_by_side_and_stops_them() {
 }
 
 #[test]
-fn doctor_catches_two_slots_that_would_collide() {
+fn doctor_catches_an_app_that_ignores_its_slots_port() {
     let world = World::new();
     let port = world.base_port;
     let yaml = format!(
-        "stacks:\n  web:\n    start: python3 -m http.server {port} --bind 127.0.0.1\n    \
-         ready: [\"http://127.0.0.1:{port}/\"]\n\
-         checks:\n  smoke: {{ stack: web, run: \"true\" }}\n"
+        "timeouts: {{ ready_sec: 3 }}\nstacks:\n  web:\n    apps:\n      web: {{ run: \"python3 -m http.server {port} --bind 127.0.0.1\", \
+         port: {port}, ready: / }}\nchecks:\n  smoke: {{ stack: web, run: \"true\" }}\n"
     );
     fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
-    let out = world.run(&["doctor"]);
-    assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("would collide"));
+    assert!(!world.run(&["doctor"]).status.success());
 }
 
 #[test]
@@ -881,8 +858,8 @@ fn doctor_catches_a_stack_that_leaves_a_process_behind() {
         return; // macOS has no setsid, and a stack cannot leave its process group without it.
     }
     let yaml = format!(
-        "stacks:\n  web:\n    start: {start}\n    ready: [\"http://127.0.0.1:{{port.web}}/\"]\n    \
-         ports: {{ web: {port} }}\nchecks:\n  smoke: {{ stack: web, run: \"true\" }}\n"
+        "stacks:\n  web:\n    apps:\n      web: {{ run: \"{start}\", port: {port}, ready: / }}\n\
+         checks:\n  smoke: {{ stack: web, run: \"true\" }}\n"
     );
     fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
     let out = world.run(&["doctor"]);

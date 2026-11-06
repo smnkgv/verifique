@@ -21,7 +21,7 @@ content, and a verdict with proof.
    unrelated open-source project.
 2. **The tool does the isolation.** A project declares its apps and the database servers they use in
    one short file. The tool gives each slot its own ports and databases, starts the apps and cleans
-   up. A `start` command remains for projects with their own stack.
+   up.
 3. **Database servers are a prerequisite.** The tool uses what is already there, however it was
    installed, and never installs one. It only ever creates and drops databases named `verifique_*`.
 4. **Setup by the user's own agent.** `init` prints a guide for writing the project file. The agent

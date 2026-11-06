@@ -129,7 +129,7 @@ enum Commands {
 struct Machine {
     #[arg(long, default_value_t = 2)]
     slots: usize,
-    #[arg(long, default_value_t = 4)]
+    #[arg(long, default_value_t = 1)]
     first_slot: u32,
     /// Start no check with less disk free than this, in GB
     #[arg(long, default_value_t = 5)]

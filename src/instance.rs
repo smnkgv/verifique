@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, bail, Context, Result};
 
-use crate::config::{ServiceSpec, Stack, Values};
+use crate::config::{App, ServiceSpec, Stack, Values};
 use crate::process::{self, Env, Options, Proc};
 use crate::services::Service;
 
@@ -145,13 +145,6 @@ impl Instance {
     pub fn start(&mut self, stack: &Stack, worktree: &Path, track: &dyn Fn(i32)) -> Result<()> {
         self.clear_ports(worktree)?;
         let slot = self.values.slot;
-        if let Some(start) = &stack.start {
-            let log = self.log_dir.join(format!("stack-{slot}.log"));
-            let options = Options { cwd: worktree, env: &self.env, log: &log, stdout: None };
-            let proc = process::start(&self.values.expand(start), &options)?;
-            track(proc.pgid);
-            self.procs.push(proc);
-        }
         for (name, app) in &stack.apps {
             let mut env = self.env.clone();
             for (key, value) in &app.env {
@@ -168,12 +161,11 @@ impl Instance {
     }
 
     pub fn ready_urls(&self, stack: &Stack) -> Vec<String> {
-        let mut urls: Vec<String> = stack.ready.iter().map(|url| self.values.expand(url)).collect();
-        for (name, app) in &stack.apps {
-            let (Some(ready), Some(port)) = (&app.ready, self.values.ports.get(name)) else { continue };
-            urls.push(format!("http://127.0.0.1:{port}{}", self.values.expand_for(name, ready)));
-        }
-        urls
+        let ready = |(name, app): (&String, &App)| {
+            let (ready, port) = (app.ready.as_ref()?, self.values.ports.get(name)?);
+            Some(format!("http://127.0.0.1:{port}{}", self.values.expand_for(name, ready)))
+        };
+        stack.apps.iter().filter_map(ready).collect()
     }
 
     pub fn await_ready(&mut self, stack: &Stack, timeout: Duration, stop: &AtomicBool) -> Result<()> {
