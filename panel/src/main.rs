@@ -11,7 +11,9 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem};
+use tauri::utils::config::WindowEffectsConfig;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::window::{Effect, EffectState, EffectsBuilder};
 use tauri::{ActivationPolicy, AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewWindow, WindowEvent, Wry};
 
 /// Clicking the icon while the panel is open first takes focus from it, which hides it. Without this
@@ -41,6 +43,9 @@ fn pin_file() -> PathBuf {
 
 fn show_pinned(window: &WebviewWindow) {
     let _ = window.set_visible_on_all_workspaces(true);
+    // Active, because a pinned panel is rarely the focused window and macOS drops the blur otherwise.
+    let blur = EffectsBuilder::new().effect(Effect::Popover).state(EffectState::Active).radius(12.0).build();
+    let _ = window.set_effects(blur);
     if let Ok(Some(monitor)) = window.current_monitor() {
         let scale = monitor.scale_factor();
         let width = window.outer_size().map(|size| size.width as f64).unwrap_or(360.0 * scale);
@@ -65,6 +70,7 @@ fn change_pin(app: &AppHandle, on: bool) {
         show_pinned(&window);
     } else {
         let _ = window.set_visible_on_all_workspaces(false);
+        let _ = window.set_effects(None::<WindowEffectsConfig>);
         let _ = window.hide();
     }
 }

@@ -38,11 +38,11 @@ memory and ports. It knows nothing about your framework or how you test.
 
 ## Status
 
-Version 0.1, and early. It has been tested on real web apps and on native iOS and Android apps, and it works with Claude Code today. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Version 0.1, and early. It has been tested on real web apps and on native iOS and Android apps, and it works with Claude Code today. It runs on macOS, and Linux is written but untested. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 ## Install
 
-On macOS or Linux:
+On a Mac with Apple Silicon, or [build it from source](#build) anywhere else:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh

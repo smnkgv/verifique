@@ -48,8 +48,8 @@ verifique init --rules | grep -q "needs-you" || fail "init printed no rules"
 verifique status | grep -q "no verifique server is running" || fail "status didn't say the queue is down"
 
 echo "the service"
-# Installing a service belongs on a clean machine, so it only happens under CI.
-if [ "${CI:-}" = true ] && { [ "$(uname)" = Darwin ] || systemctl --user show-environment >/dev/null 2>&1; }; then
+# Installing a real service belongs on a clean machine, so it only happens when asked for.
+if [ "${E2E_SERVICE:-}" = yes ]; then
     SERVICE=yes
     verifique service install --slots 2 --first-slot "$FIRST_SLOT" | grep -q "installed" || fail "service install"
 else

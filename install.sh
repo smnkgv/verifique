@@ -3,20 +3,14 @@
 #   curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
 set -eu
 
-case "$(uname -s)-$(uname -m)" in
-Darwin-arm64) name=macos-arm64 ;;
-Darwin-x86_64) name=macos-x86_64 ;;
-Linux-x86_64) name=linux-x86_64 ;;
-Linux-aarch64 | Linux-arm64) name=linux-arm64 ;;
-*)
-    echo "There is no verifique build for $(uname -s) on $(uname -m) yet." >&2
+if [ "$(uname -s)-$(uname -m)" != Darwin-arm64 ]; then
+    echo "There is only a build for Macs with Apple Silicon so far. Elsewhere, build it from source." >&2
     exit 1
-    ;;
-esac
+fi
 
 target=${VERIFIQUE_INSTALL_DIR:-$HOME/.local/bin}
 mkdir -p "$target"
-curl -fsSL "https://github.com/smnkgv/verifique/releases/latest/download/verifique-$name.tar.gz" | tar -xz -C "$target"
+curl -fsSL "https://github.com/smnkgv/verifique/releases/latest/download/verifique-macos-arm64.tar.gz" | tar -xz -C "$target"
 echo "installed $("$target/verifique" --version) in $target"
 case ":$PATH:" in
 *":$target:"*) ;;

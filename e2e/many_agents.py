@@ -57,8 +57,9 @@ def session(queue, repo, name, rounds, results):
         waited = queue.run("wait", job, cwd=tree)
         results.add(name, kind, job, waited.returncode, EXIT_CODES[kind], waited.stdout.strip())
     if replaced:
+        # A newer submission only replaces a job still waiting. One that had already started finishes.
         status = json.loads(queue.run("show", replaced, "--json").stdout)["job"]["status"]
-        results.add(name, "replaced", replaced, status, "superseded", status)
+        results.add(name, "replaced", replaced, status in ("superseded", "passed"), True, status)
 
 
 def redis(*args):
