@@ -460,6 +460,22 @@ fn the_slot_count_changes_while_the_server_runs() {
 }
 
 #[test]
+fn clean_carries_on_past_a_repository_that_no_longer_exists() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let job = detached(&world.repo, || world.submit("manual", "pass"));
+    assert_eq!(world.wait(&job).0, 0);
+    world.stop_server();
+
+    let elsewhere = world.root.join("elsewhere");
+    fs::rename(&world.repo, &elsewhere).unwrap();
+    let out = world.run_in(&elsewhere, &["clean"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    fs::rename(&elsewhere, &world.repo).unwrap();
+    assert_eq!(fs::read_dir(world.home.join("worktrees")).unwrap().count(), 0);
+}
+
+#[test]
 fn a_repository_cloned_again_in_the_same_place_keeps_working() {
     let mut world = World::new();
     world.serve(1, &[]);

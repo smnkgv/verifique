@@ -536,6 +536,10 @@ fn clean() -> Result<ExitCode> {
     let removed = git::remove_idle_worktrees(&in_use)?;
     for repo_dir in fs::read_dir(paths::home().join("worktrees")).into_iter().flatten().flatten() {
         let Ok(repo) = fs::read_to_string(repo_dir.path().join("repo")) else { continue };
+        if !Path::new(&repo).is_dir() {
+            fs::remove_dir_all(repo_dir.path())?;
+            continue;
+        }
         let keep: Vec<String> = active.iter().filter(|job| job.repo == repo).map(|job| job.tree.clone()).collect();
         git::delete_snapshot_refs(Path::new(&repo), &keep)?;
     }
