@@ -42,7 +42,15 @@ Version 0.1, and early. It has been tested on real web apps and on native iOS an
 
 ## Install
 
-On a Mac with Apple Silicon, or [build it from source](#build) anywhere else:
+On a Mac with Apple Silicon, or [build it from source](#build) anywhere else. With Homebrew:
+
+```bash
+brew tap smnkgv/verifique
+brew trust smnkgv/verifique
+brew install verifique
+```
+
+Or without it:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
