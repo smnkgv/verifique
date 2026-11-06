@@ -38,8 +38,21 @@ memory and ports. It knows nothing about your framework or how you test.
 
 ## Status
 
-Early, and not released yet: it is being proven on real projects first, so for now you build it from
-source. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Version 0.1, and early. It has been tested on real web apps and on native iOS and Android apps, and it works with Claude Code today. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+
+## Install
+
+On macOS or Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
+```
+
+Then start the queue:
+
+```bash
+verifique service install
+```
 
 ## Prerequisites
 
