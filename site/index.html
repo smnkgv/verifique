@@ -21,6 +21,7 @@
         <nav aria-label="Sections">
             <a href="#why">Why</a>
             <a href="#how">How it works</a>
+            <a href="#install">Install</a>
             <a href="#setup">Setup</a>
             <a href="#proof">Proof</a>
             <a href="#status">Status</a>
@@ -35,7 +36,7 @@
         <p class="lede">verifique runs on your laptop. Agents hand over their finished work and carry on, each check runs when a slot is free, and every one ends in a verdict with proof.</p>
         <div class="install">
             <a class="repo" href="https://github.com/smnkgv/verifique"><code>github.com/smnkgv/verifique</code></a>
-            <a href="#status">Version 0.1</a>
+            <a href="#install">Version 0.1</a>
         </div>
 
         <figure class="film">
@@ -75,6 +76,22 @@
                 <p>A fresh checker compares the work with what you asked for. If it failed, the agent wakes up and fixes it.</p>
             </li>
         </ol>
+    </section>
+
+    <section class="band wrap split" id="install">
+        <div>
+            <h2>Install</h2>
+            <p class="big small">Installs with Homebrew.</p>
+            <p>Version 0.1 is built for Macs with Apple Silicon. Everywhere else, <a href="https://github.com/smnkgv/verifique#build">build it from source</a>.</p>
+            <p>Once it's installed, the queue runs in the background and starts by itself when you log in.</p>
+        </div>
+        <figure class="term">
+            <figcaption>Terminal</figcaption>
+<pre tabindex="0"><code>brew tap smnkgv/verifique
+brew trust smnkgv/verifique
+brew install verifique
+verifique service install</code></pre>
+        </figure>
     </section>
 
     <section class="band wrap split" id="setup">
@@ -187,7 +204,7 @@ files   ~/.verifique/jobs/6</code></pre>
                 </ul>
             </div>
         </div>
-        <p>Install it and connect a project by following the <a href="https://github.com/smnkgv/verifique#install">README on GitHub</a>.</p>
+        <p>The <a href="https://github.com/smnkgv/verifique#readme">README on GitHub</a> has everything else, and <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">a small shop</a> to try it on.</p>
     </section>
 </main>
 
