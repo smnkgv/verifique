@@ -73,7 +73,7 @@ content, and a verdict with proof.
 20. **Investigations hold a slot.** An agent reproducing a bug takes a timed hold through the same
     queue, with the same isolation and no verdict. It expires by itself, so a forgotten hold or a
     crashed agent cannot jam the queue. One slot always stays free of holds, so checks keep moving.
-21. **Slots keep their worktrees.** There is a manual `clean`, with no caps and no automatic deletion.
+21. **Slots keep their worktrees,** and `clean` removes them. When free disk falls below a floor, 5 GB by default, the copies no check is using are deleted, and checks wait if that isn't enough.
 22. **An installed background service.** Installing it records the shell's `PATH`, and a command
     shows what the service sees.
 
@@ -84,8 +84,8 @@ content, and a verdict with proof.
     per repository.
 25. **A status-bar panel, as Docker has Docker Desktop.** The CLI is the core and works alone. The
     desktop install adds an icon with a simple dropdown of slots, the queue and what needs you, using
-    Tauri so one codebase covers the macOS menu bar first, then the Windows tray and Linux. The icon shows a count only when something needs
-    you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
+    Tauri so one codebase covers the macOS menu bar first, then the Windows tray and Linux. The icon is amber with the number of checks left while they
+    run, green after a pass, and red with a count when something needs you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
     with actions limited to viewing proof, handing a branch back and running a job next. It reads the
     core's `--json` output and acts only through the CLI. A CLI-only install stays available. The
     macOS panel is built. Windows also needs the core ported.
@@ -97,13 +97,13 @@ content, and a verdict with proof.
     gets stacks on a laptop. CI keeps its own path.
 28. **Proof of the whole:** one real working day of about 15 sessions across all three repositories,
     with no stack collisions and verdicts worth trusting.
-29. **Built in public, released once that day passes.** Project configuration and sign-in scripts
+29. **Built in public.** Version 0.1 was released before that day, so the release says what has and hasn't been tested. Project configuration and sign-in scripts
     stay in each project's own repository, never here.
 
 ## Known limits
 
 -   macOS and Linux only: process groups and `sh`.
--   Fixed slots, rules only and no disk cap leave capacity, adoption and disk to the user.
+-   Fixed slots and rules only leave capacity and adoption to the user.
 -   `.env` is used as it is, so a setting the project file does not override can reach a real service.
     `doctor` only recognises database URLs: split host settings, email and payment keys go unnoticed.
 -   Databases are separated per slot, but share one server, so one check's load can slow another.

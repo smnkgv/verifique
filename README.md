@@ -1,6 +1,8 @@
 # verifique
 
-A verification queue for coding agents, running on your own laptop.
+A verification queue for coding agents.
+
+Coding agents write code faster than anyone can check that it works. verifique is for running as many as you like and still trusting what they hand you.
 
 ## What it's for
 
@@ -11,8 +13,9 @@ to check its work, and they collide over ports, databases and memory. Worktrees 
 not any of that. Moving to the cloud avoids the collisions, but gives up the fast feedback of working
 locally.
 
-verifique keeps verification on your laptop and runs only what the laptop can carry. Agents stop
-waiting for each other, and an agent no longer marks its own homework.
+verifique keeps verification on your laptop and runs only as many checks at once as you allow, two by
+default. Agents hand their work over instead of fighting over the machine, and a second agent that
+starts fresh checks it. The price is waiting your turn when many agents finish together.
 
 ## How it works
 
@@ -38,16 +41,14 @@ memory and ports. It knows nothing about your framework or how you test.
 
 ## Status
 
-Version 0.1, and early. It has been tested on real web apps and on native iOS and Android apps, and it works with Claude Code today. It runs on macOS, and Linux is written but untested. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Version 0.1, and early. It has been tested by its author on copies of three web apps and one iOS app, and Android has passed one check after a manual fix. Only Claude Code has been tested as the checker. It runs on macOS. On Linux it passes its own tests on Ubuntu, but no real check has run there yet. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 ## Install
 
 On a Mac with Apple Silicon, or [build it from source](#build) anywhere else. With Homebrew:
 
 ```bash
-brew tap smnkgv/verifique
-brew trust smnkgv/verifique
-brew install verifique
+brew install smnkgv/verifique/verifique
 ```
 
 Or without it:
@@ -168,7 +169,7 @@ verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 supers
     overrides that.
 -   A check with `slots` gets as many stacks as the machine has, and smaller jobs wait so it cannot
     starve.
--   Slot copies and their builds use real disk. When less than 5 GB is free, verifique deletes the copies no check is using, and if that isn't enough, checks wait. Change the limit with `verifique serve --min-free-gb`.
+-   Slot copies and their builds use real disk. When less than 5 GB is free, verifique deletes the copies no check is using, and if that isn't enough, checks wait. Change the limit with `--min-free-gb` on `verifique service install`.
 -   Three failures in a row, or one `blocked`, put a branch in `needs-you` and raise a desktop
     notification. Submissions are then refused until `verifique clear`.
 

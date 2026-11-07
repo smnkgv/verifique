@@ -5,213 +5,348 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>verifique: a verification queue for coding agents</title>
 <meta name="msvalidate.01" content="E3E93B298151517304577A536E362A78">
-<meta name="description" content="verifique is a verification queue for coding agents. It runs on your laptop: agents hand over their work and carry on, and each check runs when a slot is free.">
+<meta name="description" content="A verification queue for coding agents. Coding agents write code faster than anyone can check that it works. verifique is for running as many as you like and still trusting what they hand you.">
+<link rel="canonical" href="https://verifique.ai/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://verifique.ai/">
 <meta property="og:title" content="verifique: a verification queue for coding agents">
-<meta property="og:description" content="Agents hand over their work and carry on. Each check runs when a slot is free, and every one ends in a verdict with proof.">
-<meta name="theme-color" content="#0a0a0a">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0a'/%3E%3Cpath d='M9 16.5l5 5 9-11' fill='none' stroke='%233ddc84' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta property="og:description" content="Coding agents write code faster than anyone can check that it works. verifique is for running as many as you like and still trusting what they hand you.">
+<meta property="og:image" content="https://verifique.ai/film/poster.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#1b2126">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231b2126'/%3E%3Cpath d='M9 16.5l5 5 9-11' fill='none' stroke='%233ddc84' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Geist:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<header class="top">
-    <div class="wrap top-row">
-        <a class="logo" href="#top">verifique</a>
-        <nav aria-label="Sections">
-            <a href="#why">Why</a>
-            <a href="#how">How it works</a>
+<div class="hero-band">
+    <header class="top">
+        <a class="logo" href="#top" aria-label="verifique, back to the top">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 17l6 6 12-14"/></svg>
+            verifique
+        </a>
+        <nav aria-label="Main">
             <a href="#install">Install</a>
-            <a href="#setup">Setup</a>
-            <a href="#proof">Proof</a>
-            <a href="#status">Status</a>
             <a href="https://github.com/smnkgv/verifique">GitHub</a>
         </nav>
-    </div>
-</header>
+    </header>
 
-<main id="top">
-    <section class="hero wrap">
-        <h1>A verification queue for coding agents.</h1>
-        <p class="lede">verifique runs on your laptop. Agents hand over their finished work and carry on, each check runs when a slot is free, and every one ends in a verdict with proof.</p>
-        <div class="install">
-            <a class="repo" href="https://github.com/smnkgv/verifique"><code>github.com/smnkgv/verifique</code></a>
-            <a href="#install">Version 0.1</a>
+    <section class="hero" id="top">
+        <div class="hero-words">
+            <p class="strip">Open source <span>·</span> Free <span>·</span> Runs on your laptop</p>
+            <h1>A verification queue for <em>coding agents.</em></h1>
+            <p class="sentence">Coding agents write code faster than anyone can check it. verifique is for getting every change checked by a second agent, on your own Mac, without it grinding to a halt.</p>
         </div>
-
-        <figure class="film">
-            <video controls preload="none" playsinline poster="film/poster.jpg" aria-label="A two-minute film about what verifique is and what it's for">
+        <div class="hero-film">
+            <video controls preload="none" playsinline poster="film/poster.jpg" aria-label="A two-minute film about what verifique is and what it’s for">
                 <source src="film/the-search-button.mp4" type="video/mp4">
                 <a href="film/the-search-button.mp4">Watch the film</a>
             </video>
-        </figure>
-    </section>
-
-    <section class="band wrap split" id="why">
-        <h2>Why it exists</h2>
-        <div>
-            <p class="big">Writing code scales to dozens of agents. Verifying it on one laptop doesn't.</p>
-            <p>Run fifteen sessions and they all finish around the same time. Each one starts a stack to check its work, and they collide over ports, databases and memory. Worktrees separate your files, not any of that.</p>
-            <p>Moving to the cloud gives up the fast feedback of working locally. verifique keeps verification on your laptop, and runs only what your laptop can carry.</p>
+            <a class="see-verdict" href="#verdict">See a real verdict →</a>
+        </div>
+        <div class="hero-action">
+            <a class="button" href="#install">Install verifique</a>
         </div>
     </section>
+</div>
 
-    <section class="band wrap" id="how">
-        <h2>How it works</h2>
-        <ol class="steps">
-            <li>
-                <h3>Hand it over</h3>
-                <p>An agent submits your original request and how to reach the change. Uncommitted work is captured for it.</p>
-            </li>
-            <li>
-                <h3>Keep working</h3>
-                <p>It waits in the background and spends no tokens. Repositories take turns, and fixes go ahead of new work.</p>
-            </li>
-            <li>
-                <h3>Run in isolation</h3>
-                <p>The check gets its own ports and fresh databases on your existing servers. Your app runs natively, not in a container.</p>
-            </li>
-            <li>
-                <h3>Get a verdict</h3>
-                <p>A fresh checker compares the work with what you asked for. If it failed, the agent wakes up and fixes it.</p>
-            </li>
-        </ol>
-    </section>
+<main>
+    <div class="path">
+        <section id="today">
+            <p class="label">Where agents are today</p>
+            <h2>Your agents already try the app. They grade their own work.</h2>
+            <p>Coding agents have started checking their changes in a real browser. Claude Code Desktop does it by default after it edits, and Copilot’s coding agent attaches screenshots to its pull requests. That’s a big step up from unit tests, which only cover the cases the agent thought of.</p>
+            <p>But the agent trying the change is the one that wrote it, working from its own idea of what you asked for. A second agent that starts fresh, with your request in your words, doesn’t inherit those assumptions. Doing that for many agents at once is where it gets hard.</p>
+        </section>
 
-    <section class="band wrap split" id="install">
-        <div>
-            <h2>Install</h2>
-            <p class="big small">Installs with Homebrew.</p>
-            <p>Version 0.1 is built for Macs with Apple Silicon. Everywhere else, <a href="https://github.com/smnkgv/verifique#build">build it from source</a>.</p>
-            <p>Once it's installed, the queue runs in the background and starts by itself when you log in.</p>
-        </div>
-        <figure class="term">
-            <figcaption>Terminal</figcaption>
-<pre tabindex="0"><code>brew tap smnkgv/verifique
-brew trust smnkgv/verifique
-brew install verifique
+        <section id="isolation">
+            <p class="label">Doing it yourself</p>
+            <h2>Checking in parallel needs isolation</h2>
+            <p>With one agent, a check is simple: start the app on its usual port and try it. With several agents working at once, each check needs two things to itself. Its own copy of the code, usually a git worktree, so agents don’t change each other’s files. And its own running copy of the app, on its own ports and with its own databases, so one agent never tests another’s change or trips over its data.</p>
+            <p>Separate ports per worktree are easy to get now: tools such as Conductor hand them out. A fresh set of databases for every check, cleaned up afterwards, is the part people rarely build. And even with all of it, there’s one more problem.</p>
+        </section>
+
+        <section id="catch">
+            <p class="label">The catch</p>
+            <h2>Then your laptop runs out</h2>
+            <p>Start fifteen agents together and they tend to finish close together. If each checks its own work, that means fifteen builds, fifteen copies of your app with their databases, and fifteen browsers, all at once. Memory runs out, everything slows down, and checks fail because the machine is overloaded, not because the code is wrong. Phone apps are worse, because simulators and emulators are heavy and a laptop can only run a few.</p>
+        </section>
+
+        <section id="idea">
+            <p class="label">The idea</p>
+            <h2>verifique: a verification queue</h2>
+            <p>verifique handles both. Every check gets its own slot, with a git worktree no other running check uses, its own ports and freshly created databases, so the isolation is built in. And the checks wait in one queue for the whole laptop, shared by every repository: agents hand over their work and carry on with their next task, and only as many checks run at once as you allow, two by default.</p>
+            <figure class="ways">
+                <div>
+                    <svg viewBox="0 0 300 212" role="img" aria-label="Doing it yourself: ten agents each start their own copy of the app at once, each on its own port, and the laptop runs out of memory.">
+                        <g class="wires">
+                            <path d="M24 21 60 86M52 21 80 86M80 21 100 86M108 21 120 86M136 21 140 86M164 21 160 86M192 21 180 86M220 21 200 86M248 21 220 86M276 21 240 86"/>
+                        </g>
+                        <g class="agents">
+                            <circle cx="24" cy="14" r="7"/><circle cx="52" cy="14" r="7"/><circle cx="80" cy="14" r="7"/><circle cx="108" cy="14" r="7"/><circle cx="136" cy="14" r="7"/><circle cx="164" cy="14" r="7"/><circle cx="192" cy="14" r="7"/><circle cx="220" cy="14" r="7"/><circle cx="248" cy="14" r="7"/><circle cx="276" cy="14" r="7"/>
+                        </g>
+                        <rect class="laptop" x="34" y="86" width="232" height="118" rx="10"/>
+                        <g class="stack">
+                            <rect x="43" y="98" width="38" height="22" rx="4"/><rect x="87" y="98" width="38" height="22" rx="4"/><rect x="131" y="98" width="38" height="22" rx="4"/><rect x="175" y="98" width="38" height="22" rx="4"/><rect x="219" y="98" width="38" height="22" rx="4"/>
+                            <rect x="43" y="126" width="38" height="22" rx="4"/><rect x="87" y="126" width="38" height="22" rx="4"/><rect x="131" y="126" width="38" height="22" rx="4"/><rect x="175" y="126" width="38" height="22" rx="4"/><rect x="219" y="126" width="38" height="22" rx="4"/>
+                        </g>
+                        <g class="stack-text" text-anchor="middle">
+                            <text x="62" y="113">:3501</text><text x="106" y="113">:3502</text><text x="150" y="113">:3503</text><text x="194" y="113">:3504</text><text x="238" y="113">:3505</text>
+                            <text x="62" y="141">:3506</text><text x="106" y="141">:3507</text><text x="150" y="141">:3508</text><text x="194" y="141">:3509</text><text x="238" y="141">:3510</text>
+                        </g>
+                        <text class="meter-text" x="48" y="182">memory</text>
+                        <rect class="meter-track" x="100" y="174" width="150" height="10" rx="5"/>
+                        <rect class="meter-full" x="100" y="174" width="150" height="10" rx="5"/>
+                    </svg>
+                    <figcaption><strong>Doing it yourself:</strong> every agent runs its own copy of the app, all at once</figcaption>
+                </div>
+                <div>
+                    <svg viewBox="0 0 300 212" role="img" aria-label="With verifique: ten agents hand their work to one queue, and the laptop runs two checks at a time, each in its own slot, with memory to spare.">
+                        <g class="wires">
+                            <path d="M24 14 150 46M52 14 150 46M80 14 150 46M108 14 150 46M136 14 150 46M164 14 150 46M192 14 150 46M220 14 150 46M248 14 150 46M276 14 150 46"/>
+                            <path d="M150 46V58M150 76V90M98 90H202M98 90V98M202 90V98"/>
+                        </g>
+                        <g class="agents">
+                            <circle cx="24" cy="14" r="7"/><circle cx="52" cy="14" r="7"/><circle cx="80" cy="14" r="7"/><circle cx="108" cy="14" r="7"/><circle cx="136" cy="14" r="7"/><circle cx="164" cy="14" r="7"/><circle cx="192" cy="14" r="7"/><circle cx="220" cy="14" r="7"/><circle cx="248" cy="14" r="7"/><circle cx="276" cy="14" r="7"/>
+                        </g>
+                        <g class="queue">
+                            <rect x="96" y="58" width="16" height="18" rx="4"/><rect x="116" y="58" width="16" height="18" rx="4"/><rect x="136" y="58" width="16" height="18" rx="4"/><rect x="156" y="58" width="16" height="18" rx="4"/><rect x="176" y="58" width="16" height="18" rx="4"/>
+                        </g>
+                        <rect class="laptop" x="34" y="86" width="232" height="118" rx="10"/>
+                        <g class="slot">
+                            <rect x="52" y="98" width="92" height="50" rx="6"/>
+                            <rect x="156" y="98" width="92" height="50" rx="6"/>
+                        </g>
+                        <text class="slot-text" x="98" y="127" text-anchor="middle">check 1</text>
+                        <text class="slot-text" x="202" y="127" text-anchor="middle">check 2</text>
+                        <text class="meter-text" x="48" y="182">memory</text>
+                        <rect class="meter-track" x="100" y="174" width="150" height="10" rx="5"/>
+                        <rect class="meter-ok" x="100" y="174" width="58" height="10" rx="5"/>
+                    </svg>
+                    <figcaption><strong>With verifique:</strong> agents join a queue, and checks run a few at a time</figcaption>
+                </div>
+            </figure>
+            <p>Checks no longer swamp your laptop. The price is waiting your turn: in my tests on three web apps, an agent check took about five minutes, so with two running at once, the last of fifteen agents that finish together gets its verdict after about forty. If your Mac has room, let more run at once. The closest thing you already know is CI, except that this runs on your laptop, before anything is pushed.</p>
+            <h3 class="sub">Three terms the rest of this page uses</h3>
+            <dl class="terms">
+                <div>
+                    <dt>Check</dt>
+                    <dd>One round of verification on a piece of work. It can be a command, such as your test suite, or an agent check, where a second agent that didn’t write the code uses your app and compares it with your request.</dd>
+                </div>
+                <div>
+                    <dt>Slot</dt>
+                    <dd>A private place for one check to run: its own git worktree, ports for each app you list, and fresh Postgres, MongoDB or Redis databases. You get two by default, and can change the number while it runs.</dd>
+                </div>
+                <div>
+                    <dt>Verdict</dt>
+                    <dd>The result of a check: passed, failed, or blocked, which means the check couldn’t get far enough to say. If the check itself breaks, it’s an error instead.</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section id="how">
+            <p class="label">How it works</p>
+            <h2>From finished work to a verdict, in five steps</h2>
+            <p>Here’s what happens to one piece of work.</p>
+            <div class="how">
+                <ol class="steps">
+                    <li>
+                        <h3>An agent submits its work</h3>
+                        <p>From its branch or worktree, it runs <code>verifique submit</code> with your original request and a note saying where to find the change in the app. Uncommitted changes are included.</p>
+                    </li>
+                    <li>
+                        <h3>The work waits in the queue</h3>
+                        <p>The agent carries on with something else, and waiting spends no tokens. Repositories take turns, and a fix goes ahead of that repository’s new work.</p>
+                    </li>
+                    <li>
+                        <h3>A slot becomes free</h3>
+                        <p>verifique copies the work into the slot, builds it, creates fresh databases and starts your app. The app runs natively on your existing database servers, not in a container.</p>
+                    </li>
+                    <li>
+                        <h3>The check runs</h3>
+                        <p>A command reports through its exit code. An agent check opens your app in a real browser and tries the change.</p>
+                    </li>
+                    <li>
+                        <h3>A verdict comes back</h3>
+                        <p>If it failed, the agent that wrote the code gets the reason, fixes it and submits again. After three failures in a row, or one blocked check, verifique stops accepting that check from that branch and notifies you.</p>
+                    </li>
+                </ol>
+                <figure class="panel-shot">
+                    <picture>
+                        <source media="(prefers-color-scheme: dark)" srcset="img/menubar-dark.png">
+                        <img src="img/menubar-light.png" width="372" height="497" alt="The Mac menu bar with verifique’s amber tick and the number 5 beside it. Below it, the open panel shows three checks queued, two running in slots 4 and 5, and three recent verdicts: two passed and one failed." loading="lazy">
+                    </picture>
+                    <figcaption>It lives in your Mac’s menu bar. Click the tick to see the same steps as they happen: queued, running, then a verdict. The number beside it is how many checks are left.</figcaption>
+                </figure>
+            </div>
+            <figure class="term agent-sees">
+                <figcaption>What the agent sees</figcaption>
+<pre tabindex="0"><code><s>$</s> verifique submit --check manual --request-file request.md \
+    --brief "Open the shop, type red shoes into the search box and press Search."
+62
+<s>$</s> verifique wait 62
+failed: The search bar renders, but pressing Search never filters the product list…</code></pre>
+            </figure>
+            <p>verifique knows how to start your app and which checks to run from one short file in your repository, <code>verifique.yaml</code>. Your coding agent writes it for you, as <a href="#install">Get started</a> shows.</p>
+        </section>
+
+        <section id="verdict">
+            <p class="label">What you get back</p>
+            <h2>Every check ends in a verdict with proof</h2>
+            <p>The verdict is what you and your agents read. These two are real, and they come from a copy of verifique’s sample shop. The request was “Add a search bar to the shop that filters the products when you press Search.” The first attempt had a planted bug, and the checker was told how to reach the change, not that anything was wrong.</p>
+            <div class="verdicts">
+                <figure class="verdict failed">
+                    <p class="verdict-head"><span class="status">Failed</span> First attempt</p>
+                    <img src="img/search-failed.png" width="760" height="296" alt="The shop with “red shoes” in the search box and all six products still listed below it." loading="lazy">
+                    <p class="verdict-text">The search bar renders, but pressing Search never filters the product list — all six products stay on screen. The filtering code is bound to the form’s “reset” event (index.html), which nothing in the UI fires, while the “submit” handler just returns false and swallows the Search press.</p>
+                </figure>
+                <figure class="verdict passed">
+                    <p class="verdict-head"><span class="status">Passed</span> After the fix</p>
+                    <img src="img/search-passed.png" width="760" height="296" alt="The shop with “red shoes” in the search box and only the Red shoes product listed." loading="lazy">
+                    <p class="verdict-text">The shop has a working search bar: typing a query and pressing Search filters the product list in place, and clearing the box restores all six products. The request is met.</p>
+                </figure>
+            </div>
+            <p class="small">Both verdicts are shortened, and the screenshots are the ones the checker saved. I scripted this fix so the run could be repeated. In a separate run, a real agent got a failing test back, fixed the bug itself, and the agent check then passed, all in about three minutes.</p>
+
+            <h3 class="sub">What a pass takes</h3>
+            <p>A command, such as your test suite, passes when it exits 0, as it would anywhere. An agent check has to do more:</p>
+            <ul class="rules">
+                <li><strong>A fresh agent.</strong> The checker starts with no memory of writing the code.</li>
+                <li><strong>Your request.</strong> Agents are told to pass it on word for word, so the checker works from what you asked for, not a summary of what was done.</li>
+                <li><strong>Proof.</strong> A pass must list its steps and what it saw, with at least one evidence file, such as a screenshot or page snapshot.</li>
+                <li><strong>Nothing else broken.</strong> The checker is told to fail a change that does what you asked but breaks what used to work.</li>
+                <li><strong>No crashes.</strong> A checker that dies, or reports nothing readable, counts as an error, not a pass.</li>
+                <li><strong>The exact content.</strong> A pass is tied to a hash of the files. Commit the same files later and it still counts. Change a line and it doesn’t.</li>
+            </ul>
+            <p>So far it has been tested by me alone, on copies of my own projects with bugs I planted. A test on real bugs from a real project is under way.</p>
+        </section>
+
+        <section id="questions" class="questions">
+            <p class="label">Questions</p>
+            <h2>What you might still be wondering</h2>
+            <details open>
+                <summary>Isn’t this just CI?</summary>
+                <p>CI runs after you push, on another machine, and runs the checks you’ve already scripted. verifique runs before anything is pushed, on your laptop, on work that may not be committed yet, and an agent check tests things nobody scripted. Keep your CI. This catches problems before they get there.</p>
+            </details>
+            <details>
+                <summary>My agent already checks its own work. Why add another?</summary>
+                <p>Keep it: an agent catching its own mistakes early is good. verifique adds a second look from an agent that starts fresh, with your request in your words rather than the author’s idea of it, and keeps fifteen of those checks from running on one laptop at once.</p>
+            </details>
+            <details>
+                <summary>Why not run each agent in the cloud?</summary>
+                <p>Cloud agents run each task on its own machine, so they don’t collide either. verifique is for work that stays on your Mac: uncommitted changes, your own seed data and setup, iOS simulators, which need a Mac, and no bill per machine-minute.</p>
+            </details>
+            <details>
+                <summary>Why not Docker?</summary>
+                <p>Run your database servers however you like. verifique runs the app itself natively, because builds reuse their caches between checks, Docker on a Mac costs memory, and iOS simulators can’t run in a container.</p>
+            </details>
+            <details>
+                <summary>Can the checker get it wrong?</summary>
+                <p>Yes. It’s an AI model, the same kind as the agent that wrote the code, so it can miss something or fail good work, and a pass can’t vouch for what no screen shows, such as security, performance or data integrity. That’s why a pass lists what it tried and what it saw. Run your own tests as checks alongside it, and keep reviewing the code. verifique takes away the testing by hand, not your judgement.</p>
+            </details>
+            <details>
+                <summary>Is it worth it with only two or three agents?</summary>
+                <p>If you’re tired of testing their work by hand, yes: even one agent gets a second one checking it. The queue matters more as you add agents.</p>
+            </details>
+            <details>
+                <summary>What does it cost?</summary>
+                <p>verifique is free and open source under Apache-2.0. Waiting costs nothing, and so does a check that’s only a command. An agent check is an ordinary session of your coding agent, on your own plan: the sample shop’s two checks cost about 50 cents together, and a real app costs more. Connecting a project is a one-off: it cost $5 to $11 of agent time on three projects, and I didn’t record it on two larger ones.</p>
+            </details>
+            <details>
+                <summary>Does my code leave my laptop?</summary>
+                <p>verifique has no account and no server of ours. An agent check sends your request, the diff and what it sees in your app to your agent’s model provider, as your coding agent already does. Your app, its build and the browser tool reach the network as they do when you run them yourself.</p>
+            </details>
+            <details>
+                <summary>Is it safe to let checks run unattended?</summary>
+                <p>Treat a check like starting your app yourself. The checking agent gets the browser and its own job folder, plus whatever your own agent settings already allow, with no permission bypass. A check uses your project’s <code>.env</code>, so anything in there is live: it can send real email or charge a real card, so keep test keys in it, and point cloud credentials such as <code>~/.aws</code> at nothing. Postgres and MongoDB databases are only created and dropped if they’re named <code>verifique_*</code>. On Redis, each slot uses the numbered database that matches it and clears it for every check, so keep nothing else in those.</p>
+            </details>
+            <details>
+                <summary>Is it for teams?</summary>
+                <p>verifique is a tool for one developer’s laptop. Each developer runs their own queue, and verdicts and their proof stay on that laptop: there’s no shared dashboard, and nothing appears on your pull requests. <code>verifique.yaml</code> lives in the repository, so once one person has connected a project, the whole team has it.</p>
+            </details>
+            <details>
+                <summary>What does it work with?</summary>
+                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. The release is for Macs with Apple Silicon. On Linux it builds from source and passes its own tests, but no real check has run there yet, and Windows isn’t supported. The menu bar panel is a separate app you build yourself for now.</p>
+            </details>
+        </section>
+    </div>
+
+    <section class="install-band" id="install">
+        <div class="install-grid">
+            <div>
+                <p class="label">Get started</p>
+                <h2>Connect your project in four steps</h2>
+                <ol class="start">
+                    <li><strong>Install it.</strong> Use the commands here. Installing by the full name tells Homebrew to trust this one formula, not everything in its tap. The queue then runs in the background and starts when you log in.</li>
+                    <li><strong>Connect your project.</strong> Run <code>verifique init</code> and give the output to your coding agent. It reads your code and writes <code>verifique.yaml</code>: how to start your app, what two copies of it would fight over, and which checks to run.</li>
+                    <li><strong>Prove it.</strong> <code>verifique doctor</code> starts two copies side by side and checks that each one used its own databases.</li>
+                    <li><strong>Tell your agents.</strong> Add the lines from <code>verifique init --rules</code> to your project’s agent instructions, so they know how to submit their work.</li>
+                </ol>
+            </div>
+            <div class="install-side">
+                <figure class="term">
+                    <figcaption>Terminal</figcaption>
+<pre tabindex="0"><code>brew install smnkgv/verifique/verifique
 verifique service install</code></pre>
-        </figure>
-    </section>
-
-    <section class="band wrap split" id="setup">
-        <div>
-            <h2>One short file</h2>
-            <p class="big small">Your agent writes it.</p>
-            <p>Run <code>verifique init</code> and give the guide to your coding agent. It works out what two copies of your app would fight over and writes this file.</p>
-            <p>Then <code>verifique doctor</code> proves it: two copies side by side, each using its own data. Your framework doesn't matter. Your database servers just need to be running already.</p>
-        </div>
-        <figure class="term">
-            <figcaption>verifique.yaml</figcaption>
-<pre tabindex="0"><code>services:
+                </figure>
+                <details class="sample">
+                    <summary>See a sample verifique.yaml</summary>
+<pre tabindex="0"><code><s># Database servers you already run</s>
+services:
   postgres: {}
   redis: {}
 
+<s># How to start your app</s>
 stacks:
   web:
     prepare: [pnpm install, pnpm build]
-    seed: pnpm db:seed
+    seed: pnpm db:migrate && pnpm db:seed
     env:
-      DATABASE_URL: "<span class="g">{postgres.url}</span>"
-      REDIS_URL: "<span class="g">{redis.url}</span>"
+      DATABASE_URL: "<i>{postgres.url}</i>"
+      REDIS_URL: "<i>{redis.url}</i>"
     apps:
       web:
         run: pnpm start
         port: 3500
         ready: /
-        env: { PORT: "<span class="g">{port}</span>" }
+        env: { PORT: "<i>{port}</i>" }
 
+<s># What to run on each change</s>
 checks:
-  e2e: { stack: web, slots: 2, run: pnpm test:e2e }
+  e2e: { stack: web, run: pnpm test:e2e }
+  <s># An agent uses the app by hand</s>
   manual: { stack: web, type: agent, agent: claude }</code></pre>
-        </figure>
+                </details>
+                <p class="needs">You’ll need a Mac with Apple Silicon, your database servers already running (Postgres, MongoDB or Redis, with <code>psql</code>, <code>mongosh</code> or <code>redis-cli</code>), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes. On something else, <a href="https://github.com/smnkgv/verifique#build">build from source</a>.</p>
+            </div>
+        </div>
     </section>
 
-    <section class="band wrap split" id="proof">
+    <section class="closing">
         <div>
-            <h2>Proof</h2>
-            <p class="big small">An agent shouldn't mark its own homework.</p>
-            <ul class="rules">
-                <li><strong>Judged against your words.</strong> The checker gets your request and the diff, not just the author's summary.</li>
-                <li><strong>No proof, no pass.</strong> A pass needs its steps, what it saw and an evidence file.</li>
-                <li><strong>Crashes never pass.</strong> A check that dies can't read as success.</li>
-                <li><strong>Tied to the content.</strong> Commit the same files later and the verdict still holds.</li>
-                <li><strong>Clean every time.</strong> Databases are created, seeded and dropped for each check.</li>
-                <li><strong>It knows when to stop.</strong> Three failures in a row and the branch comes to you.</li>
-            </ul>
+            <h2>New and small</h2>
+            <p>I run fifteen to twenty-five coding agents at a time on one laptop. Checking their work had become most of my day and I couldn’t find a tool for it, so I built this. Tools exist for parts of it: <a href="https://conductor.build">Conductor</a> and <a href="https://github.com/JohnWayneeee/agentgc">agentgc</a> give each worktree its own ports, <a href="https://github.com/yongjip/mergetrain">mergetrain</a> queues checks before you push, and agents such as Claude Code check their own work in a browser. I couldn’t find one that does all of it on a laptop, with a different agent signing off. If you know one, tell me.</p>
+            <p>It’s new and it will have rough edges. It has been tested on copies of real web and iOS apps, but only on Macs and only with Claude Code as the checker. If you try it, tell me where it breaks.</p>
+            <p class="signature">Hlib Semeniuk · <a href="https://github.com/smnkgv/verifique/issues">Open an issue</a></p>
         </div>
-        <figure class="term">
-            <figcaption>verifique show 6</figcaption>
-<pre tabindex="0"><code>job 6: <span class="r">failed</span> on storefront
-check   manual
-content afa3d3034  commit 511d73986
-
-Google Fonts fetching was correctly removed, but only
-weights 300, 400 and 900 are wired into the bundled font.
-
-<span class="b">steps</span>
-  - Read the diff
-  - Signed in as the setup step instructed
-  - Inspected all network requests
-  - Parsed the served CSS for @font-face rules
-  - Queried document.fonts in the live page
-  - Saved a screenshot of the dashboard
-
-<span class="b">saw:</span> exactly three @font-face rules for roboto, at 300,
-400 and 900. The 500 and 700 files exist but are never
-referenced.
-
-<span class="b">not checked:</span> a pixel comparison against a build from
-before the change.
-
-files   ~/.verifique/jobs/6</code></pre>
-            <p class="caption">A real run on a planted bug, shortened, with the project renamed.</p>
-        </figure>
-    </section>
-
-    <section class="band wrap" id="more">
-        <h2>Also built in</h2>
-        <dl class="features">
-            <div><dt>Any kind of test</dt><dd>Unit tests, Playwright, a typecheck, or an agent driving the app by hand.</dd></div>
-            <div><dt>Timed holds</dt><dd>An agent chasing a bug can hold a stack. It ends by itself, so it can't jam the queue.</dd></div>
-            <div><dt>Whole suites</dt><dd>A check can take several slots, one per worker, from a single build.</dd></div>
-            <div><dt>Headed or headless</dt><dd>Headless by default. Open a real window when you want to watch.</dd></div>
-        </dl>
-    </section>
-
-    <section class="band wrap" id="status">
-        <h2>Status</h2>
-        <p class="big small">Version 0.1, and early.</p>
-        <div class="lists">
-            <div>
-                <h3>Working today</h3>
-                <ul>
-                    <li>The queue, slots and background service</li>
-                    <li>Isolation on Postgres, Mongo and Redis</li>
-                    <li>Agent checks with Claude Code</li>
-                    <li>Web apps, and native iOS and Android apps</li>
-                    <li>A status-bar panel on macOS, built from source</li>
-                    <li>macOS, with Homebrew. Linux is written but untested</li>
-                </ul>
-            </div>
-            <div>
-                <h3>Still to come</h3>
-                <ul>
-                    <li>A signed panel you can download</li>
-                    <li>Builds for Linux and Intel Macs</li>
-                    <li>Other checkers, such as Codex</li>
-                    <li>Windows</li>
-                </ul>
-            </div>
+        <div>
+            <h2>Go deeper</h2>
+            <p>Every command and setting is in the README, and the reasoning behind each decision is in the design document.</p>
+            <a class="button dark" href="https://github.com/smnkgv/verifique#readme">Read the README →</a>
         </div>
-        <p>The <a href="https://github.com/smnkgv/verifique#readme">README on GitHub</a> has everything else, and <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">a small shop</a> to try it on.</p>
     </section>
 </main>
 
-<footer class="wrap">
-    <span class="logo">verifique</span>
-    <span>Open source under Apache-2.0. Runs on your machine and stays there.</span>
+<footer>
+    <nav aria-label="Footer">
+        <a href="https://github.com/smnkgv/verifique">GitHub</a>
+        <a href="https://github.com/smnkgv/verifique/blob/main/docs/DESIGN.md">Design</a>
+        <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Sample shop</a>
+        <a href="https://github.com/smnkgv/verifique/blob/main/LICENSE">Licence</a>
+    </nav>
+    <span>© 2026 Hlib Semeniuk</span>
 </footer>
 </body>
 </html>
