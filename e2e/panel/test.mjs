@@ -83,6 +83,14 @@ await show({ low_disk: "Only 3 GB of disk is free, so checks are waiting until 5
 assert.match(await text(), /Disk nearly full[\s\S]*Only 3 GB/);
 
 // The pin keeps the panel out, and the page turns see-through.
+// A queue that stops being readable says so, instead of showing the last one it read.
+await page.evaluate(async () => {
+    window.sample = null;
+    await refresh();
+});
+assert.match(await text(), /Can't read the queue/);
+assert.equal((await look()).look, "needs");
+
 await show({});
 assert.equal(await page.locator("body.pinned").count(), 0);
 await page.getByRole("button", { name: "Pin panel" }).click();

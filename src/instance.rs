@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -140,6 +140,17 @@ impl Instance {
             }
         }
         Ok(())
+    }
+
+    /// The first port that two copies, or two apps in one copy, would both use. Copies of one job
+    /// share a worktree, so starting the second would stop the first one's app as if it were left over.
+    pub fn shared_port(instances: &[Instance]) -> Option<String> {
+        let mut seen = BTreeSet::new();
+        let port = instances.iter().flat_map(|instance| instance.values.ports.values().copied()).find(|port| !seen.insert(*port))?;
+        Some(format!(
+            "two copies would both use port {port}, so one would stop the other's app. \
+             Space the apps' ports further apart than the number of slots, such as 3500 and 3600"
+        ))
     }
 
     pub fn start(&mut self, stack: &Stack, worktree: &Path, track: &dyn Fn(i32)) -> Result<()> {

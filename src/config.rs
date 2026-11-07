@@ -189,6 +189,9 @@ impl Config {
             if stack.apps.is_empty() {
                 bail!("stack {name} needs at least one app");
             }
+            if let Some((app, _)) = stack.apps.iter().find(|(_, app)| app.ready.is_some() && app.port.is_none()) {
+                bail!("app {app} in stack {name} has \"ready\" but no \"port\" to check it on");
+            }
             let settings = stack.env.values().chain(stack.apps.values().flat_map(|app| app.env.values()));
             for value in settings.chain(&stack.seed) {
                 for kind in KINDS {
@@ -356,6 +359,12 @@ mod tests {
         let values = Values::new(Some(&stack), 4, Vars::new());
         assert_eq!(values.expand_for("api", "{port}"), "3604");
         assert_eq!(values.expand("{app.api.url}/x"), "http://127.0.0.1:3604/x");
+    }
+
+    #[test]
+    fn a_ready_check_needs_a_port() {
+        let yaml = "stacks: { s: { apps: { api: { run: x, ready: /health } } } }\nchecks: { c: { run: y, stack: s } }";
+        assert!(parse(yaml).unwrap_err().to_string().contains("no \"port\""));
     }
 
     #[test]

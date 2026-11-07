@@ -194,6 +194,9 @@ impl Run<'_> {
     fn start_stacks(&self, instances: &mut [Instance]) -> Result<(), Halt> {
         let plan = &self.job.plan;
         let Some(stack) = &plan.stack else { return Ok(()) };
+        if let Some(collision) = Instance::shared_port(instances) {
+            return failed(collision);
+        }
         let track = |pgid: i32| {
             let _ = self.store.add_pgid(self.job.id, pgid);
         };

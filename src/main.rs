@@ -129,7 +129,7 @@ enum Commands {
 struct Machine {
     #[arg(long, default_value_t = 2)]
     slots: usize,
-    #[arg(long, default_value_t = 1)]
+    #[arg(long, default_value_t = 4)]
     first_slot: u32,
     /// Start no check with less disk free than this, in GB
     #[arg(long, default_value_t = 5)]
@@ -608,6 +608,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
                     service::install(&service::Install {
                         slots: machine.slots,
                         first_slot: machine.first_slot,
+                        min_free_gb: machine.min_free_gb,
                         resources: machine.resources,
                     })?;
                 }

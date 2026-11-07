@@ -151,6 +151,9 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
             Instance::new(Some(stack), &project.config.services, project.repo, slot, &base, &log_dir)
         })
         .collect::<Result<Vec<_>>>()?;
+    if let Some(collision) = Instance::shared_port(&instances) {
+        bail!("stack {name}: {collision}");
+    }
 
     let urls: Vec<String> = instances.iter().flat_map(|instance| instance.ready_urls(stack)).collect();
     if urls.is_empty() {

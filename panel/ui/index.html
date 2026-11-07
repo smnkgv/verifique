@@ -395,6 +395,8 @@ async function refresh() {
         showProgress(state);
     } catch (error) {
         lastError = String(error);
+        state = null;
+        invoke("show_progress", { look: "needs", count: 0 });
     }
     if (!proof) paint();
 }

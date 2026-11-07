@@ -499,13 +499,18 @@ fn an_upgrade_keeps_the_queue_readable() {
          SELECT repo, commit_sha, tree, check_name, request, brief, plan, needs, 'queued' FROM jobs",
     )
     .unwrap();
+    let queued = db.last_insert_rowid().to_string();
     drop(db);
 
+    // Reading the queue changes nothing, so an older server still running keeps its work.
     let status = world.status_json();
-    assert_eq!(status["queued"].as_array().unwrap().len(), 0);
-    assert_eq!(status["recent"].as_array().unwrap().len(), 2);
-    assert_eq!(status["recent"][0]["status"], "error");
-    assert_eq!(status["recent"][1]["status"], "passed");
+    assert_eq!(status["queued"].as_array().unwrap().len(), 1);
+    assert_eq!(status["recent"][0]["status"], "passed");
+
+    world.serve(1, &[]);
+    let (code, verdict) = world.wait(&queued);
+    assert_eq!(code, 2);
+    assert!(verdict.contains("different version"), "{verdict}");
 }
 
 #[test]
@@ -872,7 +877,24 @@ fn doctor_catches_an_app_that_ignores_its_slots_port() {
          port: {port}, ready: / }}\nchecks:\n  smoke: {{ stack: web, run: \"true\" }}\n"
     );
     fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
-    assert!(!world.run(&["doctor"]).status.success());
+    let out = world.run(&["doctor"]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("ready"));
+}
+
+#[test]
+fn doctor_catches_two_slots_that_would_collide() {
+    let world = World::new();
+    let (web, api) = (world.base_port, world.base_port + 1);
+    let yaml = format!(
+        "stacks:\n  web:\n    apps:\n      web: {{ run: \"python3 -m http.server {{port}} --bind 127.0.0.1\", port: {web}, ready: / }}\n      \
+         api: {{ run: \"python3 -m http.server {{port}} --bind 127.0.0.1\", port: {api}, ready: / }}\n\
+         checks:\n  smoke: {{ stack: web, run: \"true\" }}\n"
+    );
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    let out = world.run(&["doctor"]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("would both use port"));
 }
 
 #[test]

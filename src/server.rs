@@ -21,6 +21,7 @@ use crate::worker::{self, Finished, Outcome};
 
 pub const KEY_PID: &str = "server_pid";
 pub const KEY_HEARTBEAT: &str = "server_heartbeat";
+const UNREADABLE_PLAN: &str = "submitted by a different version of verifique, so submit it again";
 pub const KEY_SLOTS: &str = "server_slots";
 pub const KEY_FIRST_SLOT: &str = "server_first_slot";
 pub const KEY_PAUSED_BY: &str = "paused_by";
@@ -108,7 +109,9 @@ impl Server {
                 kill_group(pgid, libc::SIGKILL);
             }
             // A check can simply run again, but whoever held a stack has lost it.
-            if job.plan.hold_minutes.is_some() {
+            if !job.plan_readable {
+                self.store.finish(&job, "error", UNREADABLE_PLAN)?;
+            } else if job.plan.hold_minutes.is_some() {
                 self.store.finish(&job, "released", "ended because the server restarted")?;
             } else {
                 self.store.requeue(job.id)?;
@@ -191,6 +194,10 @@ impl Server {
         let queued = self.store.queued()?;
         let mut runnable = Vec::new();
         for job in &queued {
+            if !job.plan_readable {
+                self.store.finish(job, "error", UNREADABLE_PLAN)?;
+                continue;
+            }
             match unavailable(&job.needs, &self.options.resources) {
                 Some(missing) => {
                     self.store.finish(job, "error", &format!("this machine has no {missing}"))?;

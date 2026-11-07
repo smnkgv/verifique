@@ -32,6 +32,7 @@ named in verifique.yaml are replaced. Keep .env pointed at test accounts and loc
 pub struct Install {
     pub slots: usize,
     pub first_slot: u32,
+    pub min_free_gb: u64,
     pub resources: Vec<String>,
 }
 
@@ -86,6 +87,8 @@ fn serve_args(options: &Install) -> Vec<String> {
         options.slots.to_string(),
         "--first-slot".to_string(),
         options.first_slot.to_string(),
+        "--min-free-gb".to_string(),
+        options.min_free_gb.to_string(),
     ];
     for resource in &options.resources {
         args.push("--resource".to_string());
@@ -252,4 +255,15 @@ pub fn show_env() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_installed_server_keeps_every_machine_setting() {
+        let args = serve_args(&Install { slots: 3, first_slot: 4, min_free_gb: 9, resources: vec!["simulator=1".into()] });
+        assert_eq!(args, ["serve", "--slots", "3", "--first-slot", "4", "--min-free-gb", "9", "--resource", "simulator=1"]);
+    }
 }
