@@ -161,7 +161,11 @@ without {NAME}: report those rather than skipping a test.
 
 ## 6. Propose the rules
 
-Show the user this text and ask them to add it to the project's agent instructions:
+The project's agents need the rules below. Propose them to the user as a change to the project's
+agent instructions: write them the way those instructions write their own rules, keeping what each
+one means, and put them where the instructions say such rules belong. Change every rule or
+reference the setup makes untrue, such as how to start the app or run its tests, and keep any part
+of it that still holds.
 
 {rules}
 "#,
