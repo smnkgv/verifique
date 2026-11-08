@@ -56,6 +56,7 @@ checks:
   phone: {{ run: "true", needs: {{ gpu: 1 }} }}
   typecheck: {{ run: echo "$VERIFIQUE_SLOT" > "$VERIFIQUE_EVIDENCE/slot" }}
   leaves: {{ run: sh {helpers}/leave.sh {base_port} }}
+  named: {{ run: printf '%s\n' > "$VERIFIQUE_EVIDENCE/args" }}
   agent:
     type: agent
     stack: signed-in
@@ -367,6 +368,20 @@ fn a_check_with_no_stack_still_gets_a_slot() {
     let job = world.submit("typecheck", "");
     assert_eq!(world.wait(&job).0, 0);
     assert_eq!(world.job_file(&job, "evidence/slot").trim(), FIRST_SLOT.to_string());
+}
+
+#[test]
+fn what_follows_a_double_dash_reaches_the_check_word_for_word() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let out = world.run(&["submit", "--check", "named", "--brief", "", "--", "tests/a b.spec.ts", "it's:42"]);
+    assert!(out.status.success(), "submit: {}", String::from_utf8_lossy(&out.stderr));
+    let job = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    assert_eq!(world.wait(&job).0, 0);
+    assert_eq!(world.job_file(&job, "evidence/args"), "tests/a b.spec.ts\nit's:42\n");
+
+    let refused = world.run(&["submit", "--check", "agent", "--request", "Add the button", "--brief", "", "--", "x"]);
+    assert!(!refused.status.success(), "an agent check took arguments");
 }
 
 #[test]

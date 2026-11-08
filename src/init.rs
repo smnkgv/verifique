@@ -16,6 +16,7 @@ Verification goes through {NAME}, so that agents never fight over this machine.
     machine under the same names.
 -   To verify work, run:
     `{NAME} submit --check <name> --request-file <file> --brief "<how to reach the change>"`
+    Anything after `--` goes on the end of the check's command, such as the tests to run.
 -   Put the user's original request in the file word for word. Do not summarise it.
 -   Run `{NAME} wait <job>` in the background and carry on, or end your turn. Uncommitted work is
     captured for you, so you do not need to commit first.
@@ -108,6 +109,10 @@ checks:
         notes: |
             What a newcomer would need to know to reach the app.
 ```
+
+When an agent submits, anything it adds after `--` goes on the end of the check's `run`, so a
+check that runs tests can be pointed at some of them. Never make a check pick its tests out of the
+brief or the request: they are prose, and a test named there to be left out would run.
 
 Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}`, and for each service
 `.url`, `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and

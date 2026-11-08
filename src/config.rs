@@ -165,6 +165,9 @@ pub struct Plan {
     pub timeouts: Timeouts,
     pub retries: u32,
     pub headed: bool,
+    /// What the submitter added after `--`, appended to the check's `run`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
     /// Set for a hold: a stack kept up for an investigation, with no check and no verdict.
     pub hold_minutes: Option<f64>,
 }
@@ -249,6 +252,7 @@ impl Config {
             timeouts: self.timeouts.clone(),
             retries: self.retries.unwrap_or(DEFAULT_RETRIES),
             headed: false,
+            args: Vec::new(),
             hold_minutes: None,
         };
         Ok((chosen.to_string(), plan, needs))
@@ -273,6 +277,7 @@ impl Config {
             timeouts: self.timeouts.clone(),
             retries: 0,
             headed: false,
+            args: Vec::new(),
             hold_minutes: Some(minutes),
         };
         Ok((plan, stack.needs.clone()))

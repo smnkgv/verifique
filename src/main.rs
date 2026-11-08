@@ -59,6 +59,9 @@ enum Commands {
         /// Show the browser while the check runs
         #[arg(long)]
         headed: bool,
+        /// Added to the end of the check's `run`, such as the tests to run
+        #[arg(last = true)]
+        args: Vec<String>,
     },
     /// Take a slot's stack for an investigation, with no check and no verdict
     Hold {
@@ -183,14 +186,20 @@ fn warn_if_no_server(store: &Store) {
     }
 }
 
-fn submit(check: Option<String>, request: String, brief: String, headed: bool) -> Result<ExitCode> {
+fn submit(check: Option<String>, request: String, brief: String, headed: bool, args: Vec<String>) -> Result<ExitCode> {
     let cwd = std::env::current_dir()?;
     let config = Config::load(&git::worktree_root(&cwd)?)?;
     let (check, mut plan, needs) = config.plan(check.as_deref())?;
     plan.headed |= headed;
-    if plan.check.kind == CheckType::Agent && request.trim().is_empty() {
-        bail!("check {check} needs the user's original request: pass --request or --request-file, word for word");
+    if plan.check.kind == CheckType::Agent {
+        if request.trim().is_empty() {
+            bail!("check {check} needs the user's original request: pass --request or --request-file, word for word");
+        }
+        if !args.is_empty() {
+            bail!("check {check} is an agent and takes nothing after --: say what to check in --brief");
+        }
     }
+    plan.args = args;
 
     let repo = git::repo_root(&cwd)?;
     let branch = git::current_branch(&cwd)?;
@@ -418,12 +427,15 @@ fn show(id: i64, as_json: bool) -> Result<ExitCode> {
     let verdict = verdict_json(&job.tree, &job.check).filter(|v| v["job"] == json!(id));
     let dir = paths::job_dir(id);
     if as_json {
-        let out = json!({ "job": job, "verdict": verdict, "dir": dir });
+        let out = json!({ "job": job, "args": job.plan.args, "verdict": verdict, "dir": dir });
         println!("{}", serde_json::to_string_pretty(&out)?);
         return Ok(ExitCode::SUCCESS);
     }
     println!("job {id}: {} on {}", job.status, paths::repo_label(&job.repo));
     println!("check   {}", job.check);
+    if !job.plan.args.is_empty() {
+        println!("args    {}", job.plan.args.join(" "));
+    }
     println!("branch  {}", job.branch.as_deref().unwrap_or("-"));
     println!("content {}  commit {}", short(&job.tree), short(&job.commit));
     if let Some(summary) = &job.summary {
@@ -566,8 +578,8 @@ fn run(cli: Cli) -> Result<ExitCode> {
             })?;
             Ok(ExitCode::SUCCESS)
         }
-        Commands::Submit { check, request, request_file, brief, brief_file, headed } => {
-            submit(check, text(request, request_file)?, text(brief, brief_file)?, headed)
+        Commands::Submit { check, request, request_file, brief, brief_file, headed, args } => {
+            submit(check, text(request, request_file)?, text(brief, brief_file)?, headed, args)
         }
         Commands::Hold { stack, minutes, json } => hold(stack, minutes, json),
         Commands::Release { job } => release(job),

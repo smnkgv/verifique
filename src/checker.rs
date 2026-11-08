@@ -88,7 +88,7 @@ pub fn prompt(input: &Inputs) -> String {
     sections.join("\n\n")
 }
 
-fn quote(value: &str) -> String {
+pub fn quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', r"'\''"))
 }
 

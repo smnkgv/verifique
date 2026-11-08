@@ -162,6 +162,8 @@ verifique submit --check manual --request-file request.md --brief "Open Settings
 verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 superseded
 ```
 
+-   Anything after `--` goes on the end of a command check's `run`, such as the tests to run:
+    `verifique submit --check e2e --request-file request.md --brief "…" -- tests/login.spec.ts`.
 -   Uncommitted work is captured without touching the branch, and verdicts belong to the content, so
     a later commit of the same content already counts as verified.
 -   A newer submission replaces that branch's queued run of the same check.

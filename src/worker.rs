@@ -270,7 +270,8 @@ impl Run<'_> {
             fs::write(self.dir.join("prompt.md"), prompt)?;
             checker::command(check, plan.headed, &self.dir, &evidence_dir)?
         } else {
-            check.run.clone().expect("validated when the config was loaded")
+            let run = check.run.clone().expect("validated when the config was loaded");
+            plan.args.iter().fold(run, |command, arg| format!("{command} {}", checker::quote(arg)))
         };
         let env = self.describe_stacks(instances)?;
         let timeout = plan.timeouts.run_sec;
