@@ -311,7 +311,7 @@ function running(job) {
     return job.started_at ? `${slot} · ${span(since(job.started_at))}` : slot;
 }
 
-const WORDS = { passed: "Passed", failed: "Failed", blocked: "Blocked", error: "Error", superseded: "Replaced" };
+const WORDS = { passed: "Passed", failed: "Failed", blocked: "Blocked", error: "Error", superseded: "Replaced", cancelled: "Cancelled" };
 const tone = (status) => (status === "passed" ? "passed" : status === "failed" || status === "blocked" || status === "error" ? "failed" : "");
 
 function needsLine(item) {

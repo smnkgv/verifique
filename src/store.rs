@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::config::{Needs, Plan};
 use crate::paths;
 
-pub const TERMINAL: [&str; 6] = ["passed", "failed", "blocked", "error", "superseded", "released"];
+pub const TERMINAL: [&str; 7] = ["passed", "failed", "blocked", "error", "superseded", "cancelled", "released"];
 
 const LOCK_WAIT: Duration = Duration::from_secs(10);
 

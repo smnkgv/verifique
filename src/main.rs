@@ -75,7 +75,9 @@ enum Commands {
     },
     /// Give a held stack back
     Release { job: i64 },
-    /// Wait for a verdict: exit 0 passed, 1 failed, 2 blocked or error, 3 superseded
+    /// Stop a queued or running job; whoever waits on it gets exit 3
+    Cancel { job: i64 },
+    /// Wait for a verdict: exit 0 passed, 1 failed, 2 blocked or error, 3 replaced or cancelled
     Wait { job: i64 },
     /// The queue, what is running and what needs you
     Status {
@@ -175,7 +177,7 @@ fn exit_code(status: &str) -> u8 {
     match status {
         "passed" => 0,
         "failed" => 1,
-        "superseded" => 3,
+        "superseded" | "cancelled" => 3,
         _ => 2,
     }
 }
@@ -312,6 +314,24 @@ fn release(id: i64) -> Result<ExitCode> {
         _ => {}
     }
     println!("job {id} released");
+    Ok(ExitCode::SUCCESS)
+}
+
+fn cancel(id: i64) -> Result<ExitCode> {
+    let mut store = Store::open()?;
+    let job = store.get(id)?.ok_or_else(|| anyhow!("no job {id}"))?;
+    match job.status.as_str() {
+        "queued" => {
+            store.finish(&job, "cancelled", "cancelled before it started")?;
+            println!("job {id} cancelled");
+        }
+        "running" => {
+            store.request_release(id)?;
+            println!("job {id} is being stopped");
+            warn_if_no_server(&store);
+        }
+        status => println!("job {id} already ended: {status}"),
+    }
     Ok(ExitCode::SUCCESS)
 }
 
@@ -583,6 +603,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         }
         Commands::Hold { stack, minutes, json } => hold(stack, minutes, json),
         Commands::Release { job } => release(job),
+        Commands::Cancel { job } => cancel(job),
         Commands::Wait { job } => wait(job),
         Commands::Status { json } => status(json),
         Commands::Show { job, json } => show(job, json),

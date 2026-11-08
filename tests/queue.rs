@@ -57,6 +57,7 @@ checks:
   typecheck: {{ run: echo "$VERIFIQUE_SLOT" > "$VERIFIQUE_EVIDENCE/slot" }}
   leaves: {{ run: sh {helpers}/leave.sh {base_port} }}
   named: {{ run: printf '%s\n' > "$VERIFIQUE_EVIDENCE/args" }}
+  sleeper: {{ stack: web, run: sleep 60 }}
   agent:
     type: agent
     stack: signed-in
@@ -1343,6 +1344,26 @@ fn a_crash_ends_a_hold_rather_than_bringing_it_back_with_nobody_there() {
     world.serve(1, &[]);
     let job = hold["job"].to_string();
     until_status(&world, &job, "released");
+}
+
+#[test]
+fn a_cancelled_job_stops_counts_for_nothing_and_tells_whoever_waits() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let running = world.submit("sleeper", "");
+    until_status(&world, &running, "running");
+    let queued = world.submit("suite", "pass");
+    assert!(world.run(&["cancel", &queued]).status.success());
+    assert_eq!(world.wait(&queued).0, 3);
+
+    assert!(world.run(&["cancel", &running]).status.success());
+    let began = Instant::now();
+    assert_eq!(world.wait(&running).0, 3);
+    assert!(began.elapsed() < Duration::from_secs(20), "the check ran on after its cancel");
+    assert_eq!(job_status(&world, &running), "cancelled");
+    let url = format!("127.0.0.1:{}", world.base_port + FIRST_SLOT);
+    assert!(std::net::TcpStream::connect(url).is_err(), "the cancelled check's stack is still up");
+    assert_eq!(world.status_json()["needs_you"], serde_json::json!([]));
 }
 
 #[test]

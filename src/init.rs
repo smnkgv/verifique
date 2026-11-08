@@ -21,7 +21,8 @@ Verification goes through {NAME}, so that agents never fight over this machine.
 -   Run `{NAME} wait <job>` in the background and carry on, or end your turn. Uncommitted work is
     captured for you, so you do not need to commit first.
 -   When it exits non-zero, read the verdict with `{NAME} show <job>`, fix the cause and submit again.
--   Exit 2 means blocked or broken, and 3 means a newer submission replaced this one.
+-   Exit 2 means blocked or broken. Exit 3 means a newer submission replaced it or someone cancelled
+    it: do not submit it again.
 -   After repeated failures a branch goes to `needs-you` and submissions are refused: stop and tell
     the user. Do not move to a new branch to get round it.
 -   Call work done only on a pass for its final content."#

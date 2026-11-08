@@ -159,14 +159,16 @@ After a new build, run `verifique service restart`. Then, from any repository or
 
 ```bash
 verifique submit --check manual --request-file request.md --brief "Open Settings, then Filters"
-verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 superseded
+verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 replaced or cancelled
 ```
 
 -   Anything after `--` goes on the end of a command check's `run`, such as the tests to run:
     `verifique submit --check e2e --request-file request.md --brief "…" -- tests/login.spec.ts`.
 -   Uncommitted work is captured without touching the branch, and verdicts belong to the content, so
     a later commit of the same content already counts as verified.
--   A newer submission replaces that branch's queued run of the same check.
+-   A newer submission replaces that branch's queued run of the same check, and `verifique cancel <job>`
+    stops a queued or running one. Either way, whoever waits on it gets exit 3, and a cancel never
+    counts towards `needs-you`.
 -   Repositories take turns for free slots, and a retry goes ahead of new work. `verifique next <job>`
     overrides that.
 -   A check with `slots` gets as many stacks as the machine has, and smaller jobs wait so it cannot

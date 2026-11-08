@@ -87,6 +87,8 @@ struct Running {
     indices: Vec<usize>,
     needs: Needs,
     hold: bool,
+    /// Set to stop this job: on a cancel, or when the server itself stops.
+    stop: Arc<AtomicBool>,
 }
 
 struct Server {
@@ -95,7 +97,6 @@ struct Server {
     busy: BTreeMap<i64, Running>,
     last_served: BTreeMap<String, u64>,
     turn: u64,
-    stop: Arc<AtomicBool>,
     freeing: Arc<AtomicBool>,
     done: Sender<Done>,
     notifier: Notifier,
@@ -113,6 +114,8 @@ impl Server {
                 self.store.finish(&job, "error", UNREADABLE_PLAN)?;
             } else if job.plan.hold_minutes.is_some() {
                 self.store.finish(&job, "released", "ended because the server restarted")?;
+            } else if self.store.release_requested(job.id)? {
+                self.store.finish(&job, "cancelled", "cancelled while it ran")?;
             } else {
                 self.store.requeue(job.id)?;
             }
@@ -180,13 +183,23 @@ impl Server {
 
         let worktree_index = indices[0];
         let hold = job.plan.hold_minutes.is_some();
-        self.busy.insert(job.id, Running { repo: job.repo.clone(), indices, needs: job.needs.clone(), hold });
-        let stop = Arc::clone(&self.stop);
+        let stop = Arc::new(AtomicBool::new(false));
+        self.busy.insert(job.id, Running { repo: job.repo.clone(), indices, needs: job.needs.clone(), hold, stop: Arc::clone(&stop) });
         let done = self.done.clone();
         thread::spawn(move || {
             let outcome = worker::run(&job, worktree_index, &slots, &stop);
             let _ = done.send(Done { job, outcome });
         });
+        Ok(())
+    }
+
+    /// A hold watches for its own release; a check is stopped from here.
+    fn stop_cancelled(&self) -> Result<()> {
+        for (id, running) in &self.busy {
+            if !running.hold && self.store.release_requested(*id)? {
+                running.stop.store(true, Ordering::Relaxed);
+            }
+        }
         Ok(())
     }
 
@@ -243,6 +256,10 @@ impl Server {
         let job = done.job;
         self.busy.remove(&job.id);
         match done.outcome {
+            Ok(Outcome::Interrupted) if self.store.release_requested(job.id)? => {
+                self.store.finish(&job, "cancelled", "cancelled while it ran")?;
+                println!("job {} cancelled", job.id);
+            }
             Ok(Outcome::Interrupted) => self.store.requeue(job.id)?,
             Ok(Outcome::Done(finished)) => {
                 if job.plan.hold_minutes.is_none() {
@@ -289,7 +306,6 @@ pub fn serve(options: Options) -> Result<()> {
         busy: BTreeMap::new(),
         last_served: BTreeMap::new(),
         turn: 0,
-        stop: Arc::clone(&stop),
         freeing: Arc::new(AtomicBool::new(false)),
         done: done_tx,
         notifier: Notifier::default(),
@@ -303,10 +319,14 @@ pub fn serve(options: Options) -> Result<()> {
             server.settle(done)?;
         }
         server.notifier.flush();
+        server.stop_cancelled()?;
         server.dispatch()?;
         sleep(poll);
     }
 
+    for running in server.busy.values() {
+        running.stop.store(true, Ordering::Relaxed);
+    }
     while !server.busy.is_empty() {
         let done = done_rx.recv()?;
         server.settle(done)?;
