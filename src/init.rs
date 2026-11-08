@@ -127,6 +127,12 @@ unless a check needs them, point those at nothing, for example `AWS_SHARED_CREDE
 Whatever `setup` prints reaches the checker agent and its model provider, so only print throwaway
 credentials.
 
+The queue runs every step with the PATH recorded when it was installed, which `{NAME} service env`
+shows. Make sure that gives the versions production uses, such as the same Node, and tell the user if
+it doesn't. A step must change nothing outside the slot: some installers clean shared caches, such
+as `playwright install`, which deletes browser versions other projects use unless
+`PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
+
 If the product is a phone app, a stack runs its backend and the app runs on a simulator or emulator.
 A phone is limited, so start the queue with `--resource simulator=1` and name it under `needs` on the
 check. Reach the slot the way the project's own device tests do: an emulator can't always use the
@@ -141,8 +147,12 @@ larger is for the user to decide: stop and explain what is needed.
 ## 5. Prove it
 
 Run `{NAME} doctor`. It starts two copies side by side, runs `setup`, confirms each used its own
-database, and stops them. Setup is finished only when it passes. Never weaken a `ready` check to make it pass.
-Read any warning it gives about a remote database, and tell the user.
+database, and stops them. Never weaken a `ready` check to make it pass. Read any warning it gives
+about a remote database, and tell the user.
+
+Then submit every check once with `{NAME} submit` and read each verdict. A test suite runs whole, not
+a sample of it. Setup is finished only when every check has passed, or its only failures also happen
+without {NAME}: report those rather than skipping a test.
 
 ## 6. Propose the rules
 
