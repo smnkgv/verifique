@@ -69,8 +69,8 @@ Database servers must already be running, however you installed them. verifique 
 only ever creates and drops databases named `verifique_*`. It supports Postgres, Mongo and Redis, using
 `psql`, `mongosh` and `redis-cli`. Redis is the exception to the naming: each slot owns the numbered database that matches it, and clears it for every check, so keep nothing else in those. A slot Redis has no database for is refused.
 
-**Your `.env` is live.** Checks run your app unattended with the project's own `.env`, so anything in it
-is real: a check can send real email, charge real cards or write to any service it points at. Only
+**Your `.env` is live.** Checks run your app unattended with the `.env` in the repository's main checkout, even for work
+submitted from a worktree, so anything in it is real: a check can send real email, charge real cards or write to any service it points at. Only
 slot ports and the settings in `verifique.yaml` are replaced. `verifique doctor` names remote databases it
 finds, but it cannot see everything.
 
