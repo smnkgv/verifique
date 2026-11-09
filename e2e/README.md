@@ -7,6 +7,7 @@ These tests treat verifique as a stranger or an agent does: the real binary, rea
 | Behaviour | The queue, verdicts and isolation, through the CLI | `cargo test` | Free, 30 s |
 | Install | A fresh clone builds, connects a project and checks it, following the README | `sh e2e/install.sh` | Free, 2 min |
 | Many agents | 15 sessions at once, while the queue is killed and resized | `python3 e2e/many_agents.py` | Free, 2 min |
+| Shop, no agent | The example shop's stack proved by `doctor`, and a check that passes and one that fails | `sh e2e/shop-smoke.sh` | Free, 1 min |
 | Panel | The real page in a real browser, fed the CLI's JSON | `node e2e/panel/test.mjs` | Free, 5 s |
 | The shop | A real agent fails the broken button and passes the fix, from the example's README | `python3 e2e/shop.py` | About 50 cents |
 | Scoreboard | A real agent catches planted bugs and passes good changes | `python3 e2e/shop_cases.py` | About a dollar |
@@ -22,4 +23,4 @@ Each journey runs a queue of its own in a temporary folder on slots 9 and 10. Th
 
 Every bug found by hand becomes a test here. To score a private project, keep its cases outside this repository and point `e2e/scoreboard.py` at them. [`verifique.yaml`](../verifique.yaml) lets verifique check itself.
 
-Windows isn't supported yet, so it has no tier.
+On macOS, Linux and Windows alike, the [platforms workflow](../.github/workflows/platforms.yml) runs the behaviour tier and the shop with no agent, and tries the real service where the runner allows it. It starts by hand, from the Actions tab.
