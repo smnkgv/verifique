@@ -7,6 +7,7 @@ on:
     # everything without making a release.
     push:
         branches: [claude/multi-platform-82e904]
+        paths-ignore: ["tests/**", "e2e/**", "**.md", ".github/workflows/platforms.yml"]
 
 permissions:
     contents: write
