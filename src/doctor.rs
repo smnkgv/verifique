@@ -109,9 +109,21 @@ fn side_by_side(instances: &mut [Instance], stack: &Stack, worktrees: &[PathBuf]
     })
 }
 
-fn each_uses_its_own_data(instances: &[Instance]) -> Result<()> {
+/// Returns the services only the stack's settings could prove. With no apps, nothing but the seed
+/// runs before a check, so a service the seed leaves alone shows no use until the check itself.
+fn each_uses_its_own_data(instances: &[Instance], stack: &Stack) -> Result<Vec<String>> {
+    let mut by_settings: Vec<String> = Vec::new();
     for instance in instances {
-        let unused = instance.services_unused()?;
+        let mut unused = instance.services_unused()?;
+        if stack.apps.is_empty() {
+            unused.retain(|kind| {
+                let named = stack.env.values().any(|value| value.contains(&format!("{{{kind}.")));
+                if named && !by_settings.contains(kind) {
+                    by_settings.push(kind.clone());
+                }
+                !named
+            });
+        }
         if !unused.is_empty() {
             bail!(
                 "slot {}: nothing reached its {} database. If the app uses one, it's still going to the one in .env: \
@@ -121,7 +133,7 @@ fn each_uses_its_own_data(instances: &[Instance]) -> Result<()> {
             );
         }
     }
-    Ok(())
+    Ok(by_settings)
 }
 
 fn stopped_cleanly(urls: &[String]) -> Result<()> {
@@ -183,7 +195,7 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
 
     println!("  {} {count} side by side", if has_apps { "starting" } else { "seeding" });
     let began = Instant::now();
-    let proved = (|| -> Result<()> {
+    let proved = (|| -> Result<Vec<String>> {
         for (instance, worktree) in instances.iter().zip(&worktrees) {
             instance.reset_services()?;
             if let Some(seed) = &stack.seed {
@@ -202,18 +214,24 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
                 run_step(setup, instance, worktree, &log_dir.join("setup.log"), "setup", timeouts.setup_sec)?;
             }
         }
-        each_uses_its_own_data(&instances)
+        each_uses_its_own_data(&instances, stack)
     })();
     for instance in &mut instances {
         instance.stop();
         instance.remove_services();
     }
-    proved?;
+    let by_settings = proved?;
     stopped_cleanly(&urls)?;
     if has_apps {
         println!("  each slot used its own data, and both stopped cleanly");
     } else {
         println!("  each slot used its own data");
+    }
+    if !by_settings.is_empty() {
+        println!(
+            "  {}: nothing used it before a check, so only the stack's settings prove each slot gets its own",
+            by_settings.join(" and ")
+        );
     }
     Ok(())
 }

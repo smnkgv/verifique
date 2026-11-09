@@ -22,6 +22,8 @@ content, and a verdict with proof.
 2. **The tool does the isolation.** A project declares its apps and the database servers they use in
    one short file. The tool gives each slot its own ports and databases, starts the apps and cleans
    up. A stack needs no apps, so a suite that only needs its own databases doesn't build the app.
+   Nothing runs on one before its check, so `doctor` takes its settings as proof for a database its
+   seed leaves alone, and says so.
 3. **Database servers are a prerequisite.** The tool uses what is already there, however it was
    installed, and never installs one. It only ever creates and drops databases named `verifique_*`.
 4. **Setup by the user's own agent.** `init` prints a guide for writing the project file. The agent

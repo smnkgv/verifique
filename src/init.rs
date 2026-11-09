@@ -120,7 +120,8 @@ check that runs tests can be pointed at some of them. Never make a check pick it
 brief or the request: they are prose, and a test named there to be left out would run.
 
 A stack needs no apps. A check that only needs its own databases, such as a test suite, gets them
-from a stack with just `prepare`, `seed` and `env`, without building the app.
+from a stack with just `prepare`, `seed` and `env`, without building the app. With nothing running
+before the check, `doctor` takes its settings as proof for a database its seed leaves alone.
 
 Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}`, and for each service
 `.url`, `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and

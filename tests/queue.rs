@@ -1461,6 +1461,41 @@ checks:
 }
 
 #[test]
+fn doctor_takes_an_app_less_stacks_settings_for_what_its_seed_leaves_alone() {
+    let world = World::new();
+    let write = |env: &str| {
+        let yaml = format!(
+            r#"
+services:
+  postgres: {{ url: {POSTGRES} }}
+  redis: {{}}
+stacks:
+  db:
+    seed: psql "$DATABASE_URL" -c 'create table items (id int)'
+    env:
+      DATABASE_URL: "{{postgres.url}}"
+{env}
+checks:
+  unit: {{ stack: db, run: "true" }}
+"#
+        );
+        fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    };
+
+    write(r#"      REDIS_URL: "{redis.url}""#);
+    let out = world.run(&["doctor"]);
+    let printed = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "{printed}\n{}", String::from_utf8_lossy(&out.stderr));
+    assert!(printed.contains("redis: nothing used it before a check"), "{printed}");
+    assert!(!printed.contains("postgres: nothing used it"), "{printed}");
+
+    write("");
+    let out = world.run(&["doctor"]);
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("nothing reached its redis database"));
+}
+
+#[test]
 fn a_headed_run_is_passed_on_to_the_check() {
     let mut world = World::new();
     world.use_isolation(
