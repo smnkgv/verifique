@@ -44,7 +44,10 @@ fn installed_file(name: &str) -> PathBuf {
 pub fn find(name: &str) -> Option<PathBuf> {
     let program = program(name);
     let names = platform::program_file_names(&program);
-    let own = std::env::current_exe().ok().and_then(|exe| exe.parent().map(Path::to_path_buf));
+    // Through a symlink, such as ~/.local/bin/verifique, the plugins are beside the real binary.
+    let exe = std::env::current_exe().ok();
+    let real = exe.as_deref().and_then(|exe| fs::canonicalize(exe).ok());
+    let own: Vec<PathBuf> = exe.into_iter().chain(real).filter_map(|exe| exe.parent().map(Path::to_path_buf)).collect();
     std::iter::once(dir())
         .chain(own)
         .find_map(|folder| names.iter().map(|file| folder.join(file)).find(|file| file.is_file()))
