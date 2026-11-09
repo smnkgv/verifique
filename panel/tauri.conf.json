@@ -12,6 +12,7 @@
         "windows": [
             {
                 "label": "panel",
+                "title": "verifique",
                 "url": "index.html",
                 "width": 360,
                 "height": 480,
@@ -31,7 +32,8 @@
     "bundle": {
         "active": false,
         "icon": [
-            "icons/icon.png"
+            "icons/icon.png",
+            "icons/icon.ico"
         ]
     }
 }

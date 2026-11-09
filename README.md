@@ -237,22 +237,60 @@ stay fast; `verifique clean` removes them.
 
 ## Status-bar panel
 
-On macOS, a small app adds a tick to the menu bar. Click it to see what needs you, what's running,
-what's queued and recent verdicts with their proof, and to change how many checks run at once. It
-reads the CLI's `--json` output and acts only through the CLI, so it can't do anything the CLI can't.
+A small app adds a tick to the macOS menu bar, the Windows notification area or a Linux tray. Click
+it to see what needs you, what's running, what's queued and recent verdicts with their proof, and to
+change how many checks run at once. It reads the CLI's `--json` output and acts only through the CLI,
+so it can't do anything the CLI can't.
 
 The tick turns amber with the number of checks left while they run, green for five minutes after the
-last one passes, and red with a count when something needs you.
+last one passes, and red with a count when something needs you. Press the pin in the panel, or
+right-click the tick, to keep it on screen in the top right corner, semi-transparent, on every
+desktop.
+
+Build it from a clone, with Rust. On macOS:
 
 ```bash
 panel/bundle.sh
 open panel/target/verifique.app
 ```
 
-The build is signed for your own machine only. Press the pin in the panel, or right-click the tick,
-to keep it on screen in the top right corner, semi-transparent, on every desktop.
+The build is signed for your own machine only.
 
-There is no panel for Linux or Windows yet. The CLI does everything the panel does.
+On Windows, in PowerShell, with the C++ build tools Rust asks for:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File panel\bundle-windows.ps1
+panel\target\verifique-panel.exe
+```
+
+To start it when you log in, put a shortcut to it in your Startup folder (`shell:startup`).
+
+On Linux it needs WebKitGTK and an AppIndicator library. On Debian or Ubuntu:
+
+```bash
+sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+panel/bundle-linux.sh
+panel/target/verifique-panel &
+```
+
+Copy `panel/target/verifique-panel.desktop` to `~/.local/share/applications` to have it in the app
+menu, and to `~/.config/autostart` to start it when you log in.
+
+Windows and Linux let an app do less than macOS does, and the panel goes without rather than imitate it:
+
+-   Windows shows no text beside a tray icon, so the count is in the tick's tooltip. A pinned panel
+    stays on the desktop it was pinned on, as Windows gives apps no supported way to show a window
+    on every desktop.
+-   On Linux the tick needs a tray that shows app indicators. KDE Plasma has one, and GNOME needs the
+    AppIndicator extension, which Ubuntu turns on. The tray gives the panel no clicks, only a menu,
+    so clicking the tick opens its menu, and Show panel opens the panel beside it. The count shows
+    where the tray shows indicator labels, as GNOME's does.
+-   Wayland lets no window place itself or stay on top, so on Wayland the panel runs through
+    XWayland. With `GDK_BACKEND=wayland` it runs natively, and the desktop decides where it opens.
+-   Neither gives an app a blur it can count on behind a window that isn't in focus, so there a pinned
+    panel lets less through, to stay readable.
+
+The CLI does everything the panel does.
 
 ## Build
 

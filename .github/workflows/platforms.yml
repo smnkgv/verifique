@@ -139,3 +139,74 @@ jobs:
                   sleep 3
                   up
                   "$bin" service uninstall
+
+    # The status-bar panel on each OS: built the way the README builds it, started, and its page run in
+    # the browser whose engine it uses there. Nobody is at a runner to click the tick, so the rest is by hand.
+    panel:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [macos-15, ubuntu-24.04, windows-2025]
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+        env:
+            CARGO_TERM_COLOR: always
+            VERIFIQUE_HOME: ${{ github.workspace }}/panel-home
+        steps:
+            - uses: actions/checkout@v5
+            - name: Rust
+              run: |
+                  if ! command -v rustup >/dev/null; then
+                      if [ "$RUNNER_OS" = Windows ]; then
+                          arch=$([ "$RUNNER_ARCH" = ARM64 ] && echo aarch64 || echo x86_64)
+                          curl -sSfLo rustup-init.exe "https://static.rust-lang.org/rustup/dist/$arch-pc-windows-msvc/rustup-init.exe"
+                          ./rustup-init.exe -y --profile minimal --default-toolchain none
+                      else
+                          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+                      fi
+                      echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+                      export PATH="$HOME/.cargo/bin:$PATH"
+                  fi
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
+            - name: Libraries (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get update -qq
+                  sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev xvfb
+            - name: Build
+              run: |
+                  case "$RUNNER_OS" in
+                  macOS) panel/bundle.sh ;;
+                  Linux) panel/bundle-linux.sh ;;
+                  Windows) pwsh -NoProfile -ExecutionPolicy Bypass -File panel/bundle-windows.ps1 ;;
+                  esac
+            - name: Start
+              run: |
+                  log="$RUNNER_TEMP/panel.log"
+                  case "$RUNNER_OS" in
+                  macOS) panel/target/verifique.app/Contents/MacOS/verifique >"$log" 2>&1 & ;;
+                  Linux) xvfb-run -a dbus-run-session -- panel/target/verifique-panel >"$log" 2>&1 & ;;
+                  Windows) panel/target/verifique-panel.exe >"$log" 2>&1 & ;;
+                  esac
+                  pid=$!
+                  sleep 10
+                  if ! kill -0 "$pid" 2>/dev/null; then
+                      status=0
+                      wait "$pid" || status=$?
+                      echo "the panel stopped by itself, with exit code $status:"
+                      cat "$log"
+                      exit 1
+                  fi
+                  case "$RUNNER_OS" in
+                  Windows) taskkill //F //IM verifique-panel.exe >/dev/null ;;
+                  Linux) pkill -x verifique-panel || true ;;
+                  macOS) kill "$pid" ;;
+                  esac
+            - name: Page
+              run: |
+                  cd e2e/panel
+                  npm ci --no-audit --no-fund
+                  node test.mjs
