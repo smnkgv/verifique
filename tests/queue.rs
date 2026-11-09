@@ -301,6 +301,18 @@ checks:
         format!("verifique_repo{}_s{slot}", self.base_port)
     }
 
+    /// Every log a job wrote, for a failure message that has to explain itself.
+    fn job_logs(&self, job: &str) -> String {
+        let dir = self.home.join("jobs").join(job);
+        let mut logs: Vec<_> = fs::read_dir(&dir).into_iter().flatten().flatten().map(|entry| entry.path()).collect();
+        logs.sort();
+        logs.iter()
+            .filter(|path| path.extension().is_some_and(|extension| extension == "log"))
+            .map(|path| format!("--- {}\n{}", path.display(), fs::read_to_string(path).unwrap_or_default()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
     /// A file a job wrote. A job that ended before writing it says so, which a failure message needs.
     fn job_file(&self, job: &str, name: &str) -> String {
         fs::read_to_string(self.home.join("jobs").join(job).join(name)).unwrap_or_else(|_| format!("(job {job} wrote no {name})"))
@@ -1033,7 +1045,7 @@ fn an_app_gets_its_slots_port_and_database_and_those_win_over_env() {
     world.serve(1, &[]);
     let job = world.submit("look", "");
     let (code, out) = world.wait(&job);
-    assert_eq!(code, 0, "{out}: {}", world.job_file(&job, "check.log"));
+    assert_eq!(code, 0, "{out}\n{}", world.job_logs(&job));
     let env: serde_json::Value = serde_json::from_str(&world.job_file(&job, "evidence/env.json")).unwrap();
     assert_eq!(env["PORT"], (world.base_port + FIRST_SLOT).to_string());
     let expected = format!("{POSTGRES}/{}", world.database(FIRST_SLOT));
@@ -1073,7 +1085,7 @@ fn mongo_and_redis_start_clean_too() {
     for _ in 0..2 {
         let job = world.submit("write", "");
         let (code, out) = world.wait(&job);
-        assert_eq!(code, 0, "{out}: {}", world.job_file(&job, "check.log"));
+        assert_eq!(code, 0, "{out}\n{}", world.job_logs(&job));
     }
 }
 
