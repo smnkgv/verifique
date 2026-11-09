@@ -122,12 +122,15 @@ pub fn end_quietly_on_closed_output() {
     os::end_quietly_on_closed_output()
 }
 
-/// Every process listening for TCP connections on `port`.
+/// Every process listening for TCP connections on `port`. The library lists every socket, so
+/// connections are left out: one still closing on the port belongs to no process, and Windows
+/// reports it as pid 0.
 pub fn port_holders(port: u32) -> Result<Vec<Pid>> {
     let all = listeners::get_all().map_err(|error| anyhow::anyhow!("listing listening ports: {error}"))?;
     let mut pids: Vec<Pid> = all
         .into_iter()
-        .filter(|listener| listener.protocol == listeners::Protocol::TCP && u32::from(listener.socket.port()) == port)
+        .filter(|listener| listener.protocol == listeners::Protocol::TCP && listener.state == listeners::SocketState::Listen)
+        .filter(|listener| u32::from(listener.socket.port()) == port)
         .map(|listener| listener.process.pid)
         .collect();
     pids.sort_unstable();

@@ -758,7 +758,8 @@ fn a_linked_worktree_submits_with_its_own_config_and_shares_the_repository() {
     let shown = world.run(&["show", &job, "--json"]);
     let shown: serde_json::Value = serde_json::from_slice(&shown.stdout).unwrap();
     assert_eq!(shown["job"]["branch"], "feature");
-    assert_eq!(shown["job"]["repo"], world.repo.canonicalize().unwrap().to_string_lossy().as_ref());
+    let repo = fs::canonicalize(shown["job"]["repo"].as_str().unwrap()).unwrap();
+    assert_eq!(repo, world.repo.canonicalize().unwrap());
 }
 
 #[test]
@@ -1030,7 +1031,7 @@ fn an_app_gets_its_slots_port_and_database_and_those_win_over_env() {
     world.serve(1, &[]);
     let job = world.submit("look", "");
     let (code, out) = world.wait(&job);
-    assert_eq!(code, 0, "{out}");
+    assert_eq!(code, 0, "{out}: {}", world.job_file(&job, "check.log"));
     let env: serde_json::Value = serde_json::from_str(&world.job_file(&job, "evidence/env.json")).unwrap();
     assert_eq!(env["PORT"], (world.base_port + FIRST_SLOT).to_string());
     let expected = format!("{POSTGRES}/{}", world.database(FIRST_SLOT));
@@ -1134,7 +1135,7 @@ fn a_suite_gets_one_stack_per_slot_from_one_build() {
         &format!("postgres: {{ url: {POSTGRES} }}"),
         r#"DATABASE_URL: "{postgres.url}""#,
         "'true'",
-        r#"  suite: { stack: web, slots: 2, prepare: ['echo built >> "$VERIFIQUE_EVIDENCE/built"'], run: 'for port in $(python3 -c "import json,os; [print(s[\"ports\"][\"api\"]) for s in json.load(open(os.environ[\"VERIFIQUE_STACKS\"]))]"); do curl -fsS "http://127.0.0.1:$port/" >> "$VERIFIQUE_EVIDENCE/both"; echo >> "$VERIFIQUE_EVIDENCE/both"; done; echo "$VERIFIQUE_SLOTS" > "$VERIFIQUE_EVIDENCE/slots"' }"#,
+        r#"  suite: { stack: web, slots: 2, prepare: ['echo built >> "$VERIFIQUE_EVIDENCE/built"'], run: 'for port in $(python3 -c "import json,os; [print(s[\"ports\"][\"api\"]) for s in json.load(open(os.environ[\"VERIFIQUE_STACKS\"]))]" | tr -d "\r"); do curl -fsS "http://127.0.0.1:$port/" >> "$VERIFIQUE_EVIDENCE/both"; echo >> "$VERIFIQUE_EVIDENCE/both"; done; echo "$VERIFIQUE_SLOTS" > "$VERIFIQUE_EVIDENCE/slots"' }"#,
     );
     world.serve(2, &[]);
     let job = world.submit("suite", "");

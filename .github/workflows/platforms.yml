@@ -49,6 +49,7 @@ jobs:
                   docker run -d -p 27017:27017 mongo:8
                   # The server as a package, since one test starts a redis-server of its own.
                   sudo apt-get install -y -qq redis-server postgresql-client
+                  sudo systemctl start redis-server
                   until pg_isready -q -h 127.0.0.1; do sleep 1; done
 
             - name: Databases (macOS)
@@ -111,7 +112,9 @@ jobs:
                       mongosh --quiet --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1 && redis-cli ping >/dev/null 2>&1 && exit 0
                       sleep 2
                   done
-                  echo "Mongo or Redis never answered"
+                  echo "Mongo or Redis never answered:"
+                  mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || true
+                  redis-cli ping || true
                   exit 1
             - run: cargo test --release --locked
             - run: sh e2e/shop-smoke.sh
