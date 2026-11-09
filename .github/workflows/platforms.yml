@@ -46,8 +46,8 @@ jobs:
               if: runner.os == 'Linux'
               run: |
                   docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:17
-                  # MongoDB's tcmalloc trips over kernels 6.19 to 7.0.13 (SERVER-121912) unless glibc's rseq is off.
-                  docker run -d --name mongo -e GLIBC_TUNABLES=glibc.pthread.rseq=0 -p 27017:27017 mongo:8
+                  # MongoDB 8 refuses Linux kernels 6.19 to 7.0.13 (SERVER-121912), which the runners have.
+                  docker run -d --name mongo -p 27017:27017 mongo:9
                   # The server as a package, since one test starts a redis-server of its own.
                   sudo apt-get install -y -qq redis-server postgresql-client
                   sudo systemctl start redis-server

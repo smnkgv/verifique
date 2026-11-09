@@ -141,6 +141,10 @@ pub fn free_bytes(path: &Path) -> Result<u64> {
     Ok(stats.f_bavail as u64 * stats.f_frsize as u64)
 }
 
+pub fn open_log(path: &Path) -> io::Result<fs::File> {
+    OpenOptions::new().create(true).append(true).open(path)
+}
+
 pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
     let mut file = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)?;
     file.write_all(contents)?;

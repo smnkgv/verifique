@@ -163,6 +163,11 @@ pub fn free_bytes(path: &Path) -> Result<u64> {
     os::free_bytes(path)
 }
 
+/// A log that a step's output, and its children's, is added to the end of.
+pub fn open_log(path: &Path) -> io::Result<std::fs::File> {
+    os::open_log(path)
+}
+
 /// Write a file only its owner may read.
 pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
     os::write_private(path, contents)

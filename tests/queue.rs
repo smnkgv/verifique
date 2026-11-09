@@ -995,6 +995,21 @@ fn init_prints_the_guide_and_the_rules_and_writes_nothing() {
 }
 
 #[test]
+fn a_steps_output_and_errors_reach_its_log() {
+    let mut world = World::new();
+    let yaml = "checks:\n  noisy: { run: 'echo to-stdout; echo to-stderr >&2; sh -c \"echo from-a-child\"; exit 3' }\n";
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    commit(&world.repo, "noisy");
+    world.serve(1, &[]);
+    let job = world.submit("noisy", "");
+    assert_eq!(world.wait(&job).0, 1);
+    let log = world.job_file(&job, "check.log");
+    for line in ["to-stdout", "to-stderr", "from-a-child"] {
+        assert!(log.contains(line), "{line} missing from the log: {log:?}");
+    }
+}
+
+#[test]
 fn an_error_shows_the_end_of_the_log_that_explains_it() {
     let mut world = World::new();
     world.serve(1, &[]);

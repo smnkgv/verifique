@@ -206,6 +206,15 @@ pub fn free_bytes(path: &Path) -> Result<u64> {
     Ok(available)
 }
 
+/// Opened for writing at its end rather than append-only: the programs Git's sh runs can't write to
+/// a handle that may only append, and their output and errors would silently vanish.
+pub fn open_log(path: &Path) -> io::Result<fs::File> {
+    use std::io::{Seek, SeekFrom};
+    let mut file = fs::OpenOptions::new().create(true).write(true).truncate(false).open(path)?;
+    file.seek(SeekFrom::End(0))?;
+    Ok(file)
+}
+
 /// The file inherits its folder's permissions, and the user's own folder is private by default.
 pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
     fs::write(path, contents)?;

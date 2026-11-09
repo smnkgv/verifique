@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
-use std::fs::{File, OpenOptions};
-use std::io;
+use std::fs::File;
 use std::path::Path;
 use std::process::{ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -36,13 +35,9 @@ pub enum Ended {
     Interrupted,
 }
 
-fn append(path: &Path) -> io::Result<File> {
-    OpenOptions::new().create(true).append(true).open(path)
-}
-
 /// A shell command held as one tree, so that stopping it reaches its children too.
 pub fn start(command: &str, options: &Options) -> Result<Proc> {
-    let stderr = append(options.log).with_context(|| format!("opening {}", options.log.display()))?;
+    let stderr = platform::open_log(options.log).with_context(|| format!("opening {}", options.log.display()))?;
     let stdout = match options.stdout {
         Some(path) => File::create(path)?,
         None => stderr.try_clone()?,
