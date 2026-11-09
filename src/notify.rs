@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
-use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use crate::paths::{self, NAME};
+use crate::platform;
 
 const QUIET_PERIOD: Duration = Duration::from_secs(60);
 
@@ -43,17 +43,10 @@ impl Notifier {
     }
 }
 
-// A failed notification must never affect a verdict, and `status` stays the source of truth.
+/// `VERIFIQUE_NOTIFY=off` keeps a queue quiet, as a test run's must be.
 fn send(message: &str) {
-    let mut command = if cfg!(target_os = "macos") {
-        let quoted = message.replace('\\', "\\\\").replace('"', "\\\"");
-        let mut command = Command::new("osascript");
-        command.arg("-e").arg(format!("display notification \"{quoted}\" with title \"{NAME}\""));
-        command
-    } else {
-        let mut command = Command::new("notify-send");
-        command.arg(NAME).arg(message);
-        command
-    };
-    let _ = command.stdout(Stdio::null()).stderr(Stdio::null()).status();
+    if std::env::var("VERIFIQUE_NOTIFY").is_ok_and(|value| value == "off") {
+        return;
+    }
+    platform::notify(NAME, message);
 }

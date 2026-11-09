@@ -2,6 +2,7 @@
 name = "verifique"
 version = "0.2.3"
 edition = "2021"
+rust-version = "1.95"
 license = "Apache-2.0"
 publish = false
 description = "Let many coding agents write in parallel while one laptop verifies their work."
@@ -10,6 +11,10 @@ description = "Let many coding agents write in parallel while one laptop verifie
 name = "verifique"
 path = "src/main.rs"
 
+# Starts the queue with no console window, for the service manager of an OS that would open one.
+[[bin]]
+name = "verifique-service"
+path = "src/bin/service.rs"
 
 [profile.release]
 strip = true
@@ -18,11 +23,32 @@ lto = "thin"
 [dependencies]
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
-libc = "0.2.191"
+listeners = "0.6.1"
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 serde_yaml_ng = "0.10.0"
 sha2 = "0.11.1"
-signal-hook = "0.4.6"
+sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
 ureq = { version = "2", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.191"
+signal-hook = "0.4.6"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Data_Xml_Dom",
+    "UI_Notifications",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Console",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_System_WinRT",
+] }
+
+[target.'cfg(unix)'.dev-dependencies]
+libc = "0.2.191"

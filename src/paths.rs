@@ -1,25 +1,28 @@
 use std::env;
-use std::ffi::CString;
-use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use sha2::{Digest, Sha256};
 
 pub const NAME: &str = "verifique";
 pub const CONFIG_FILE: &str = "verifique.yaml";
 
+/// The user's own folder: HOME on macOS and Linux, the profile folder on Windows.
+pub fn user_home() -> PathBuf {
+    env::home_dir().unwrap_or_default()
+}
+
 pub fn home() -> PathBuf {
     match env::var_os("VERIFIQUE_HOME") {
         Some(path) => PathBuf::from(path),
-        None => PathBuf::from(env::var_os("HOME").unwrap_or_default()).join(format!(".{NAME}")),
+        None => user_home().join(format!(".{NAME}")),
     }
 }
 
 /// Set when this queue has a home of its own, which sets its service apart from the default one.
 pub fn own_home_key() -> Option<String> {
     let home = env::var_os("VERIFIQUE_HOME")?;
-    Some(hex(&Sha256::digest(home.as_bytes()))[..12].to_string())
+    Some(hex(&Sha256::digest(home.as_encoded_bytes()))[..12].to_string())
 }
 
 pub fn job_dir(id: i64) -> PathBuf {
@@ -43,16 +46,7 @@ pub fn slot_worktree(repo: &str, slot_index: usize) -> PathBuf {
 
 /// Whole gigabytes free on the disk that holds the slot worktrees.
 pub fn free_gb() -> Result<u64> {
-    let path = CString::new(home().as_os_str().as_bytes())?;
-    // SAFETY: statvfs fills the zeroed struct and reads a valid C string.
-    let (code, stats) = unsafe {
-        let mut stats: libc::statvfs = std::mem::zeroed();
-        (libc::statvfs(path.as_ptr(), &mut stats), stats)
-    };
-    if code != 0 {
-        bail!("can't read free disk: {}", std::io::Error::last_os_error());
-    }
-    Ok(stats.f_bavail as u64 * stats.f_frsize / (1024 * 1024 * 1024))
+    Ok(crate::platform::free_bytes(&home())? / (1024 * 1024 * 1024))
 }
 
 pub fn repo_label(repo: &str) -> String {

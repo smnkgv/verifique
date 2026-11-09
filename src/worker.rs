@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::io::Write;
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
@@ -145,8 +143,8 @@ impl Run<'_> {
             &options,
             Duration::from_secs(timeout),
             self.stop,
-            |pgid| {
-                let _ = self.store.add_pgid(self.job.id, pgid);
+            |tree| {
+                let _ = self.store.add_tree(self.job.id, tree);
             },
         )?;
         if matches!(ended, Ended::Interrupted) {
@@ -204,8 +202,8 @@ impl Run<'_> {
         if let Some(collision) = Instance::shared_port(instances) {
             return failed(collision);
         }
-        let track = |pgid: i32| {
-            let _ = self.store.add_pgid(self.job.id, pgid);
+        let track = |tree: u32| {
+            let _ = self.store.add_tree(self.job.id, tree);
         };
         for instance in instances.iter_mut() {
             instance.start(stack, &self.worktree, &track)?;
@@ -315,8 +313,7 @@ impl Run<'_> {
         }
         let body = serde_json::to_vec(&serde_json::json!({ "cwd": self.worktree, "env": env })).map_err(anyhow::Error::from)?;
         let path = self.dir.join("exec.json");
-        let mut file = fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&path)?;
-        file.write_all(&body)?;
+        crate::platform::write_private(&path, &body)?;
         Ok(path)
     }
 
