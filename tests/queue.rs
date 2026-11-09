@@ -299,8 +299,9 @@ checks:
         format!("verifique_repo{}_s{slot}", self.base_port)
     }
 
+    /// A file a job wrote. A job that ended before writing it says so, which a failure message needs.
     fn job_file(&self, job: &str, name: &str) -> String {
-        fs::read_to_string(self.home.join("jobs").join(job).join(name)).unwrap()
+        fs::read_to_string(self.home.join("jobs").join(job).join(name)).unwrap_or_else(|_| format!("(job {job} wrote no {name})"))
     }
 
     fn status_json(&self) -> serde_json::Value {
@@ -425,7 +426,10 @@ fn a_server_a_check_left_behind_is_stopped_before_the_next_stack_starts() {
     let job = world.submit("leaves", "");
     assert_eq!(world.wait(&job).0, 0);
     let url = format!("127.0.0.1:{}", world.base_port + FIRST_SLOT);
-    assert!(std::net::TcpStream::connect(&url).is_ok(), "the check should leave its server running");
+    // A new session escapes a process group, so on macOS and Linux the server outlives its check.
+    // A Windows job holds everything a step started and ends with it, so nothing is left there.
+    let left = std::net::TcpStream::connect(&url).is_ok();
+    assert_eq!(left, cfg!(unix), "a new session outlives its check only outside a job");
 
     let job = world.submit("suite", "pass");
     let (code, out) = world.wait(&job);
