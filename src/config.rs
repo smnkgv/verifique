@@ -57,6 +57,7 @@ pub struct App {
 pub struct Stack {
     #[serde(default)]
     pub prepare: Vec<String>,
+    #[serde(default)]
     pub apps: BTreeMap<String, App>,
     #[serde(default)]
     pub needs: Needs,
@@ -195,9 +196,6 @@ impl Config {
             bail!("unknown service {kind}; have {}", KINDS.join(", "));
         }
         for (name, stack) in &self.stacks {
-            if stack.apps.is_empty() {
-                bail!("stack {name} needs at least one app");
-            }
             if let Some((app, _)) = stack.apps.iter().find(|(_, app)| app.ready.is_some() && app.port.is_none()) {
                 bail!("app {app} in stack {name} has \"ready\" but no \"port\" to check it on");
             }
@@ -387,9 +385,8 @@ mod tests {
     }
 
     #[test]
-    fn a_stack_needs_at_least_one_app() {
-        assert!(parse("stacks: { a: {} }\nchecks: { b: { run: x } }").unwrap_err().to_string().contains("apps"));
-        assert!(parse("stacks: { a: { apps: {} } }\nchecks: { b: { run: x } }").unwrap_err().to_string().contains("one app"));
+    fn a_stack_needs_no_apps() {
+        assert!(parse("stacks: { a: { seed: x } }\nchecks: { b: { stack: a, run: x } }").is_ok());
     }
 
     #[test]

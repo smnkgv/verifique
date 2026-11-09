@@ -200,7 +200,8 @@ impl World {
     }
 
     fn serve_from(&mut self, first: u32, slots: u32, resources: &[&str]) {
-        self.serve_with(first, slots, resources, &[]);
+        // Otherwise checks wait whenever the machine running the tests is low on disk.
+        self.serve_with(first, slots, resources, &["--min-free-gb", "0"]);
     }
 
     fn serve_with(&mut self, first: u32, slots: u32, resources: &[&str], extra: &[&str]) {
@@ -1399,6 +1400,64 @@ fn a_started_stack_can_load_one_of_its_named_seeds() {
     let unknown = world.run(&["stack", "start", "--minutes", "5", "--seed", "nope"]);
     assert!(!unknown.status.success());
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("no seed nope"));
+}
+
+#[test]
+fn a_command_runs_in_a_started_stack_with_its_settings_and_passes_its_exit_code_on() {
+    let mut world = World::new();
+    up_for_a_stack(&world);
+    world.serve(1, &[]);
+    let job = start_stack(&world, "5")["job"].to_string();
+    let exec_file = world.home.join("jobs").join(&job).join("exec.json");
+    assert_eq!(fs::metadata(&exec_file).unwrap().permissions().mode() & 0o777, 0o600);
+
+    let out = world.run(&["stack", "exec", &job, "--", "echo \"$DATABASE_URL\" && pwd"]);
+    let printed = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(printed.contains(&world.database(FIRST_SLOT)), "{printed}");
+    assert!(printed.contains("/worktrees/"), "{printed}");
+    assert_eq!(world.run(&["stack", "exec", &job, "--", "exit", "7"]).status.code(), Some(7));
+
+    let check = world.submit("look", "");
+    let refused = world.run(&["stack", "exec", &check, "--", "true"]);
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("is a check, not a started stack"));
+
+    assert!(world.run(&["stack", "stop", &job]).status.success());
+    until_status(&world, &job, "stopped");
+    let after = world.run(&["stack", "exec", &job, "--", "true"]);
+    assert!(!after.status.success());
+    assert!(String::from_utf8_lossy(&after.stderr).contains("no longer up"));
+    assert!(!exec_file.exists());
+}
+
+#[test]
+fn a_stack_with_no_apps_gives_its_checks_their_own_database() {
+    let mut world = World::new();
+    let yaml = format!(
+        r#"
+services:
+  postgres: {{ url: {POSTGRES} }}
+stacks:
+  db:
+    seed: psql "$DATABASE_URL" -c 'create table items (id int)'
+    env:
+      DATABASE_URL: "{{postgres.url}}"
+checks:
+  unit:
+    stack: db
+    run: psql "$DATABASE_URL" -Atc 'select count(*) from items'
+"#
+    );
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    let out = world.run(&["doctor"]);
+    let printed = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "{printed}\n{}", String::from_utf8_lossy(&out.stderr));
+    assert!(printed.contains("each slot used its own data"), "{printed}");
+
+    world.serve(1, &[]);
+    let job = world.submit("unit", "");
+    assert_eq!(world.wait(&job).0, 0, "{}", world.job_file(&job, "check.log"));
+    assert!(!world.postgres_has(&world.database(FIRST_SLOT)));
 }
 
 #[test]

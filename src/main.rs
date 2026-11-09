@@ -14,6 +14,7 @@ mod services;
 mod store;
 mod worker;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -157,6 +158,14 @@ enum StackAction {
     },
     /// Stop a started stack and give its slot back
     Stop { job: i64 },
+    /// Run a command in a started stack's slot with its settings, as its seed runs
+    Exec {
+        job: i64,
+        /// Joined and run by the shell, as ssh does: quote what your own shell should not read,
+        /// such as `&&`
+        #[arg(last = true, required = true)]
+        command: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -315,8 +324,34 @@ fn print_hold(job: &Job, until: u64, as_json: bool) -> Result<()> {
         println!("\nsetup printed:\n{}", setup.trim());
     }
     println!("\nlogs: {}", dir.display());
+    println!("run a command in it with: {} stack exec {} -- <command>", paths::NAME, job.id);
     println!("stop it with: {} stack stop {}", paths::NAME, job.id);
     Ok(())
+}
+
+/// Run a command in a started stack the way its seed runs, and pass its exit code on.
+fn stack_exec(id: i64, command: Vec<String>) -> Result<ExitCode> {
+    let store = Store::open()?;
+    let job = store.get(id)?.ok_or_else(|| anyhow!("no job {id}"))?;
+    if job.plan.hold_minutes.is_none() {
+        bail!("job {id} is a check, not a started stack");
+    }
+    let raw = match (job.status.as_str(), fs::read_to_string(paths::job_dir(id).join("exec.json"))) {
+        ("running", Ok(raw)) => raw,
+        ("queued" | "running", _) => bail!("stack {id} is not up yet: `{} stack start` prints its addresses once it is", paths::NAME),
+        (status, _) => bail!("stack {id} is no longer up ({status}): start a new one with `{} stack start`", paths::NAME),
+    };
+    let exec: Value = serde_json::from_str(&raw)?;
+    let env: BTreeMap<String, String> = serde_json::from_value(exec["env"].clone())?;
+    let cwd = exec["cwd"].as_str().ok_or_else(|| anyhow!("stack {id} recorded no folder"))?;
+    let status = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(command.join(" "))
+        .current_dir(cwd)
+        .envs(&env)
+        .status()
+        .with_context(|| format!("running in stack {id}"))?;
+    Ok(ExitCode::from((status.code().unwrap_or(1) & 0xff) as u8))
 }
 
 fn stack_stop(id: i64) -> Result<ExitCode> {
@@ -623,6 +658,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Commands::Stack { action } => match action {
             StackAction::Start { name, minutes, seed, json, args } => stack_start(name, minutes, seed, args, json),
             StackAction::Stop { job } => stack_stop(job),
+            StackAction::Exec { job, command } => stack_exec(job, command),
         },
         Commands::Cancel { job } => cancel(job),
         Commands::Wait { job } => wait(job),

@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 use std::fs;
+use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
@@ -304,9 +306,24 @@ impl Run<'_> {
         })
     }
 
+    /// What `stack exec` needs to run a command as the seed runs: in the slot, with the stack's
+    /// settings and the queue's PATH. It holds `.env`'s values, so only its owner can read it.
+    fn write_exec(&self, instance: &Instance) -> Result<PathBuf, Halt> {
+        let mut env = instance.env.clone();
+        if let Ok(path) = std::env::var("PATH") {
+            env.entry("PATH".to_string()).or_insert(path);
+        }
+        let body = serde_json::to_vec(&serde_json::json!({ "cwd": self.worktree, "env": env })).map_err(anyhow::Error::from)?;
+        let path = self.dir.join("exec.json");
+        let mut file = fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&path)?;
+        file.write_all(&body)?;
+        Ok(path)
+    }
+
     /// Keep the stack up for an investigation until it is stopped or its time runs out.
     fn hold(&mut self, instances: &mut [Instance], minutes: f64) -> Result<Finished, Halt> {
         self.describe_stacks(instances)?;
+        let exec = self.write_exec(&instances[0])?;
         let until = now() + (minutes * 60.0).ceil() as u64;
         self.store.set_hold_until(self.job.id, until)?;
         let summary = loop {
@@ -324,6 +341,7 @@ impl Run<'_> {
             }
             sleep(HOLD_POLL);
         };
+        let _ = fs::remove_file(&exec);
         Ok(Finished {
             status: "stopped".to_string(),
             summary,

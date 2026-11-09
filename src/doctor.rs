@@ -155,8 +155,10 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
         bail!("stack {name}: {collision}");
     }
 
+    // A stack with no apps only gives its checks their own databases, which the seed proves.
+    let has_apps = !stack.apps.is_empty();
     let urls: Vec<String> = instances.iter().flat_map(|instance| instance.ready_urls(stack)).collect();
-    if urls.is_empty() {
+    if has_apps && urls.is_empty() {
         bail!("stack {name} has no ready check, so nothing can prove it started");
     }
     // Copies share one build, as a job on several slots does.
@@ -179,7 +181,7 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
         }
     }
 
-    println!("  starting {count} side by side");
+    println!("  {} {count} side by side", if has_apps { "starting" } else { "seeding" });
     let began = Instant::now();
     let proved = (|| -> Result<()> {
         for (instance, worktree) in instances.iter().zip(&worktrees) {
@@ -188,8 +190,10 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
                 run_step(seed, instance, worktree, &log_dir.join("seed.log"), "seed", timeouts.seed_sec)?;
             }
         }
-        side_by_side(&mut instances, stack, &worktrees, timeouts.ready_sec)?;
-        println!("  ready in {}s", began.elapsed().as_secs());
+        if has_apps {
+            side_by_side(&mut instances, stack, &worktrees, timeouts.ready_sec)?;
+            println!("  ready in {}s", began.elapsed().as_secs());
+        }
         // Sign-in often lives here, and a check that dies on it wastes a whole build.
         let check_steps = project.config.checks.values().filter(|check| check.stack.as_deref() == Some(name));
         let setups: Vec<&String> = stack.setup.iter().chain(check_steps.flat_map(|check| &check.setup)).collect();
@@ -206,7 +210,11 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
     }
     proved?;
     stopped_cleanly(&urls)?;
-    println!("  each slot used its own data, and both stopped cleanly");
+    if has_apps {
+        println!("  each slot used its own data, and both stopped cleanly");
+    } else {
+        println!("  each slot used its own data");
+    }
     Ok(())
 }
 

@@ -10,9 +10,10 @@ Verification goes through {NAME}, so that agents never fight over this machine.
 
 -   Never start the app yourself, even to investigate. To reproduce a bug or try something by hand,
     run `{NAME} stack start --minutes 30`. It waits for a slot and prints the app's addresses and
-    logs. Run `{NAME} stack stop <job>` as soon as you are done, because everyone else is waiting
-    for that slot. A started stack has the code as it was when it started: stop it and start a new
-    one to see changes.
+    logs. Run the project's own commands against it, such as to load data, with
+    `{NAME} stack exec <job> -- <command>`. Run `{NAME} stack stop <job>` as soon as you are done,
+    because everyone else is waiting for that slot. A started stack has the code as it was when it
+    started: stop it and start a new one to see changes.
 -   Never stop processes by name or pattern, such as `pkill -f`. Other agents' work runs on this
     machine under the same names.
 -   To verify work, run:
@@ -118,6 +119,9 @@ When an agent submits, anything it adds after `--` goes on the end of the check'
 check that runs tests can be pointed at some of them. Never make a check pick its tests out of the
 brief or the request: they are prose, and a test named there to be left out would run.
 
+A stack needs no apps. A check that only needs its own databases, such as a test suite, gets them
+from a stack with just `prepare`, `seed` and `env`, without building the app.
+
 Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}`, and for each service
 `.url`, `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and
 `.prefix`: use `.url` if the app takes a database number, or `.prefix` if it prefixes its keys.
@@ -137,7 +141,9 @@ unless a check needs them, point those at nothing, for example `AWS_SHARED_CREDE
 A person starting a stack by hand sometimes wants real data in it. If the project has a way to load
 a dump, name it under `seeds`, loading into the slot's own databases through the values above:
 `{NAME} stack start --seed dump -- <files>` runs it after `seed`, with the files on the end. Checks
-never use it, so their verdicts stay reproducible.
+never use it, so their verdicts stay reproducible. A seed runs before the apps start; a command that
+needs them up runs with `{NAME} stack exec <job> -- <command>` once the stack is started, in its
+slot and with its settings.
 
 Whatever `setup` prints reaches the checker agent and its model provider, so only print throwaway
 credentials.

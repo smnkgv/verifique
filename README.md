@@ -133,6 +133,9 @@ checks:
 Commands get `{slot}`, `{port}`, `{port.<app>}`, `{app.<app>.url}`, and for each service `.url`,
 `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and `.prefix`.
 
+A stack needs no apps: one with only `prepare`, `seed` and `env` gives a test suite its own
+databases without building the app.
+
 A check also gets these variables: `VERIFIQUE_SLOT`, `VERIFIQUE_SLOTS`, `VERIFIQUE_STACKS` (a JSON file with
 every stack's ports and values), `VERIFIQUE_PORT_<APP>`, `VERIFIQUE_COMMIT`, `VERIFIQUE_TREE`,
 `VERIFIQUE_REQUEST`, `VERIFIQUE_BRIEF`, `VERIFIQUE_DIFF`, `VERIFIQUE_SETUP`, `VERIFIQUE_PROMPT`, `VERIFIQUE_RESULT`,
@@ -183,13 +186,15 @@ To investigate rather than verify, an agent starts a stack of its own for a whil
 
 ```bash
 verifique stack start --minutes 30   # waits for a slot, then prints addresses and logs
+verifique stack exec <job> -- <command>   # runs it in the slot, with the stack's settings
 verifique stack stop <job>           # or it stops by itself
 ```
 
 A started stack goes through the same queue with the same isolation, and gives no verdict. One slot
 always stays free of them, and it runs the code as it was when it started, so start a new one to see
 changes. `--seed dump -- <files>` also runs one of the stack's `seeds` after its usual seed, such as
-to load real data. Checks never use them.
+to load real data. Checks never use them. `stack exec` runs a command as the seed runs, once the
+apps are up, such as one of the project's own tools that loads data through them.
 
 A check runs its browser headless, and `verifique submit --headed` opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
 

@@ -21,7 +21,7 @@ content, and a verdict with proof.
    unrelated open-source project.
 2. **The tool does the isolation.** A project declares its apps and the database servers they use in
    one short file. The tool gives each slot its own ports and databases, starts the apps and cleans
-   up.
+   up. A stack needs no apps, so a suite that only needs its own databases doesn't build the app.
 3. **Database servers are a prerequisite.** The tool uses what is already there, however it was
    installed, and never installs one. It only ever creates and drops databases named `verifique_*`.
 4. **Setup by the user's own agent.** `init` prints a guide for writing the project file. The agent
@@ -74,6 +74,8 @@ content, and a verdict with proof.
     queue, with the same isolation and no verdict. It stops by itself, so a forgotten stack or a
     crashed agent cannot jam the queue. One slot always stays free of them, so checks keep moving.
     A person can ask for one of the project's `seeds` to fill it with real data; checks never do.
+    `stack exec` runs a command in it with its settings, as its seed runs, for the project's own
+    tools that need the apps up.
 21. **Slots keep their worktrees,** and `clean` removes them. When free disk falls below a floor, 5 GB by default, the copies no check is using are deleted, and checks wait if that isn't enough.
 22. **An installed background service.** Installing it records the shell's `PATH`, and a command
     shows what the service sees.
