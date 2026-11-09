@@ -3,11 +3,8 @@ name: platforms
 
 on:
     workflow_dispatch:
-    # Until this lands on main, where a workflow can be started by hand, pushes to its branch start it.
-    push:
-        branches: [claude/multi-platform-82e904]
 
-# A newer push replaces a run still going.
+# A newer run replaces one still going.
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
