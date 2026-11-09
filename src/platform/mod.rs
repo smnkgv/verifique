@@ -163,6 +163,11 @@ pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
     os::write_private(path, contents)
 }
 
+/// Let a downloaded program run.
+pub fn make_executable(path: &Path) -> Result<()> {
+    os::make_executable(path)
+}
+
 /// The file names a program called `name` may have on this OS, in the order they are tried.
 pub fn program_file_names(name: &str) -> Vec<String> {
     os::program_file_names(name)

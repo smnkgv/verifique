@@ -1,0 +1,15 @@
+[package]
+name = "verifique-postgres"
+description = "Gives each verifique slot its own Postgres database."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+postgres = "0.19.14"
+verifique-plugin = { path = "../kit" }
+
+[dev-dependencies]
+serde_json = "1.0.154"

@@ -207,6 +207,11 @@ pub fn write_private(path: &Path, contents: &[u8]) -> Result<()> {
     Ok(())
 }
 
+/// Windows runs any `.exe`.
+pub fn make_executable(_path: &Path) -> Result<()> {
+    Ok(())
+}
+
 pub fn program_file_names(name: &str) -> Vec<String> {
     if Path::new(name).extension().is_some() {
         return vec![name.to_string()];

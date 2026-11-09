@@ -1,7 +1,6 @@
 //! Drives the real binary against throwaway git repositories, with a real server running.
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -30,8 +29,14 @@ fn git(cwd: &Path, args: &[&str]) -> String {
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
+/// A path as shell commands in verifique.yaml write it: sh reads a backslash as an escape, and
+/// every OS's sh takes forward slashes.
+fn in_sh(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
 fn config(base_port: u32, helpers: &Path) -> String {
-    let helpers = helpers.display();
+    let helpers = in_sh(helpers);
     format!(
         r#"
 retries: 3
@@ -145,14 +150,6 @@ impl World {
         fs::write(root.join("project/agent.sh"), AGENT).unwrap();
         fs::write(root.join("project/app.py"), APP).unwrap();
         fs::write(root.join("project/leave.sh"), LEAVE).unwrap();
-        // A test that reaches needs-you would otherwise raise a real notification on this machine.
-        let quiet = root.join("quiet");
-        fs::create_dir_all(&quiet).unwrap();
-        for tool in ["osascript", "notify-send"] {
-            let path = quiet.join(tool);
-            fs::write(&path, "#!/bin/sh\n").unwrap();
-            fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-        }
         let world = Self { root, home, repo, base_port, server: None };
         world.write_repo(&world.repo.clone());
         world
@@ -172,7 +169,8 @@ impl World {
             .args(args)
             .env("VERIFIQUE_HOME", &self.home)
             .env("VERIFIQUE_POLL_MS", "50")
-            .env("PATH", format!("{}:{}", self.root.join("quiet").display(), std::env::var("PATH").unwrap()))
+            // A test that reaches needs-you would otherwise raise a real notification here.
+            .env("VERIFIQUE_NOTIFY", "off")
             .env("LOG", self.root.join("events.log"));
         command
     }
@@ -223,8 +221,11 @@ impl World {
 
     fn stop_server(&mut self) {
         if let Some(mut server) = self.server.take() {
-            // SAFETY: a plain signal to a child we own.
-            unsafe { libc::kill(server.id() as i32, libc::SIGTERM) };
+            // Asked the way its service manager asks, so it finishes what it holds.
+            let asked = self.run(&["stop-server"]);
+            if !asked.status.success() {
+                let _ = server.kill();
+            }
             let _ = server.wait();
         }
     }
@@ -266,8 +267,7 @@ impl World {
 
     /// A project that leaves isolation to the tool. `check` is YAML for its checks.
     fn use_isolation(&self, services: &str, env: &str, seed: &str, checks: &str) {
-        let helpers = self.helpers();
-        let helpers = helpers.display();
+        let helpers = in_sh(&self.helpers());
         let port = self.base_port;
         let yaml = format!(
             r#"
@@ -548,7 +548,8 @@ fn a_repository_cloned_again_in_the_same_place_keeps_working() {
 
 #[test]
 fn output_piped_into_a_reader_that_stops_early_ends_quietly() {
-    let out = Command::new("sh").arg("-c").arg(format!("'{BIN}' init | head -1")).output().unwrap();
+    let bin = in_sh(Path::new(BIN));
+    let out = Command::new("sh").arg("-c").arg(format!("'{bin}' init | head -1")).output().unwrap();
     assert!(out.status.success());
     assert_eq!(String::from_utf8_lossy(&out.stderr), "");
 }
@@ -902,6 +903,17 @@ fn doctor_catches_an_app_that_ignores_its_slots_port() {
 }
 
 #[test]
+fn a_database_whose_plugin_is_missing_is_named_with_the_command_that_adds_it() {
+    let world = World::new();
+    let yaml = "services: { cassandra: {} }\nstacks:\n  web:\n    env: { DB: \"{cassandra.url}\" }\nchecks:\n  smoke: { stack: web, run: \"true\" }\n";
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    let out = world.command(&world.repo, &["doctor"]).env("VERIFIQUE_PLUGINS", world.root.join("no-plugins")).output().unwrap();
+    assert!(!out.status.success());
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(said.contains("verifique-cassandra plugin") && said.contains("verifique plugin add cassandra"), "{said}");
+}
+
+#[test]
 fn doctor_catches_two_slots_that_would_collide() {
     let world = World::new();
     let (web, api) = (world.base_port, world.base_port + 1);
@@ -1153,8 +1165,7 @@ fn a_suite_takes_what_the_machine_has() {
 #[test]
 fn a_wide_job_is_not_starved_by_small_ones_behind_it() {
     let mut world = World::new();
-    let log = world.root.join("events.log");
-    let log = log.display();
+    let log = in_sh(&world.root.join("events.log"));
     world.use_isolation(
         &format!("postgres: {{ url: {POSTGRES} }}"),
         r#"DATABASE_URL: "{postgres.url}""#,
@@ -1409,7 +1420,12 @@ fn a_command_runs_in_a_started_stack_with_its_settings_and_passes_its_exit_code_
     world.serve(1, &[]);
     let job = start_stack(&world, "5")["job"].to_string();
     let exec_file = world.home.join("jobs").join(&job).join("exec.json");
-    assert_eq!(fs::metadata(&exec_file).unwrap().permissions().mode() & 0o777, 0o600);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(fs::metadata(&exec_file).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    assert!(exec_file.is_file());
 
     let out = world.run(&["stack", "exec", &job, "--", "echo \"$DATABASE_URL\" && pwd"]);
     let printed = String::from_utf8_lossy(&out.stdout);

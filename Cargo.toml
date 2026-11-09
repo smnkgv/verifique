@@ -1,10 +1,23 @@
-[package]
-name = "verifique"
+[workspace]
+members = [".", "plugins/kit", "plugins/postgres", "plugins/mongo", "plugins/redis"]
+default-members = [".", "plugins/kit", "plugins/postgres", "plugins/mongo", "plugins/redis"]
+resolver = "2"
+
+# verifique and its plugins are released together, so they share one version.
+[workspace.package]
 version = "0.2.3"
 edition = "2021"
 rust-version = "1.95"
 license = "Apache-2.0"
 publish = false
+
+[package]
+name = "verifique"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
 description = "Let many coding agents write in parallel while one laptop verifies their work."
 
 [[bin]]
@@ -28,9 +41,13 @@ rusqlite = { version = "0.41.1", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 serde_yaml_ng = "0.10.0"
+verifique-plugin = { path = "plugins/kit" }
 sha2 = "0.11.1"
 sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
 ureq = { version = "2", default-features = false }
+
+[dev-dependencies]
+sha2 = "0.11.1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.191"
@@ -49,6 +66,3 @@ windows = { version = "0.62", features = [
     "Win32_System_Threading",
     "Win32_System_WinRT",
 ] }
-
-[target.'cfg(unix)'.dev-dependencies]
-libc = "0.2.191"

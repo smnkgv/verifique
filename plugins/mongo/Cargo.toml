@@ -1,0 +1,15 @@
+[package]
+name = "verifique-mongo"
+description = "Gives each verifique slot its own MongoDB database."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+mongodb = { version = "3.10", default-features = false, features = ["sync", "compat-3-0-0", "rustls-tls", "dns-resolver"] }
+verifique-plugin = { path = "../kit" }
+
+[dev-dependencies]
+serde_json = "1.0.154"

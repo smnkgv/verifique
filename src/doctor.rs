@@ -13,6 +13,7 @@ use crate::git;
 use crate::instance::{copy_env_files, Instance};
 use crate::paths;
 use crate::platform;
+use crate::plugins;
 use crate::process::{self, Ended, Env, Options};
 use crate::server::{self, KEY_FIRST_SLOT, KEY_PAUSED_BY};
 use crate::services::remote_database_host;
@@ -243,6 +244,9 @@ pub fn run(cwd: &Path) -> Result<()> {
     let config = Config::load(&root)?;
     println!("config: {} check(s), {} stack(s)", config.checks.len(), config.stacks.len());
     println!("shell: {}", platform::shell_program()?.display());
+    for kind in config.services.keys() {
+        println!("plugin {kind}: {}", plugins::load(kind)?.version_note());
+    }
     check_agents(&config)?;
     for stack in config.stacks.values() {
         warn_about_remote_databases(stack, Path::new(&repo));
