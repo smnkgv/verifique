@@ -92,7 +92,19 @@ jobs:
                   $python3 = Join-Path (Split-Path $python) "python3.exe"
                   if (-not (Test-Path $python3)) { Copy-Item $python $python3 }
 
-            - run: npm install -g --silent mongosh
+            # MongoDB's own build: the npm package compiles native add-ons and takes minutes.
+            - name: mongosh
+              env:
+                  MONGOSH: "2.14.1"
+              run: |
+                  base="https://downloads.mongodb.com/compass/mongosh-$MONGOSH"
+                  case "$RUNNER_OS" in
+                  Linux) curl -fsSL "$base-linux-x64.tgz" | tar -xz -C "$RUNNER_TEMP" && dir="$RUNNER_TEMP/mongosh-$MONGOSH-linux-x64/bin" ;;
+                  macOS) curl -fsSLo m.zip "$base-darwin-arm64.zip" && unzip -q m.zip -d "$RUNNER_TEMP" && dir="$RUNNER_TEMP/mongosh-$MONGOSH-darwin-arm64/bin" ;;
+                  Windows) curl -fsSLo m.zip "$base-win32-x64.zip" && unzip -q m.zip -d "$RUNNER_TEMP" && dir="$RUNNER_TEMP/mongosh-$MONGOSH-win32-x64/bin" ;;
+                  esac
+                  rm -f m.zip
+                  echo "$dir" >> "$GITHUB_PATH"
             - name: Wait for the databases
               run: |
                   for _ in $(seq 60); do
