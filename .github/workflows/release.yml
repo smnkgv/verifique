@@ -28,7 +28,7 @@ jobs:
             run:
                 shell: bash
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - name: Rust
               run: |
                   if ! command -v rustup >/dev/null; then
@@ -76,7 +76,7 @@ jobs:
         needs: build
         runs-on: ubuntu-24.04
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: actions/download-artifact@v4
               with:
                   path: dist
