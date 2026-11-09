@@ -12,7 +12,9 @@ const BIN: &str = env!("CARGO_BIN_EXE_verifique");
 const FIRST_SLOT: u32 = 8;
 
 // Tests run in parallel, so each world takes its own range of ports.
-static NEXT_BASE: AtomicU32 = AtomicU32::new(46100);
+// Below 32768, where Linux starts handing out ports for outgoing connections (macOS starts at
+// 49152), so a test's app never finds its port taken by one.
+static NEXT_BASE: AtomicU32 = AtomicU32::new(20100);
 
 struct World {
     root: PathBuf,
