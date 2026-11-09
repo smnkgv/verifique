@@ -187,6 +187,11 @@ impl Run<'_> {
                 let ended = self.step(seed, &instance.values, &instance.env, "seed", None, plan.timeouts.seed_sec)?;
                 self.require("seed", seed, ended)?;
             }
+            if let Some(extra) = &plan.extra_seed {
+                let command = plan.args.iter().fold(extra.clone(), |command, arg| format!("{command} {}", checker::quote(arg)));
+                let ended = self.step(&command, &instance.values, &instance.env, "seed", None, plan.timeouts.seed_sec)?;
+                self.require("seed", &command, ended)?;
+            }
         }
         Ok(())
     }
@@ -299,7 +304,7 @@ impl Run<'_> {
         })
     }
 
-    /// Keep the stack up for an investigation until it is released or its time runs out.
+    /// Keep the stack up for an investigation until it is stopped or its time runs out.
     fn hold(&mut self, instances: &mut [Instance], minutes: f64) -> Result<Finished, Halt> {
         self.describe_stacks(instances)?;
         let until = now() + (minutes * 60.0).ceil() as u64;
@@ -309,7 +314,7 @@ impl Run<'_> {
                 break "ended because the server stopped".to_string();
             }
             if self.store.release_requested(self.job.id)? {
-                break "released".to_string();
+                break "stopped".to_string();
             }
             if now() >= until {
                 break format!("expired after {minutes} minutes");
@@ -320,7 +325,7 @@ impl Run<'_> {
             sleep(HOLD_POLL);
         };
         Ok(Finished {
-            status: "released".to_string(),
+            status: "stopped".to_string(),
             summary,
             timings: std::mem::take(&mut self.timings),
             report: None,

@@ -9,9 +9,10 @@ pub fn rules() -> String {
 Verification goes through {NAME}, so that agents never fight over this machine.
 
 -   Never start the app yourself, even to investigate. To reproduce a bug or try something by hand,
-    run `{NAME} hold --minutes 30`. It waits for a slot and prints the app's addresses and logs. Run
-    `{NAME} release <job>` as soon as you are done, because everyone else is waiting for that slot.
-    A hold has the code as it was when you took it: release it and take a new one to see changes.
+    run `{NAME} stack start --minutes 30`. It waits for a slot and prints the app's addresses and
+    logs. Run `{NAME} stack stop <job>` as soon as you are done, because everyone else is waiting
+    for that slot. A started stack has the code as it was when it started: stop it and start a new
+    one to see changes.
 -   Never stop processes by name or pattern, such as `pkill -f`. Other agents' work runs on this
     machine under the same names.
 -   To verify work, run:
@@ -72,6 +73,8 @@ stacks:
             - pnpm install --frozen-lockfile
             - pnpm build
         seed: pnpm db:migrate && pnpm db:seed   # runs on a fresh, empty database for every check
+        seeds:                  # optional: extra data a person can ask for when starting it by hand
+            dump: ./scripts/load-dump.sh
         setup: ./scripts/sign-in.sh             # optional: prints sign-in details for a throwaway user
         env:                    # for every step; wins over .env
             DATABASE_URL: "{{postgres.url}}"
@@ -130,6 +133,11 @@ uses, and anything else production sets that affects behaviour. Cloud SDKs read 
 home directory as well as `.env`, so a check can reach a real account even with a clean `.env`:
 unless a check needs them, point those at nothing, for example `AWS_SHARED_CREDENTIALS_FILE: /dev/null`,
 `AWS_CONFIG_FILE: /dev/null` and `AWS_EC2_METADATA_DISABLED: "true"`.
+
+A person starting a stack by hand sometimes wants real data in it. If the project has a way to load
+a dump, name it under `seeds`, loading into the slot's own databases through the values above:
+`{NAME} stack start --seed dump -- <files>` runs it after `seed`, with the files on the end. Checks
+never use it, so their verdicts stay reproducible.
 
 Whatever `setup` prints reaches the checker agent and its model provider, so only print throwaway
 credentials.

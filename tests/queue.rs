@@ -1229,7 +1229,7 @@ fn doctor_names_a_remote_database_left_in_env_without_showing_its_password() {
     assert!(!printed.contains("hunter2"), "{printed}");
 }
 
-fn up_for_a_hold(world: &World) {
+fn up_for_a_stack(world: &World) {
     world.use_isolation(
         &format!("postgres: {{ url: {POSTGRES} }}"),
         r#"DATABASE_URL: "{postgres.url}""#,
@@ -1238,8 +1238,8 @@ fn up_for_a_hold(world: &World) {
     );
 }
 
-fn take_hold(world: &World, minutes: &str) -> serde_json::Value {
-    let out = world.run(&["hold", "--minutes", minutes, "--json"]);
+fn start_stack(world: &World, minutes: &str) -> serde_json::Value {
+    let out = world.run(&["stack", "start", "--minutes", minutes, "--json"]);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     serde_json::from_slice(&out.stdout).unwrap()
 }
@@ -1259,11 +1259,11 @@ fn until_status(world: &World, job: &str, wanted: &str) {
 }
 
 #[test]
-fn a_hold_keeps_a_stack_up_until_it_is_released_and_checks_wait_for_it() {
+fn a_started_stack_stays_up_until_it_is_stopped_and_checks_wait_for_it() {
     let mut world = World::new();
-    up_for_a_hold(&world);
+    up_for_a_stack(&world);
     world.serve(1, &[]);
-    let hold = take_hold(&world, "5");
+    let hold = start_stack(&world, "5");
     let port = hold["stacks"][0]["ports"]["api"].as_u64().unwrap();
     assert_eq!(port, u64::from(world.base_port + FIRST_SLOT));
     assert!(std::net::TcpStream::connect(format!("127.0.0.1:{port}")).is_ok());
@@ -1274,20 +1274,20 @@ fn a_hold_keeps_a_stack_up_until_it_is_released_and_checks_wait_for_it() {
     assert_eq!(job_status(&world, &check), "queued");
 
     let job = hold["job"].to_string();
-    assert!(world.run(&["release", &job]).status.success());
+    assert!(world.run(&["stack", "stop", &job]).status.success());
     assert_eq!(world.wait(&check).0, 0);
-    until_status(&world, &job, "released");
+    until_status(&world, &job, "stopped");
     assert!(std::net::TcpStream::connect(format!("127.0.0.1:{port}")).is_err());
 }
 
 #[test]
-fn a_forgotten_hold_ends_by_itself_and_leaves_nothing_behind() {
+fn a_forgotten_stack_stops_by_itself_and_leaves_nothing_behind() {
     let mut world = World::new();
-    up_for_a_hold(&world);
+    up_for_a_stack(&world);
     world.serve(1, &[]);
-    let hold = take_hold(&world, "0.02");
+    let hold = start_stack(&world, "0.02");
     let job = hold["job"].to_string();
-    until_status(&world, &job, "released");
+    until_status(&world, &job, "stopped");
     let out = world.run(&["show", &job]);
     assert!(String::from_utf8_lossy(&out.stdout).contains("expired"));
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -1298,14 +1298,14 @@ fn a_forgotten_hold_ends_by_itself_and_leaves_nothing_behind() {
 }
 
 #[test]
-fn holds_always_leave_a_slot_for_checks() {
+fn started_stacks_always_leave_a_slot_for_checks() {
     let mut world = World::new();
-    up_for_a_hold(&world);
+    up_for_a_stack(&world);
     world.serve(2, &[]);
-    let first = take_hold(&world, "5");
+    let first = start_stack(&world, "5");
 
     let second = world
-        .command(&world.repo, &["hold", "--minutes", "5", "--json"])
+        .command(&world.repo, &["stack", "start", "--minutes", "5", "--json"])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
@@ -1314,38 +1314,38 @@ fn holds_always_leave_a_slot_for_checks() {
     until_status(&world, &check, "passed");
 
     let held = first["job"].to_string();
-    assert!(world.run(&["release", &held]).status.success());
+    assert!(world.run(&["stack", "stop", &held]).status.success());
     let out = second.wait_with_output().unwrap();
     assert!(out.status.success());
     let next: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert!(world.run(&["release", &next["job"].to_string()]).status.success());
+    assert!(world.run(&["stack", "stop", &next["job"].to_string()]).status.success());
 }
 
 #[test]
-fn a_hold_records_no_verdict() {
+fn a_started_stack_records_no_verdict() {
     let mut world = World::new();
-    up_for_a_hold(&world);
+    up_for_a_stack(&world);
     world.serve(1, &[]);
-    let hold = take_hold(&world, "5");
-    assert!(world.run(&["release", &hold["job"].to_string()]).status.success());
-    until_status(&world, &hold["job"].to_string(), "released");
+    let hold = start_stack(&world, "5");
+    assert!(world.run(&["stack", "stop", &hold["job"].to_string()]).status.success());
+    until_status(&world, &hold["job"].to_string(), "stopped");
     let verdicts = world.home.join("verdicts");
     assert_eq!(fs::read_dir(verdicts).map(Iterator::count).unwrap_or(0), 0);
 }
 
 #[test]
-fn a_crash_ends_a_hold_rather_than_bringing_it_back_with_nobody_there() {
+fn a_crash_stops_a_started_stack_rather_than_bringing_it_back_with_nobody_there() {
     let mut world = World::new();
-    up_for_a_hold(&world);
+    up_for_a_stack(&world);
     world.serve(1, &[]);
-    let hold = take_hold(&world, "5");
+    let hold = start_stack(&world, "5");
     if let Some(mut server) = world.server.take() {
         server.kill().unwrap();
         server.wait().unwrap();
     }
     world.serve(1, &[]);
     let job = hold["job"].to_string();
-    until_status(&world, &job, "released");
+    until_status(&world, &job, "stopped");
 }
 
 #[test]
@@ -1369,14 +1369,36 @@ fn a_cancelled_job_stops_counts_for_nothing_and_tells_whoever_waits() {
 }
 
 #[test]
-fn only_a_hold_can_be_released() {
+fn only_a_started_stack_can_be_stopped() {
     let mut world = World::new();
-    up_for_a_hold(&world);
+    up_for_a_stack(&world);
     world.serve(1, &[]);
     let job = world.submit("look", "");
-    let out = world.run(&["release", &job]);
+    let out = world.run(&["stack", "stop", &job]);
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("not a hold"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("not a started stack"));
+}
+
+#[test]
+fn a_started_stack_can_load_one_of_its_named_seeds() {
+    let mut world = World::new();
+    world.use_isolation(
+        &format!("postgres: {{ url: {POSTGRES} }}"),
+        r#"DATABASE_URL: "{postgres.url}""#,
+        "'true'\n    seeds: { mark: 'printf ''%s\\n'' > \"$VERIFIQUE_EVIDENCE/seeded\"' }",
+        r#"  look: { stack: web, run: 'true' }"#,
+    );
+    world.serve(1, &[]);
+    let out = world.run(&["stack", "start", "--minutes", "5", "--json", "--seed", "mark", "--", "a real dump"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let started: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let job = started["job"].to_string();
+    assert_eq!(world.job_file(&job, "evidence/seeded"), "a real dump\n");
+    assert!(world.run(&["stack", "stop", &job]).status.success());
+
+    let unknown = world.run(&["stack", "start", "--minutes", "5", "--seed", "nope"]);
+    assert!(!unknown.status.success());
+    assert!(String::from_utf8_lossy(&unknown.stderr).contains("no seed nope"));
 }
 
 #[test]

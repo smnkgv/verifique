@@ -63,18 +63,11 @@ enum Commands {
         #[arg(last = true)]
         args: Vec<String>,
     },
-    /// Take a slot's stack for an investigation, with no check and no verdict
-    Hold {
-        #[arg(long)]
-        stack: Option<String>,
-        /// When it ends by itself
-        #[arg(long, default_value_t = 30.0)]
-        minutes: f64,
-        #[arg(long)]
-        json: bool,
+    /// Start the app on a free slot to use by hand, with no check and no verdict
+    Stack {
+        #[command(subcommand)]
+        action: StackAction,
     },
-    /// Give a held stack back
-    Release { job: i64 },
     /// Stop a queued or running job; whoever waits on it gets exit 3
     Cancel { job: i64 },
     /// Wait for a verdict: exit 0 passed, 1 failed, 2 blocked or error, 3 replaced or cancelled
@@ -142,6 +135,28 @@ struct Machine {
     /// Something limited on this machine, such as simulator=1
     #[arg(long = "resource", value_name = "NAME=COUNT")]
     resources: Vec<String>,
+}
+
+#[derive(Subcommand)]
+enum StackAction {
+    /// Wait for a free slot, start the stack there and print its addresses
+    Start {
+        /// Which stack, when the project has more than one
+        name: Option<String>,
+        /// When it stops by itself
+        #[arg(long, default_value_t = 30.0)]
+        minutes: f64,
+        /// One of the stack's `seeds`, run after its usual seed, such as to load real data
+        #[arg(long)]
+        seed: Option<String>,
+        #[arg(long)]
+        json: bool,
+        /// Added to the end of the seed's command, such as the files to load
+        #[arg(last = true)]
+        args: Vec<String>,
+    },
+    /// Stop a started stack and give its slot back
+    Stop { job: i64 },
 }
 
 #[derive(Subcommand)]
@@ -239,13 +254,17 @@ fn submit(check: Option<String>, request: String, brief: String, headed: bool, a
 }
 
 /// Queue for a stack, and return once it is up, with everything needed to work on it.
-fn hold(stack: Option<String>, minutes: f64, as_json: bool) -> Result<ExitCode> {
+fn stack_start(name: Option<String>, minutes: f64, seed: Option<String>, args: Vec<String>, as_json: bool) -> Result<ExitCode> {
     if !minutes.is_finite() || minutes <= 0.0 {
         bail!("--minutes must be more than zero");
     }
+    if seed.is_none() && !args.is_empty() {
+        bail!("what follows -- goes to a seed: name one with --seed");
+    }
     let cwd = std::env::current_dir()?;
     let config = Config::load(&git::worktree_root(&cwd)?)?;
-    let (plan, needs) = config.plan_hold(stack.as_deref(), minutes)?;
+    let (mut plan, needs) = config.plan_hold(name.as_deref(), minutes, seed.as_deref())?;
+    plan.args = args;
     let repo = git::repo_root(&cwd)?;
     let branch = git::current_branch(&cwd)?;
     let snapshot = git::snapshot(&cwd)?;
@@ -256,7 +275,7 @@ fn hold(stack: Option<String>, minutes: f64, as_json: bool) -> Result<ExitCode> 
         commit: &snapshot.commit,
         tree: &snapshot.tree,
         base: None,
-        check: "hold",
+        check: "stack",
         request: "",
         brief: "",
         plan: &plan,
@@ -288,7 +307,7 @@ fn print_hold(job: &Job, until: u64, as_json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&out)?);
         return Ok(());
     }
-    println!("hold {} is up for {} minutes", job.id, left.div_ceil(60));
+    println!("stack {} is up for {} minutes", job.id, left.div_ceil(60));
     for (name, port) in stacks[0]["ports"].as_object().into_iter().flatten() {
         println!("  {name}: http://127.0.0.1:{port}");
     }
@@ -296,24 +315,24 @@ fn print_hold(job: &Job, until: u64, as_json: bool) -> Result<()> {
         println!("\nsetup printed:\n{}", setup.trim());
     }
     println!("\nlogs: {}", dir.display());
-    println!("release it with: {} release {}", paths::NAME, job.id);
+    println!("stop it with: {} stack stop {}", paths::NAME, job.id);
     Ok(())
 }
 
-fn release(id: i64) -> Result<ExitCode> {
+fn stack_stop(id: i64) -> Result<ExitCode> {
     let mut store = Store::open()?;
     let job = store.get(id)?.ok_or_else(|| anyhow!("no job {id}"))?;
     if job.plan.hold_minutes.is_none() {
-        bail!("job {id} is not a hold");
+        bail!("job {id} is a check, not a started stack: stop it with `{} cancel {id}`", paths::NAME);
     }
     match job.status.as_str() {
         "queued" => {
-            store.finish(&job, "released", "released before it started")?;
+            store.finish(&job, "stopped", "stopped before it started")?;
         }
         "running" => store.request_release(id)?,
         _ => {}
     }
-    println!("job {id} released");
+    println!("stack {id} stopped");
     Ok(ExitCode::SUCCESS)
 }
 
@@ -601,8 +620,10 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Commands::Submit { check, request, request_file, brief, brief_file, headed, args } => {
             submit(check, text(request, request_file)?, text(brief, brief_file)?, headed, args)
         }
-        Commands::Hold { stack, minutes, json } => hold(stack, minutes, json),
-        Commands::Release { job } => release(job),
+        Commands::Stack { action } => match action {
+            StackAction::Start { name, minutes, seed, json, args } => stack_start(name, minutes, seed, args, json),
+            StackAction::Stop { job } => stack_stop(job),
+        },
         Commands::Cancel { job } => cancel(job),
         Commands::Wait { job } => wait(job),
         Commands::Status { json } => status(json),

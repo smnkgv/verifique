@@ -70,9 +70,10 @@ content, and a verdict with proof.
     machine has, sharing one build, and the scheduler holds slots back so it cannot starve.
 19. **Apps use the project's own `.env`,** as a user would. Slot values override it. Installing warns
     about the risk, and `doctor` names remote databases left in place without blocking.
-20. **Investigations hold a slot.** An agent reproducing a bug takes a timed hold through the same
-    queue, with the same isolation and no verdict. It expires by itself, so a forgotten hold or a
-    crashed agent cannot jam the queue. One slot always stays free of holds, so checks keep moving.
+20. **Investigations take a slot.** An agent reproducing a bug starts a timed stack through the same
+    queue, with the same isolation and no verdict. It stops by itself, so a forgotten stack or a
+    crashed agent cannot jam the queue. One slot always stays free of them, so checks keep moving.
+    A person can ask for one of the project's `seeds` to fill it with real data; checks never do.
 21. **Slots keep their worktrees,** and `clean` removes them. When free disk falls below a floor, 5 GB by default, the copies no check is using are deleted, and checks wait if that isn't enough.
 22. **An installed background service.** Installing it records the shell's `PATH`, and a command
     shows what the service sees.

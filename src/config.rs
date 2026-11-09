@@ -66,6 +66,9 @@ pub struct Stack {
     pub env_files: Vec<String>,
     #[serde(default)]
     pub seed: Option<String>,
+    /// Extra data a person can ask for when starting the stack by hand, such as a real dump.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub seeds: BTreeMap<String, String>,
     #[serde(default)]
     pub setup: Option<String>,
 }
@@ -170,6 +173,9 @@ pub struct Plan {
     pub args: Vec<String>,
     /// Set for a hold: a stack kept up for an investigation, with no check and no verdict.
     pub hold_minutes: Option<f64>,
+    /// One of the stack's `seeds`, run after its usual seed, with `args` on the end.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extra_seed: Option<String>,
 }
 
 impl Config {
@@ -254,17 +260,18 @@ impl Config {
             headed: false,
             args: Vec::new(),
             hold_minutes: None,
+            extra_seed: None,
         };
         Ok((chosen.to_string(), plan, needs))
     }
 
     /// A plan that only brings a stack up, for someone to work with by hand.
-    pub fn plan_hold(&self, name: Option<&str>, minutes: f64) -> Result<(Plan, Needs)> {
+    pub fn plan_hold(&self, name: Option<&str>, minutes: f64, seed: Option<&str>) -> Result<(Plan, Needs)> {
         let names: Vec<&str> = self.stacks.keys().map(String::as_str).collect();
         let chosen = match (name, names.as_slice()) {
             (Some(name), _) => name,
             (None, [only]) => only,
-            (None, _) => bail!("pick a stack with --stack: {}", names.join(", ")),
+            (None, _) => bail!("name the stack to start: {}", names.join(", ")),
         };
         let stack = self
             .stacks
@@ -279,6 +286,13 @@ impl Config {
             headed: false,
             args: Vec::new(),
             hold_minutes: Some(minutes),
+            extra_seed: match seed {
+                None => None,
+                Some(seed) => Some(stack.seeds.get(seed).cloned().ok_or_else(|| {
+                    let have: Vec<&str> = stack.seeds.keys().map(String::as_str).collect();
+                    anyhow!("stack {chosen} has no seed {seed}; its seeds: {}", if have.is_empty() { "none".to_string() } else { have.join(", ") })
+                })?),
+            },
         };
         Ok((plan, stack.needs.clone()))
     }

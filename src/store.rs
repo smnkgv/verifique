@@ -9,7 +9,8 @@ use serde::Serialize;
 use crate::config::{Needs, Plan};
 use crate::paths;
 
-pub const TERMINAL: [&str; 7] = ["passed", "failed", "blocked", "error", "superseded", "cancelled", "released"];
+// `released` is what a started stack ended as before it was called `stopped`.
+pub const TERMINAL: [&str; 8] = ["passed", "failed", "blocked", "error", "superseded", "cancelled", "stopped", "released"];
 
 const LOCK_WAIT: Duration = Duration::from_secs(10);
 

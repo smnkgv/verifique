@@ -113,7 +113,7 @@ impl Server {
             if !job.plan_readable {
                 self.store.finish(&job, "error", UNREADABLE_PLAN)?;
             } else if job.plan.hold_minutes.is_some() {
-                self.store.finish(&job, "released", "ended because the server restarted")?;
+                self.store.finish(&job, "stopped", "ended because the server restarted")?;
             } else if self.store.release_requested(job.id)? {
                 self.store.finish(&job, "cancelled", "cancelled while it ran")?;
             } else {

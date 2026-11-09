@@ -100,6 +100,8 @@ stacks:
             - pnpm install --frozen-lockfile
             - pnpm build
         seed: pnpm db:migrate && pnpm db:seed # on a fresh database, for every check
+        seeds: # optional: extra data for a stack started by hand
+            dump: ./scripts/load-dump.sh
         setup: ./scripts/sign-in.sh # optional: prints sign-in details for a throwaway user
         env: # wins over .env
             DATABASE_URL: "{postgres.url}"
@@ -177,15 +179,17 @@ verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 replac
 -   Three failures in a row, or one `blocked`, put a branch in `needs-you` and raise a desktop
     notification. Submissions are then refused until `verifique clear`.
 
-To investigate rather than verify, an agent takes a timed hold on a slot:
+To investigate rather than verify, an agent starts a stack of its own for a while:
 
 ```bash
-verifique hold --minutes 30   # waits for a slot, then prints addresses and logs
-verifique release <job>       # or it ends by itself
+verifique stack start --minutes 30   # waits for a slot, then prints addresses and logs
+verifique stack stop <job>           # or it stops by itself
 ```
 
-A hold goes through the same queue with the same isolation, and gives no verdict. One slot always
-stays free of holds, and it runs the code as it was when taken, so take a new one to see changes.
+A started stack goes through the same queue with the same isolation, and gives no verdict. One slot
+always stays free of them, and it runs the code as it was when it started, so start a new one to see
+changes. `--seed dump -- <files>` also runs one of the stack's `seeds` after its usual seed, such as
+to load real data. Checks never use them.
 
 A check runs its browser headless, and `verifique submit --headed` opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
 

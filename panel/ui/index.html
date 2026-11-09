@@ -311,6 +311,8 @@ function running(job) {
     return job.started_at ? `${slot} · ${span(since(job.started_at))}` : slot;
 }
 
+// A stack started by hand, which was called a hold before; it is not a check.
+const STACKS = ["stack", "hold"];
 const WORDS = { passed: "Passed", failed: "Failed", blocked: "Blocked", error: "Error", superseded: "Replaced", cancelled: "Cancelled" };
 const tone = (status) => (status === "passed" ? "passed" : status === "failed" || status === "blocked" || status === "error" ? "failed" : "");
 
@@ -341,7 +343,7 @@ function main(s) {
     if (s.running.length) {
         html += `<section><h2>Running</h2>${s.running.map((job) => `<div class="row"><span>${esc(label(job))}</span><span>${esc(running(job))}</span></div>`).join("")}</section>`;
     }
-    const recent = s.recent.filter((job) => job.check !== "hold").slice(0, 4);
+    const recent = s.recent.filter((job) => !STACKS.includes(job.check)).slice(0, 4);
     if (recent.length) {
         html += `<section><h2>Recent</h2>${recent.map((job) => `<button class="row" data-proof="${job.id}"><span>${esc(label(job))}</span><span class="${tone(job.status)}">${esc(WORDS[job.status] ?? job.status)}</span></button>`).join("")}</section>`;
     }
@@ -380,7 +382,7 @@ function paint() {
 
 function showProgress(s) {
     const left = s.running.length + s.queued.length;
-    const last = s.recent.find((job) => job.check !== "hold");
+    const last = s.recent.find((job) => !STACKS.includes(job.check));
     const justPassed = last?.status === "passed" && since(last.finished_at) < PASSED_SHOWN_S;
     const look = s.needs_you.length ? "needs" : left ? "working" : justPassed ? "passed" : "idle";
     invoke("show_progress", { look, count: s.needs_you.length || left });
