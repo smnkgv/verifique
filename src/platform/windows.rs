@@ -58,9 +58,14 @@ fn find_sh() -> Result<PathBuf, String> {
         .ok_or_else(|| NO_GIT_SH.to_string())
 }
 
+/// Found once and kept. Not finding it is not kept: the user may install Git while the queue runs.
 pub fn shell_program() -> Result<PathBuf> {
-    static SH: OnceLock<Result<PathBuf, String>> = OnceLock::new();
-    SH.get_or_init(find_sh).clone().map_err(|message| anyhow!(message))
+    static SH: OnceLock<PathBuf> = OnceLock::new();
+    if let Some(sh) = SH.get() {
+        return Ok(sh.clone());
+    }
+    let sh = find_sh().map_err(|message| anyhow!(message))?;
+    Ok(SH.get_or_init(|| sh).clone())
 }
 
 pub fn shell(script: &str) -> Result<Command> {
@@ -224,6 +229,15 @@ pub fn program_file_names(name: &str) -> Vec<String> {
         .collect()
 }
 
+/// Windows compares names without regard to case, and may report one folder as `C:\x` and `c:\X`.
+pub fn is_within(path: &Path, folder: &Path) -> bool {
+    let lower = |path: &Path| -> Vec<String> {
+        path.components().map(|part| part.as_os_str().to_string_lossy().to_lowercase()).collect()
+    };
+    let (path, folder) = (lower(path), lower(folder));
+    path.len() >= folder.len() && path[..folder.len()] == folder[..]
+}
+
 /// `canonicalize` answers in the `\\?\C:\...` form, which nothing else on Windows writes.
 pub fn canonical(path: &Path) -> io::Result<PathBuf> {
     let path = fs::canonicalize(path)?;
@@ -321,8 +335,8 @@ fn current_user() -> String {
     }
 }
 
-/// At logon, as the user, in their session: restarted a minute after a crash, never stopped for
-/// running long or on battery.
+/// At logon, as the user, in their session, never stopped for running long or on battery. The
+/// launcher brings the queue back whenever it ends; restarting on failure covers the launcher.
 fn task(launcher: &Path, args: &[String]) -> String {
     let user = xml(&current_user());
     let command = xml(&launcher.to_string_lossy());

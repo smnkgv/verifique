@@ -125,11 +125,12 @@ impl Instance {
     /// a time, so a listener from this one can only be left over from an earlier job.
     fn clear_ports(&self, worktree: &Path) -> Result<()> {
         let worktree = platform::canonical(worktree)?;
-        for port in self.values.ports.values() {
-            for pid in platform::port_holders(*port)? {
-                let name = platform::process_name(pid);
-                match platform::process_dir(pid) {
-                    Some(cwd) if cwd.starts_with(&worktree) => {
+        let ports: Vec<u32> = self.values.ports.values().copied().collect();
+        for (port, pids) in platform::port_holders(&ports)? {
+            for pid in pids {
+                let (name, cwd) = platform::process_info(pid);
+                match cwd {
+                    Some(cwd) if platform::is_within(&cwd, &worktree) => {
                         eprintln!("stopping {name} (pid {pid}), left over on port {port}");
                         platform::stop_process(pid, process::GRACE);
                     }

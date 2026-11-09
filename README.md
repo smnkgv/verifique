@@ -41,7 +41,7 @@ memory and ports. It knows nothing about your framework or how you test.
 
 ## Status
 
-Version 0.3, and early. It has been tested by its author on copies of three web apps and one iOS app, and Android has passed one check after a manual fix. Only Claude Code has been tested as the checker. It runs on macOS, Linux and Windows. Real projects have only run on macOS so far; Linux and Windows pass its tests and the example shop. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Version 0.3, and early. It has been tested by its author on copies of three web apps and one iOS app, and Android has passed one check after a manual fix. Only Claude Code has been tested as the checker. It runs on macOS, Linux and Windows, but real projects have only run on macOS so far. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 ## Install
 

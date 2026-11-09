@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use anyhow::Result;
 
 pub use super::posix::{
-    alive, ask_to_stop, canonical, end_orphaned_tree, end_quietly_on_closed_output, free_bytes, make_executable,
+    alive, ask_to_stop, canonical, is_within, end_orphaned_tree, end_quietly_on_closed_output, free_bytes, make_executable,
     on_stop_request, program_file_names, session_environment, shell, shell_program, stop_process, write_private, Tree,
 };
 use super::posix::run;

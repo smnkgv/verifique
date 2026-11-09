@@ -9,8 +9,14 @@ New-Item -ItemType Directory -Force $target | Out-Null
 
 $zip = Join-Path ([IO.Path]::GetTempPath()) "verifique-windows-$arch.zip"
 Invoke-WebRequest -UseBasicParsing "https://github.com/smnkgv/verifique/releases/latest/download/verifique-windows-$arch.zip" -OutFile $zip
+
+# A running queue holds its program files, so it stops while they are replaced and starts again after.
+$running = @(Get-ScheduledTask -TaskName "verifique*" -ErrorAction SilentlyContinue | Where-Object State -eq "Running")
+$running | Stop-ScheduledTask
+if ($running.Count -gt 0) { Start-Sleep -Seconds 2 }
 Expand-Archive -Force $zip $target
 Remove-Item $zip
+$running | Start-ScheduledTask
 Write-Output "installed $(& "$target\verifique.exe" --version) in $target"
 
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")

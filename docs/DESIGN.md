@@ -123,7 +123,8 @@ content, and a verdict with proof.
 33. **The queue starts at logon, as the user, with no admin rights,** and restarts after a crash: a
     LaunchAgent, a systemd user unit, or a scheduled task. The task starts it through
     `verifique-service`, a launcher with no window, because every console program a task starts opens
-    one. All three log to `~/.verifique/server.log`.
+    one. The launcher also brings the queue back whenever it ends, since a scheduled task only
+    restarts a program that fails to start. All three log to `~/.verifique/server.log`.
 34. **Each OS answers for its ports, processes and disk.** Who holds a port, a process's name and
     folder, and free disk come from libraries that ask the OS directly, with no `lsof` or `ps`.
     Windows has no tool that shows a process's folder, so asking it directly is the only way to tell
@@ -150,7 +151,9 @@ content, and a verdict with proof.
 -   On Windows, commands need Git for Windows. Its `sh` rewrites arguments that look like Unix
     paths, such as `/api`, when it passes them to Windows programs, as Git Bash does everywhere.
 -   On Windows, a step ends at once, with no grace period for it to tidy up.
--   Only macOS has run real projects. Linux and Windows pass the tests and the example shop.
+-   Only macOS has run real projects so far.
+-   The Postgres and Redis plugins don't speak TLS yet, so a server that requires it, such as
+    `sslmode=require` or `rediss://`, is refused. Local servers rarely do.
 -   Fixed slots and rules only leave capacity and adoption to the user.
 -   `.env` is used as it is, so a setting the project file does not override can reach a real service.
     `doctor` only recognises database URLs: split host settings, email and payment keys go unnoticed.

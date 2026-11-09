@@ -157,6 +157,10 @@ pub fn program_file_names(name: &str) -> Vec<String> {
     vec![name.to_string()]
 }
 
+pub fn is_within(path: &Path, folder: &Path) -> bool {
+    path.starts_with(folder)
+}
+
 pub fn canonical(path: &Path) -> io::Result<PathBuf> {
     fs::canonicalize(path)
 }

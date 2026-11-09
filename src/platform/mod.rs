@@ -122,38 +122,40 @@ pub fn end_quietly_on_closed_output() {
     os::end_quietly_on_closed_output()
 }
 
-/// Every process listening for TCP connections on `port`. The library lists every socket, so
-/// connections are left out: one still closing on the port belongs to no process, and Windows
-/// reports it as pid 0.
-pub fn port_holders(port: u32) -> Result<Vec<Pid>> {
+/// The processes listening for TCP connections on each of `ports`, from one look at the machine.
+/// The library lists every socket, so connections are left out: one still closing on a port
+/// belongs to no process, and Windows reports it as pid 0.
+pub fn port_holders(ports: &[u32]) -> Result<BTreeMap<u32, Vec<Pid>>> {
     let all = listeners::get_all().map_err(|error| anyhow::anyhow!("listing listening ports: {error}"))?;
-    let mut pids: Vec<Pid> = all
-        .into_iter()
-        .filter(|listener| listener.protocol == listeners::Protocol::TCP && listener.state == listeners::SocketState::Listen)
-        .filter(|listener| u32::from(listener.socket.port()) == port)
-        .map(|listener| listener.process.pid)
-        .collect();
-    pids.sort_unstable();
-    pids.dedup();
-    Ok(pids)
+    let mut holders: BTreeMap<u32, Vec<Pid>> = ports.iter().map(|port| (*port, Vec::new())).collect();
+    for listener in all {
+        let listening = listener.protocol == listeners::Protocol::TCP && listener.state == listeners::SocketState::Listen;
+        if let (true, Some(pids)) = (listening, holders.get_mut(&u32::from(listener.socket.port()))) {
+            pids.push(listener.process.pid);
+        }
+    }
+    for pids in holders.values_mut() {
+        pids.sort_unstable();
+        pids.dedup();
+    }
+    Ok(holders)
 }
 
-fn with_process<T>(pid: Pid, refresh: sysinfo::ProcessRefreshKind, read: impl FnOnce(&sysinfo::Process) -> Option<T>) -> Option<T> {
-    let mut system = sysinfo::System::new().ok()?;
+/// A process's name, and the folder it runs in when this user may see it.
+pub fn process_info(pid: Pid) -> (String, Option<PathBuf>) {
+    let Ok(mut system) = sysinfo::System::new() else { return (String::new(), None) };
     let pid = sysinfo::Pid::from_u32(pid);
-    system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::Some(&[pid]), true, refresh);
-    system.process(pid).and_then(read)
-}
-
-pub fn process_name(pid: Pid) -> String {
-    with_process(pid, sysinfo::ProcessRefreshKind::nothing(), |process| Some(process.name().to_string_lossy().into_owned()))
-        .unwrap_or_default()
-}
-
-/// The folder a process runs in, when this user may see it.
-pub fn process_dir(pid: Pid) -> Option<PathBuf> {
     let refresh = sysinfo::ProcessRefreshKind::nothing().with_cwd(sysinfo::UpdateKind::Always);
-    with_process(pid, refresh, |process| process.cwd().map(Path::to_path_buf))
+    system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::Some(&[pid]), true, refresh);
+    match system.process(pid) {
+        Some(process) => (process.name().to_string_lossy().into_owned(), process.cwd().map(Path::to_path_buf)),
+        None => (String::new(), None),
+    }
+}
+
+/// Whether `path` is `folder` or inside it, comparing names the way this OS does.
+pub fn is_within(path: &Path, folder: &Path) -> bool {
+    os::is_within(path, folder)
 }
 
 /// Bytes free to this user on the disk that holds `path`.

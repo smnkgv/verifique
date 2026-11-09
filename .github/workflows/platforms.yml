@@ -46,7 +46,7 @@ jobs:
               if: runner.os == 'Linux'
               run: |
                   docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:17
-                  docker run -d -p 27017:27017 mongo:8
+                  docker run -d --name mongo -p 27017:27017 mongo:8
                   # The server as a package, since one test starts a redis-server of its own.
                   sudo apt-get install -y -qq redis-server postgresql-client
                   sudo systemctl start redis-server
@@ -115,6 +115,7 @@ jobs:
                   echo "Mongo or Redis never answered:"
                   mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || true
                   redis-cli ping || true
+                  if [ "$RUNNER_OS" = Linux ]; then docker ps -a; docker logs mongo 2>&1 | tail -30; fi
                   exit 1
             - run: cargo test --release --locked
             - run: sh e2e/shop-smoke.sh

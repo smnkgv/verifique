@@ -21,8 +21,8 @@ Windows). After upgrading verifique, `plugin update` brings the plugins to the s
 A plugin called `postgres` is the program `verifique-postgres` (`verifique-postgres.exe` on
 Windows). verifique looks for it in this order:
 
-1. the plugins folder, or `VERIFIQUE_PLUGINS` when that is set;
-2. the folder holding the `verifique` binary, where a build from source leaves its plugins;
+1. the folder holding the `verifique` binary, where a build leaves the plugins built with it;
+2. the plugins folder, or `VERIFIQUE_PLUGINS` when that is set;
 3. `PATH`.
 
 A project uses a database plugin by naming it under `services` in `verifique.yaml`:
@@ -77,6 +77,9 @@ are customary.
 
 `in-use` is how `verifique doctor` proves each slot used its own data: an app that ignored its
 settings and wrote to another database leaves its slot's database empty.
+
+The Postgres and Redis plugins don't speak TLS yet, so a server that requires it, such as
+`sslmode=require` or `rediss://`, is refused. The Mongo plugin does.
 
 ### Rules
 

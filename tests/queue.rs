@@ -171,6 +171,8 @@ impl World {
             .env("VERIFIQUE_POLL_MS", "50")
             // A test that reaches needs-you would otherwise raise a real notification here.
             .env("VERIFIQUE_NOTIFY", "off")
+            // Only the plugins built with this binary, never ones installed on this machine.
+            .env("VERIFIQUE_PLUGINS", self.root.join("plugins"))
             .env("LOG", self.root.join("events.log"));
         command
     }
@@ -1020,7 +1022,7 @@ fn an_app_gets_its_slots_port_and_database_and_those_win_over_env() {
         &format!("postgres: {{ url: {POSTGRES} }}"),
         r#"DATABASE_URL: "{postgres.url}""#,
         "'true'",
-        r#"  look: { stack: web, run: 'curl -fsS "$VERIFIQUE_API" > "$VERIFIQUE_EVIDENCE/env.json" && grep KEPT .env', prepare: ['true'] }"#,
+        r#"  look: { stack: web, run: 'set -x; curl -fsS "$VERIFIQUE_API" > "$VERIFIQUE_EVIDENCE/env.json" && grep KEPT .env', prepare: ['true'] }"#,
     );
     let yaml = fs::read_to_string(world.repo.join("verifique.yaml")).unwrap();
     fs::write(

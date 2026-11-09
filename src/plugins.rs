@@ -39,8 +39,8 @@ fn installed_file(name: &str) -> PathBuf {
     dir().join(format!("{}{}", program(name), std::env::consts::EXE_SUFFIX))
 }
 
-/// The plugins folder first, then the folder holding verifique itself, where a build from source
-/// leaves its plugins, then PATH.
+/// The folder holding verifique itself first, where a build leaves the plugins built with it, then
+/// the plugins folder, then PATH.
 pub fn find(name: &str) -> Option<PathBuf> {
     let program = program(name);
     let names = platform::program_file_names(&program);
@@ -48,8 +48,8 @@ pub fn find(name: &str) -> Option<PathBuf> {
     let exe = std::env::current_exe().ok();
     let real = exe.as_deref().and_then(|exe| fs::canonicalize(exe).ok());
     let own: Vec<PathBuf> = exe.into_iter().chain(real).filter_map(|exe| exe.parent().map(Path::to_path_buf)).collect();
-    std::iter::once(dir())
-        .chain(own)
+    own.into_iter()
+        .chain(std::iter::once(dir()))
         .find_map(|folder| names.iter().map(|file| folder.join(file)).find(|file| file.is_file()))
         .or_else(|| platform::find_program(&program, &std::env::var_os("PATH").unwrap_or_default()))
 }
@@ -95,18 +95,16 @@ pub fn load(name: &str) -> Result<Plugin> {
 impl Plugin {
     /// One operation, answered in full. The plugin's error is already a sentence for the user.
     pub fn call(&self, operation: &str, request: &impl Serialize) -> Result<Reply> {
-        let mut child = Command::new(&self.program)
+        // The request, a few hundred bytes, goes into the pipe before the plugin starts, so a plugin
+        // that never reads it can't break the pipe under verifique.
+        let (stdin, mut writer) = std::io::pipe()?;
+        writer.write_all(&serde_json::to_vec(request)?)?;
+        drop(writer);
+        let out = Command::new(&self.program)
             .arg(operation)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
+            .stdin(stdin)
+            .output()
             .with_context(|| format!("running {}", self.program.display()))?;
-        let body = serde_json::to_vec(request)?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(&body)?;
-        }
-        let out = child.wait_with_output()?;
         let failed = || anyhow!("{} {operation} failed: {}", self.program.display(), String::from_utf8_lossy(&out.stderr).trim());
         let reply: Reply = serde_json::from_slice(&out.stdout).map_err(|_| failed())?;
         match (&reply.error, out.status.success()) {
@@ -116,10 +114,11 @@ impl Plugin {
         }
     }
 
-    /// A line for people: the plugin's version, and what to do when it isn't verifique's.
+    /// A line for people: the plugin's version, and what to do when one verifique publishes isn't
+    /// verifique's own.
     pub fn version_note(&self) -> String {
         let version = &self.description.version;
-        if version == VERSION {
+        if version == VERSION || !PUBLISHED.contains(&self.description.name.as_str()) {
             format!("{version} at {}", self.program.display())
         } else {
             format!(
@@ -230,11 +229,15 @@ fn installed() -> Vec<String> {
     names
 }
 
-/// Bring every installed plugin to verifique's own version.
+/// Bring every installed plugin verifique publishes to its own version. Others came from
+/// somewhere else, so they are left as they are.
 pub fn update() -> Result<()> {
-    let names = installed();
+    let (names, others): (Vec<String>, Vec<String>) = installed().into_iter().partition(|name| PUBLISHED.contains(&name.as_str()));
+    for name in &others {
+        println!("leaving {name} alone: {NAME} doesn't publish it");
+    }
     if names.is_empty() {
-        println!("no plugins installed in {}", dir().display());
+        println!("no {NAME} plugins installed in {}", dir().display());
         return Ok(());
     }
     add(&names)

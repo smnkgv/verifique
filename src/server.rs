@@ -335,13 +335,15 @@ pub fn serve(options: Options) -> Result<()> {
     Ok(())
 }
 
-/// Ask the running queue to finish what it holds and exit, the way its service manager does.
+/// Ask the running queue to finish what it holds and exit, the way its service manager does. A pid
+/// a dead server left behind may belong to someone else by now, so only a live server is asked.
 pub fn ask_to_stop() -> Result<()> {
     let store = Store::open()?;
-    let Some(pid) = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok()) else {
-        bail!("no {} server is running", paths::NAME);
-    };
-    platform::ask_to_stop(pid)
+    let pid = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
+    match pid {
+        Some(pid) if is_running(&store)? => platform::ask_to_stop(pid),
+        _ => bail!("no {} server is running", paths::NAME),
+    }
 }
 
 pub fn no_server_message() -> String {
