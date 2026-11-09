@@ -1,0 +1,90 @@
+# The tests and the examples/shop journey on macOS, Linux and Windows, as equals. Started by hand.
+name: platforms
+
+on:
+    workflow_dispatch:
+    # Until this lands on main, where a workflow can be started by hand, pushes to its branch start it.
+    push:
+        branches: [claude/multi-platform-82e904]
+
+jobs:
+    test:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [macos-15, ubuntu-24.04, windows-2025]
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+        env:
+            CARGO_TERM_COLOR: always
+        steps:
+            - uses: actions/checkout@v4
+            - name: Rust
+              run: |
+                  if ! command -v rustup >/dev/null; then
+                      if [ "$RUNNER_OS" = Windows ]; then
+                          arch=$([ "$RUNNER_ARCH" = ARM64 ] && echo aarch64 || echo x86_64)
+                          curl -sSfLo rustup-init.exe "https://static.rust-lang.org/rustup/dist/$arch-pc-windows-msvc/rustup-init.exe"
+                          ./rustup-init.exe -y --profile minimal --default-toolchain none
+                      else
+                          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+                      fi
+                      echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+                      export PATH="$HOME/.cargo/bin:$PATH"
+                  fi
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
+
+            - name: Databases (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:17
+                  docker run -d -p 27017:27017 mongo:8
+                  docker run -d -p 6379:6379 redis:7
+                  sudo apt-get install -y -qq redis-tools postgresql-client
+                  until pg_isready -q -h 127.0.0.1; do sleep 1; done
+
+            - name: Databases (macOS)
+              if: runner.os == 'macOS'
+              run: |
+                  brew install --quiet postgresql@17 redis
+                  brew tap --quiet mongodb/brew && brew install --quiet mongodb-community
+                  brew services start postgresql@17
+                  brew services start redis
+                  brew services start mongodb/brew/mongodb-community
+                  echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
+                  until "$(brew --prefix postgresql@17)/bin/pg_isready" -q -h 127.0.0.1; do sleep 1; done
+                  "$(brew --prefix postgresql@17)/bin/psql" -d postgres -c "CREATE ROLE postgres SUPERUSER LOGIN PASSWORD 'postgres'"
+
+            - name: Databases (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  $pg = Get-Service -Name "postgresql*" | Select-Object -First 1
+                  Set-Service -InputObject $pg -StartupType Manual
+                  Start-Service -InputObject $pg
+                  $env:PGBIN | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+                  # The image's postgres user starts with the password root.
+                  $env:PGPASSWORD = "root"
+                  & "$env:PGBIN\psql.exe" -U postgres -c "ALTER USER postgres PASSWORD 'postgres'"
+                  if (Get-Service MongoDB -ErrorAction SilentlyContinue) {
+                      Set-Service MongoDB -StartupType Manual
+                      Start-Service MongoDB
+                  } else {
+                      choco install mongodb -y --no-progress
+                  }
+                  # Redis has no Windows build of its own; Memurai is a native Redis for Windows.
+                  choco install memurai-developer -y --no-progress
+                  $memurai = "C:\Program Files\Memurai"
+                  Copy-Item "$memurai\memurai-cli.exe" "$memurai\redis-cli.exe"
+                  $memurai | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+                  # The tests' apps start as python3, which Windows' Python doesn't answer to. Beside
+                  # python.exe, so it finds its own library.
+                  $python = (Get-Command python).Source
+                  Copy-Item $python (Join-Path (Split-Path $python) "python3.exe")
+
+            - run: npm install -g --silent mongosh
+            - run: cargo test --release --locked
+            - run: sh e2e/shop-smoke.sh

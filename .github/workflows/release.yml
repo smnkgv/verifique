@@ -1,0 +1,92 @@
+# Every build of verifique and its plugins, put in a draft release that only a person publishes.
+name: release
+
+on:
+    workflow_dispatch:
+    # Until this lands on main, where a workflow can be started by hand, pushes to its branch build
+    # everything without making a release.
+    push:
+        branches: [claude/multi-platform-82e904]
+
+permissions:
+    contents: write
+
+jobs:
+    build:
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - { os: macos-15, target: aarch64-apple-darwin, name: macos-arm64 }
+                    - { os: macos-15, target: x86_64-apple-darwin, name: macos-x64 }
+                    - { os: ubuntu-24.04, target: x86_64-unknown-linux-musl, name: linux-x64 }
+                    - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl, name: linux-arm64 }
+                    - { os: windows-2025, target: x86_64-pc-windows-msvc, name: windows-x64 }
+                    - { os: windows-11-arm, target: aarch64-pc-windows-msvc, name: windows-arm64 }
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - uses: actions/checkout@v4
+            - name: Rust
+              run: |
+                  if ! command -v rustup >/dev/null; then
+                      if [ "$RUNNER_OS" = Windows ]; then
+                          arch=$([ "$RUNNER_ARCH" = ARM64 ] && echo aarch64 || echo x86_64)
+                          curl -sSfLo rustup-init.exe "https://static.rust-lang.org/rustup/dist/$arch-pc-windows-msvc/rustup-init.exe"
+                          ./rustup-init.exe -y --profile minimal --default-toolchain none
+                      else
+                          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+                      fi
+                      echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+                      export PATH="$HOME/.cargo/bin:$PATH"
+                  fi
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
+            - run: rustup target add ${{ matrix.target }}
+            # Static builds, so one Linux build runs on any distribution.
+            - if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get install -y -qq musl-tools
+                  echo "CC_$(echo '${{ matrix.target }}' | tr '-' '_')=musl-gcc" >> "$GITHUB_ENV"
+            - run: cargo build --release --locked --workspace --target ${{ matrix.target }}
+            - name: Package
+              run: |
+                  out="target/${{ matrix.target }}/release"
+                  mkdir dist
+                  if [ "$RUNNER_OS" = Windows ]; then
+                      7z a -tzip "dist/verifique-${{ matrix.name }}.zip" "./$out/verifique.exe" "./$out/verifique-service.exe" >/dev/null
+                      ext=.exe
+                  else
+                      tar -czf "dist/verifique-${{ matrix.name }}.tar.gz" -C "$out" verifique
+                      ext=
+                  fi
+                  for plugin in postgres mongo redis; do
+                      cp "$out/verifique-$plugin$ext" "dist/verifique-$plugin-${{ matrix.name }}$ext"
+                  done
+                  ls -l dist
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: ${{ matrix.name }}
+                  path: dist/*
+
+    draft:
+        if: github.event_name == 'workflow_dispatch'
+        needs: build
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/download-artifact@v4
+              with:
+                  path: dist
+                  merge-multiple: true
+            - name: Draft the release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+                  (cd dist && sha256sum * > SHA256SUMS)
+                  notes="docs/releases/v$version.md"
+                  [ -f "$notes" ] || notes=/dev/null
+                  gh release create "v$version" dist/* --draft --target "$GITHUB_SHA" --title "verifique $version" --notes-file "$notes"
