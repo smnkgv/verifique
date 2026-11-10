@@ -72,7 +72,8 @@ pub struct Job {
     pub retry: bool,
     pub priority: bool,
     pub slots: Vec<u32>,
-    pub pgids: Vec<i32>,
+    /// Process trees the job started, so a later server can end what a crashed one left behind.
+    pub trees: Vec<u32>,
     pub hold_until: Option<u64>,
     pub summary: Option<String>,
     pub created_at: String,
@@ -129,7 +130,7 @@ fn job_from(row: &Row) -> rusqlite::Result<Job> {
         retry: row.get("retry")?,
         priority: row.get("priority")?,
         slots: numbers(&row.get::<_, String>("slots")?),
-        pgids: numbers(&row.get::<_, String>("pgids")?),
+        trees: numbers(&row.get::<_, String>("pgids")?),
         hold_until: row.get::<_, Option<i64>>("hold_until")?.map(|until| until as u64),
         summary: row.get("summary")?,
         created_at: row.get("created_at")?,
@@ -264,11 +265,11 @@ impl Store {
         Ok(())
     }
 
-    /// Remember a process group, so a later server can clear what a crashed one left behind.
-    pub fn add_pgid(&self, id: i64, pgid: i32) -> Result<()> {
+    /// Remember a process tree, so a later server can clear what a crashed one left behind.
+    pub fn add_tree(&self, id: i64, tree: u32) -> Result<()> {
         self.db.execute(
             "UPDATE jobs SET pgids = CASE pgids WHEN '' THEN ?1 ELSE pgids || ',' || ?1 END WHERE id = ?2",
-            params![pgid.to_string(), id],
+            params![tree.to_string(), id],
         )?;
         Ok(())
     }

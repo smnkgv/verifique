@@ -1,0 +1,141 @@
+# The tests and the examples/shop journey on macOS, Linux and Windows, as equals. Started by hand.
+name: platforms
+
+on:
+    workflow_dispatch:
+
+# A newer run replaces one still going.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    test:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [macos-15, ubuntu-24.04, windows-2025]
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: bash
+        env:
+            CARGO_TERM_COLOR: always
+        steps:
+            - uses: actions/checkout@v5
+            - name: Rust
+              run: |
+                  if ! command -v rustup >/dev/null; then
+                      if [ "$RUNNER_OS" = Windows ]; then
+                          arch=$([ "$RUNNER_ARCH" = ARM64 ] && echo aarch64 || echo x86_64)
+                          curl -sSfLo rustup-init.exe "https://static.rust-lang.org/rustup/dist/$arch-pc-windows-msvc/rustup-init.exe"
+                          ./rustup-init.exe -y --profile minimal --default-toolchain none
+                      else
+                          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+                      fi
+                      echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+                      export PATH="$HOME/.cargo/bin:$PATH"
+                  fi
+                  rustup toolchain install stable --profile minimal
+                  rustup default stable
+
+            - name: Databases (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:17
+                  # MongoDB 8 refuses Linux kernels 6.19 to 7.0.13 (SERVER-121912), which the runners have.
+                  docker run -d --name mongo -p 27017:27017 mongo:9
+                  # The server as a package, since one test starts a redis-server of its own.
+                  sudo apt-get install -y -qq redis-server postgresql-client
+                  sudo systemctl start redis-server
+                  until pg_isready -q -h 127.0.0.1; do sleep 1; done
+
+            - name: Databases (macOS)
+              if: runner.os == 'macOS'
+              run: |
+                  brew install --quiet postgresql@17 redis
+                  brew tap --quiet mongodb/brew && brew trust mongodb/brew && brew install --quiet mongodb-community
+                  brew services start postgresql@17
+                  brew services start redis
+                  brew services start mongodb/brew/mongodb-community
+                  echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
+                  until "$(brew --prefix postgresql@17)/bin/pg_isready" -q -h 127.0.0.1; do sleep 1; done
+                  "$(brew --prefix postgresql@17)/bin/psql" -d postgres -c "CREATE ROLE postgres SUPERUSER LOGIN PASSWORD 'postgres'"
+
+            - name: Databases (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  $pg = Get-Service -Name "postgresql*" | Select-Object -First 1
+                  Set-Service -InputObject $pg -StartupType Manual
+                  Start-Service -InputObject $pg
+                  $env:PGBIN | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+                  # The image's postgres user starts with the password root.
+                  $env:PGPASSWORD = "root"
+                  & "$env:PGBIN\psql.exe" -U postgres -c "ALTER USER postgres PASSWORD 'postgres'"
+                  if (Get-Service MongoDB -ErrorAction SilentlyContinue) {
+                      Set-Service MongoDB -StartupType Manual
+                      Start-Service MongoDB
+                  } else {
+                      choco install mongodb -y --no-progress
+                  }
+                  # Redis has no Windows build of its own; Memurai is a native Redis for Windows.
+                  choco install memurai-developer -y --no-progress
+                  $memurai = "C:\Program Files\Memurai"
+                  Copy-Item "$memurai\memurai-cli.exe" "$memurai\redis-cli.exe"
+                  Copy-Item "$memurai\memurai.exe" "$memurai\redis-server.exe"
+                  $memurai | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+                  # The tests' apps start as python3, which Windows' Python doesn't answer to. Beside
+                  # python.exe, so it finds its own library.
+                  $python = (Get-Command python).Source
+                  $python3 = Join-Path (Split-Path $python) "python3.exe"
+                  if (-not (Test-Path $python3)) { Copy-Item $python $python3 }
+
+            # MongoDB's own build: the npm package compiles native add-ons and takes minutes.
+            - name: mongosh
+              env:
+                  MONGOSH: "2.14.1"
+              run: |
+                  base="https://downloads.mongodb.com/compass/mongosh-$MONGOSH"
+                  case "$RUNNER_OS" in
+                  Linux) curl -fsSL "$base-linux-x64.tgz" | tar -xz -C "$RUNNER_TEMP" && dir="$RUNNER_TEMP/mongosh-$MONGOSH-linux-x64/bin" ;;
+                  macOS) curl -fsSLo m.zip "$base-darwin-arm64.zip" && unzip -q m.zip -d "$RUNNER_TEMP" && dir="$RUNNER_TEMP/mongosh-$MONGOSH-darwin-arm64/bin" ;;
+                  Windows) curl -fsSLo m.zip "$base-win32-x64.zip" && unzip -q m.zip -d "$RUNNER_TEMP" && dir="$RUNNER_TEMP/mongosh-$MONGOSH-win32-x64/bin" ;;
+                  esac
+                  rm -f m.zip
+                  echo "$dir" >> "$GITHUB_PATH"
+            - name: Wait for the databases
+              run: |
+                  for _ in $(seq 60); do
+                      mongosh --quiet --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1 && redis-cli ping >/dev/null 2>&1 && exit 0
+                      sleep 2
+                  done
+                  echo "Mongo or Redis never answered:"
+                  mongosh --quiet --eval 'db.runCommand({ ping: 1 })' || true
+                  redis-cli ping || true
+                  if [ "$RUNNER_OS" = Linux ]; then docker ps -a; docker logs mongo 2>&1 | tail -30; fi
+                  exit 1
+            - run: cargo test --release --locked
+            - run: sh e2e/shop-smoke.sh
+            # The real logon service, in a home of its own. Linux runners have no systemd user session.
+            - name: Service
+              if: runner.os != 'Linux'
+              continue-on-error: true
+              run: |
+                  export VERIFIQUE_HOME="$RUNNER_TEMP/service-home" VERIFIQUE_NOTIFY=off
+                  bin=target/release/verifique
+                  up() {
+                      for _ in $(seq 60); do
+                          "$bin" status --json | grep -q '"server": true' && return 0
+                          sleep 1
+                      done
+                      echo "the service never came up"
+                      cat "$VERIFIQUE_HOME/server.log" || true
+                      return 1
+                  }
+                  "$bin" service install --slots 1 --first-slot 12
+                  up
+                  "$bin" service restart
+                  sleep 3
+                  up
+                  "$bin" service uninstall

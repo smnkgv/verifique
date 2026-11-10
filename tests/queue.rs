@@ -1,7 +1,6 @@
 //! Drives the real binary against throwaway git repositories, with a real server running.
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -30,8 +29,14 @@ fn git(cwd: &Path, args: &[&str]) -> String {
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
+/// A path as shell commands in verifique.yaml write it: sh reads a backslash as an escape, and
+/// every OS's sh takes forward slashes.
+fn in_sh(path: &Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
 fn config(base_port: u32, helpers: &Path) -> String {
-    let helpers = helpers.display();
+    let helpers = in_sh(helpers);
     format!(
         r#"
 retries: 3
@@ -145,14 +150,6 @@ impl World {
         fs::write(root.join("project/agent.sh"), AGENT).unwrap();
         fs::write(root.join("project/app.py"), APP).unwrap();
         fs::write(root.join("project/leave.sh"), LEAVE).unwrap();
-        // A test that reaches needs-you would otherwise raise a real notification on this machine.
-        let quiet = root.join("quiet");
-        fs::create_dir_all(&quiet).unwrap();
-        for tool in ["osascript", "notify-send"] {
-            let path = quiet.join(tool);
-            fs::write(&path, "#!/bin/sh\n").unwrap();
-            fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-        }
         let world = Self { root, home, repo, base_port, server: None };
         world.write_repo(&world.repo.clone());
         world
@@ -172,7 +169,10 @@ impl World {
             .args(args)
             .env("VERIFIQUE_HOME", &self.home)
             .env("VERIFIQUE_POLL_MS", "50")
-            .env("PATH", format!("{}:{}", self.root.join("quiet").display(), std::env::var("PATH").unwrap()))
+            // A test that reaches needs-you would otherwise raise a real notification here.
+            .env("VERIFIQUE_NOTIFY", "off")
+            // Only the plugins built with this binary, never ones installed on this machine.
+            .env("VERIFIQUE_PLUGINS", self.root.join("plugins"))
             .env("LOG", self.root.join("events.log"));
         command
     }
@@ -223,8 +223,11 @@ impl World {
 
     fn stop_server(&mut self) {
         if let Some(mut server) = self.server.take() {
-            // SAFETY: a plain signal to a child we own.
-            unsafe { libc::kill(server.id() as i32, libc::SIGTERM) };
+            // Asked the way its service manager asks, so it finishes what it holds.
+            let asked = self.run(&["stop-server"]);
+            if !asked.status.success() {
+                let _ = server.kill();
+            }
             let _ = server.wait();
         }
     }
@@ -266,8 +269,7 @@ impl World {
 
     /// A project that leaves isolation to the tool. `check` is YAML for its checks.
     fn use_isolation(&self, services: &str, env: &str, seed: &str, checks: &str) {
-        let helpers = self.helpers();
-        let helpers = helpers.display();
+        let helpers = in_sh(&self.helpers());
         let port = self.base_port;
         let yaml = format!(
             r#"
@@ -299,8 +301,21 @@ checks:
         format!("verifique_repo{}_s{slot}", self.base_port)
     }
 
+    /// Every log a job wrote, for a failure message that has to explain itself.
+    fn job_logs(&self, job: &str) -> String {
+        let dir = self.home.join("jobs").join(job);
+        let mut logs: Vec<_> = fs::read_dir(&dir).into_iter().flatten().flatten().map(|entry| entry.path()).collect();
+        logs.sort();
+        logs.iter()
+            .filter(|path| path.extension().is_some_and(|extension| extension == "log"))
+            .map(|path| format!("--- {}\n{}", path.display(), fs::read_to_string(path).unwrap_or_default()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// A file a job wrote. A job that ended before writing it says so, which a failure message needs.
     fn job_file(&self, job: &str, name: &str) -> String {
-        fs::read_to_string(self.home.join("jobs").join(job).join(name)).unwrap()
+        fs::read_to_string(self.home.join("jobs").join(job).join(name)).unwrap_or_else(|_| format!("(job {job} wrote no {name})"))
     }
 
     fn status_json(&self) -> serde_json::Value {
@@ -425,7 +440,10 @@ fn a_server_a_check_left_behind_is_stopped_before_the_next_stack_starts() {
     let job = world.submit("leaves", "");
     assert_eq!(world.wait(&job).0, 0);
     let url = format!("127.0.0.1:{}", world.base_port + FIRST_SLOT);
-    assert!(std::net::TcpStream::connect(&url).is_ok(), "the check should leave its server running");
+    // A new session escapes a process group, so on macOS and Linux the server outlives its check.
+    // A Windows job holds everything a step started and ends with it, so nothing is left there.
+    let left = std::net::TcpStream::connect(&url).is_ok();
+    assert_eq!(left, cfg!(unix), "a new session outlives its check only outside a job");
 
     let job = world.submit("suite", "pass");
     let (code, out) = world.wait(&job);
@@ -548,7 +566,8 @@ fn a_repository_cloned_again_in_the_same_place_keeps_working() {
 
 #[test]
 fn output_piped_into_a_reader_that_stops_early_ends_quietly() {
-    let out = Command::new("sh").arg("-c").arg(format!("'{BIN}' init | head -1")).output().unwrap();
+    let bin = in_sh(Path::new(BIN));
+    let out = Command::new("sh").arg("-c").arg(format!("'{bin}' init | head -1")).output().unwrap();
     assert!(out.status.success());
     assert_eq!(String::from_utf8_lossy(&out.stderr), "");
 }
@@ -753,7 +772,8 @@ fn a_linked_worktree_submits_with_its_own_config_and_shares_the_repository() {
     let shown = world.run(&["show", &job, "--json"]);
     let shown: serde_json::Value = serde_json::from_slice(&shown.stdout).unwrap();
     assert_eq!(shown["job"]["branch"], "feature");
-    assert_eq!(shown["job"]["repo"], world.repo.canonicalize().unwrap().to_string_lossy().as_ref());
+    let repo = fs::canonicalize(shown["job"]["repo"].as_str().unwrap()).unwrap();
+    assert_eq!(repo, world.repo.canonicalize().unwrap());
 }
 
 #[test]
@@ -902,6 +922,17 @@ fn doctor_catches_an_app_that_ignores_its_slots_port() {
 }
 
 #[test]
+fn a_database_whose_plugin_is_missing_is_named_with_the_command_that_adds_it() {
+    let world = World::new();
+    let yaml = "services: { cassandra: {} }\nstacks:\n  web:\n    env: { DB: \"{cassandra.url}\" }\nchecks:\n  smoke: { stack: web, run: \"true\" }\n";
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    let out = world.command(&world.repo, &["doctor"]).env("VERIFIQUE_PLUGINS", world.root.join("no-plugins")).output().unwrap();
+    assert!(!out.status.success());
+    let said = String::from_utf8_lossy(&out.stderr);
+    assert!(said.contains("verifique-cassandra plugin") && said.contains("verifique plugin add cassandra"), "{said}");
+}
+
+#[test]
 fn doctor_catches_two_slots_that_would_collide() {
     let world = World::new();
     let (web, api) = (world.base_port, world.base_port + 1);
@@ -964,6 +995,21 @@ fn init_prints_the_guide_and_the_rules_and_writes_nothing() {
 }
 
 #[test]
+fn a_steps_output_and_errors_reach_its_log() {
+    let mut world = World::new();
+    let yaml = "checks:\n  noisy: { run: 'echo to-stdout; echo to-stderr >&2; sh -c \"echo from-a-child\"; exit 3' }\n";
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    commit(&world.repo, "noisy");
+    world.serve(1, &[]);
+    let job = world.submit("noisy", "");
+    assert_eq!(world.wait(&job).0, 1);
+    let log = world.job_file(&job, "check.log");
+    for line in ["to-stdout", "to-stderr", "from-a-child"] {
+        assert!(log.contains(line), "{line} missing from the log: {log:?}");
+    }
+}
+
+#[test]
 fn an_error_shows_the_end_of_the_log_that_explains_it() {
     let mut world = World::new();
     world.serve(1, &[]);
@@ -1014,7 +1060,7 @@ fn an_app_gets_its_slots_port_and_database_and_those_win_over_env() {
     world.serve(1, &[]);
     let job = world.submit("look", "");
     let (code, out) = world.wait(&job);
-    assert_eq!(code, 0, "{out}");
+    assert_eq!(code, 0, "{out}\n{}", world.job_logs(&job));
     let env: serde_json::Value = serde_json::from_str(&world.job_file(&job, "evidence/env.json")).unwrap();
     assert_eq!(env["PORT"], (world.base_port + FIRST_SLOT).to_string());
     let expected = format!("{POSTGRES}/{}", world.database(FIRST_SLOT));
@@ -1054,7 +1100,7 @@ fn mongo_and_redis_start_clean_too() {
     for _ in 0..2 {
         let job = world.submit("write", "");
         let (code, out) = world.wait(&job);
-        assert_eq!(code, 0, "{out}: {}", world.job_file(&job, "check.log"));
+        assert_eq!(code, 0, "{out}\n{}", world.job_logs(&job));
     }
 }
 
@@ -1118,7 +1164,7 @@ fn a_suite_gets_one_stack_per_slot_from_one_build() {
         &format!("postgres: {{ url: {POSTGRES} }}"),
         r#"DATABASE_URL: "{postgres.url}""#,
         "'true'",
-        r#"  suite: { stack: web, slots: 2, prepare: ['echo built >> "$VERIFIQUE_EVIDENCE/built"'], run: 'for port in $(python3 -c "import json,os; [print(s[\"ports\"][\"api\"]) for s in json.load(open(os.environ[\"VERIFIQUE_STACKS\"]))]"); do curl -fsS "http://127.0.0.1:$port/" >> "$VERIFIQUE_EVIDENCE/both"; echo >> "$VERIFIQUE_EVIDENCE/both"; done; echo "$VERIFIQUE_SLOTS" > "$VERIFIQUE_EVIDENCE/slots"' }"#,
+        r#"  suite: { stack: web, slots: 2, prepare: ['echo built >> "$VERIFIQUE_EVIDENCE/built"'], run: 'for port in $(python3 -c "import json,os; [print(s[\"ports\"][\"api\"]) for s in json.load(open(os.environ[\"VERIFIQUE_STACKS\"]))]" | tr -d "\r"); do curl -fsS "http://127.0.0.1:$port/" >> "$VERIFIQUE_EVIDENCE/both"; echo >> "$VERIFIQUE_EVIDENCE/both"; done; echo "$VERIFIQUE_SLOTS" > "$VERIFIQUE_EVIDENCE/slots"' }"#,
     );
     world.serve(2, &[]);
     let job = world.submit("suite", "");
@@ -1153,8 +1199,7 @@ fn a_suite_takes_what_the_machine_has() {
 #[test]
 fn a_wide_job_is_not_starved_by_small_ones_behind_it() {
     let mut world = World::new();
-    let log = world.root.join("events.log");
-    let log = log.display();
+    let log = in_sh(&world.root.join("events.log"));
     world.use_isolation(
         &format!("postgres: {{ url: {POSTGRES} }}"),
         r#"DATABASE_URL: "{postgres.url}""#,
@@ -1409,7 +1454,12 @@ fn a_command_runs_in_a_started_stack_with_its_settings_and_passes_its_exit_code_
     world.serve(1, &[]);
     let job = start_stack(&world, "5")["job"].to_string();
     let exec_file = world.home.join("jobs").join(&job).join("exec.json");
-    assert_eq!(fs::metadata(&exec_file).unwrap().permissions().mode() & 0o777, 0o600);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(fs::metadata(&exec_file).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    assert!(exec_file.is_file());
 
     let out = world.run(&["stack", "exec", &job, "--", "echo \"$DATABASE_URL\" && pwd"]);
     let printed = String::from_utf8_lossy(&out.stdout);

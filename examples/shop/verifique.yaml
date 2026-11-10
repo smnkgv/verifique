@@ -2,7 +2,8 @@ stacks:
     web:
         apps:
             shop:
-                run: python3 server.py
+                # Python 3 answers to python3 on macOS and Linux, and to python on Windows.
+                run: 'if python3 -c "" 2>/dev/null; then exec python3 server.py; else exec python server.py; fi'
                 port: 4200
                 ready: /
                 env:

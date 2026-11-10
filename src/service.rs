@@ -1,19 +1,12 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::thread::sleep;
-use std::time::Duration;
+use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 
-use crate::paths::{self, NAME};
-
-const DEFAULT_LABEL: &str = "dev.verifique.server";
-const BOOTSTRAP_ATTEMPTS: u32 = 20;
-const BOOTSTRAP_RETRY: Duration = Duration::from_millis(500);
-const MARKER: &str = "__VERIFIQUE_ENV__";
+use crate::paths;
+use crate::platform::{self, ServiceSpec};
 
 /// Only what tools need to be found. A service must not inherit credentials from a shell.
 const RECORDED: [&str; 12] = [
@@ -36,39 +29,8 @@ pub struct Install {
     pub resources: Vec<String>,
 }
 
-fn label() -> String {
-    paths::own_home_key().map_or(DEFAULT_LABEL.to_string(), |key| format!("{DEFAULT_LABEL}.{key}"))
-}
-
-fn unit_name() -> String {
-    paths::own_home_key().map_or(format!("{NAME}.service"), |key| format!("{NAME}-{key}.service"))
-}
-
 fn env_file() -> PathBuf {
     paths::home().join("service.env")
-}
-
-fn home_dir() -> PathBuf {
-    PathBuf::from(env::var_os("HOME").unwrap_or_default())
-}
-
-/// What the user's interactive login shell really has. launchd and systemd start services with a
-/// bare environment, so without this `pnpm` or Xcode's tools are simply not found.
-fn capture_shell_env() -> Result<BTreeMap<String, String>> {
-    let shell = env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-    let script = format!(
-        "printf '{MARKER}'; for name in {}; do eval \"value=\\${{$name:-}}\"; printf '%s=%s\\n' \"$name\" \"$value\"; done",
-        RECORDED.join(" ")
-    );
-    let out = Command::new(&shell).args(["-ilc", &script]).output().context("reading the shell's environment")?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    let (_, values) = text.rsplit_once(MARKER).context("the shell printed no environment")?;
-    Ok(values
-        .lines()
-        .filter_map(|line| line.split_once('='))
-        .filter(|(_, value)| !value.is_empty())
-        .map(|(name, value)| (name.to_string(), value.to_string()))
-        .collect())
 }
 
 fn read_env() -> Result<BTreeMap<String, String>> {
@@ -97,92 +59,8 @@ fn serve_args(options: &Install) -> Vec<String> {
     args
 }
 
-fn xml(value: &str) -> String {
-    value.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
-}
-
-fn plist_path() -> PathBuf {
-    home_dir().join("Library/LaunchAgents").join(format!("{}.plist", label()))
-}
-
-fn plist(binary: &Path, args: &[String], environment: &BTreeMap<String, String>) -> String {
-    let log = paths::home().join("server.log");
-    let log = xml(&log.to_string_lossy());
-    let program: String = std::iter::once(binary.to_string_lossy().into_owned())
-        .chain(args.iter().cloned())
-        .map(|arg| format!("        <string>{}</string>\n", xml(&arg)))
-        .collect();
-    let variables: String = environment
-        .iter()
-        .map(|(name, value)| format!("        <key>{}</key><string>{}</string>\n", xml(name), xml(value)))
-        .collect();
-    let label = label();
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key><string>{label}</string>
-    <key>ProgramArguments</key>
-    <array>
-{program}    </array>
-    <key>EnvironmentVariables</key>
-    <dict>
-{variables}    </dict>
-    <key>RunAtLoad</key><true/>
-    <key>KeepAlive</key><true/>
-    <key>StandardOutPath</key><string>{log}</string>
-    <key>StandardErrorPath</key><string>{log}</string>
-</dict>
-</plist>
-"#
-    )
-}
-
-fn unit_path() -> PathBuf {
-    home_dir().join(".config/systemd/user").join(unit_name())
-}
-
-fn unit(binary: &Path, args: &[String]) -> String {
-    format!(
-        "[Unit]\nDescription={NAME} verification queue\n\n[Service]\nEnvironmentFile={env}\nExecStart={binary} {args}\nRestart=always\n\n[Install]\nWantedBy=default.target\n",
-        env = env_file().display(),
-        binary = binary.display(),
-        args = args.join(" "),
-    )
-}
-
-fn user_id() -> u32 {
-    // SAFETY: getuid takes no arguments and cannot fail.
-    unsafe { libc::getuid() }
-}
-
-fn run(program: &str, args: &[&str]) -> Result<()> {
-    let out = Command::new(program).args(args).output().with_context(|| format!("running {program}"))?;
-    if !out.status.success() {
-        bail!("{program} {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim());
-    }
-    Ok(())
-}
-
-// `launchctl bootout` returns before the old service has stopped, and until it has, bootstrapping
-// the same label fails with an I/O error. So a reinstall has to keep trying for a moment.
-fn bootstrap(domain: &str, plist: &Path) -> Result<()> {
-    let path = plist.to_string_lossy();
-    let mut attempts = BOOTSTRAP_ATTEMPTS;
-    loop {
-        match run("launchctl", &["bootstrap", domain, &path]) {
-            Err(_) if attempts > 1 => {
-                attempts -= 1;
-                sleep(BOOTSTRAP_RETRY);
-            }
-            result => return result,
-        }
-    }
-}
-
 pub fn install(options: &Install) -> Result<()> {
-    let mut environment = capture_shell_env()?;
+    let mut environment = platform::session_environment(&RECORDED)?;
     if paths::own_home_key().is_some() {
         environment.insert("VERIFIQUE_HOME".to_string(), paths::home().to_string_lossy().into_owned());
     }
@@ -190,50 +68,23 @@ pub fn install(options: &Install) -> Result<()> {
     let recorded: String = environment.iter().map(|(name, value)| format!("{name}={value}\n")).collect();
     fs::write(env_file(), recorded)?;
 
-    let binary = env::current_exe()?;
+    let program = env::current_exe()?;
     let args = serve_args(options);
-    if cfg!(target_os = "macos") {
-        let path = plist_path();
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let domain = format!("gui/{}", user_id());
-        // Reinstalling replaces the service, so a missing one is fine here.
-        let _ = run("launchctl", &["bootout", &format!("{domain}/{}", label())]);
-        fs::write(&path, plist(&binary, &args, &environment))?;
-        bootstrap(&domain, &path)?;
-    } else {
-        let path = unit_path();
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&path, unit(&binary, &args))?;
-        run("systemctl", &["--user", "daemon-reload"])?;
-        run("systemctl", &["--user", "enable", "--now", &unit_name()])?;
-    }
+    let log = paths::home().join("server.log");
+    platform::install_service(&ServiceSpec { program: &program, args: &args, env: &environment, env_file: &env_file(), log: &log })?;
     println!("installed: {} slot(s), starting at login", options.slots);
     println!("\n{WARNING}\n");
     show_env()
 }
 
 pub fn restart() -> Result<()> {
-    if cfg!(target_os = "macos") {
-        run("launchctl", &["kickstart", "-k", &format!("gui/{}/{}", user_id(), label())])?;
-    } else {
-        run("systemctl", &["--user", "restart", &unit_name()])?;
-    }
+    platform::restart_service()?;
     println!("restarted");
     Ok(())
 }
 
 pub fn uninstall() -> Result<()> {
-    if cfg!(target_os = "macos") {
-        let _ = run("launchctl", &["bootout", &format!("gui/{}/{}", user_id(), label())]);
-        let _ = fs::remove_file(plist_path());
-    } else {
-        let _ = run("systemctl", &["--user", "disable", "--now", &unit_name()]);
-        let _ = fs::remove_file(unit_path());
-    }
+    platform::uninstall_service()?;
     let _ = fs::remove_file(env_file());
     println!("removed");
     Ok(())
@@ -248,8 +99,7 @@ pub fn show_env() -> Result<()> {
     let path = environment.get("PATH").cloned().unwrap_or_default();
     println!();
     for tool in LOOKED_FOR {
-        let found = env::split_paths(&path).map(|dir| dir.join(tool)).find(|file| file.is_file());
-        match found {
+        match platform::find_program(tool, path.as_ref()) {
             Some(file) => println!("{tool}: {}", file.display()),
             None => println!("{tool}: not found"),
         }

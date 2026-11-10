@@ -41,11 +41,13 @@ memory and ports. It knows nothing about your framework or how you test.
 
 ## Status
 
-Version 0.1, and early. It has been tested by its author on copies of three web apps and one iOS app, and Android has passed one check after a manual fix. Only Claude Code has been tested as the checker. It runs on macOS. On Linux it passes its own tests on Ubuntu, but no real check has run there yet. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Version 0.3, and early. It has been tested by its author on copies of three web apps and one iOS app, and Android has passed one check after a manual fix. Only Claude Code has been tested as the checker. It runs on macOS, Linux and Windows, where it passes its tests and the example shop, but real projects have only run on macOS so far. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
 
 ## Install
 
-On a Mac with Apple Silicon, or [build it from source](#build) anywhere else. With Homebrew:
+verifique runs on macOS, Linux and Windows, on ARM and Intel or AMD processors alike.
+
+On macOS or Linux, with Homebrew:
 
 ```bash
 brew install smnkgv/verifique/verifique
@@ -57,7 +59,24 @@ Or without it:
 curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
 ```
 
-Then start the queue:
+On Windows, in PowerShell, with Scoop:
+
+```powershell
+scoop bucket add verifique https://github.com/smnkgv/scoop-verifique
+scoop install verifique
+```
+
+Or without it:
+
+```powershell
+irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex
+```
+
+Windows also needs [Git for Windows](https://git-scm.com/download/win) (`winget install Git.Git`).
+verifique runs project commands with its `sh`, as it runs them with the system `sh` on macOS and
+Linux.
+
+Then start the queue, which starts again whenever you log in:
 
 ```bash
 verifique service install
@@ -66,8 +85,16 @@ verifique service install
 ## Prerequisites
 
 Database servers must already be running, however you installed them. verifique never installs one, and
-only ever creates and drops databases named `verifique_*`. It supports Postgres, Mongo and Redis, using
-`psql`, `mongosh` and `redis-cli`. Redis is the exception to the naming: each slot owns the numbered database that matches it, and clears it for every check, so keep nothing else in those. A slot Redis has no database for is refused.
+only ever creates and drops databases named `verifique_*`. Support for each database is an add-on, so
+install the ones your projects use:
+
+```bash
+verifique plugin add postgres mongo redis
+```
+
+Each plugin talks to its server itself, so no client such as `psql` is needed. `verifique plugin list`
+shows what's installed, and after upgrading verifique, `verifique plugin update` brings the plugins
+along. [docs/PLUGINS.md](docs/PLUGINS.md) describes them. Redis is the exception to the naming: each slot owns the numbered database that matches it, and clears it for every check, so keep nothing else in those. A slot Redis has no database for is refused.
 
 **Your `.env` is live.** Checks run your app unattended with the `.env` in the repository's main checkout, even for work
 submitted from a worktree, so anything in it is real: a check can send real email, charge real cards or write to any service it points at. Only
@@ -129,6 +156,9 @@ checks:
         notes: |
             What a newcomer would need to know.
 ```
+
+Commands are POSIX `sh` on every OS: the system `sh` on macOS and Linux, and Git for Windows' `sh` on
+Windows. Write paths in them with forward slashes, which all three understand.
 
 Commands get `{slot}`, `{port}`, `{port.<app>}`, `{app.<app>.url}`, and for each service `.url`,
 `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and `.prefix`.
@@ -222,22 +252,27 @@ open panel/target/verifique.app
 The build is signed for your own machine only. Press the pin in the panel, or right-click the tick,
 to keep it on screen in the top right corner, semi-transparent, on every desktop.
 
+There is no panel for Linux or Windows yet. The CLI does everything the panel does.
+
 ## Build
 
-Rust 1.85 or later, on macOS or Linux.
+Rust 1.95 or later, on macOS, Linux or Windows. This builds verifique and its plugins, which it
+finds beside its own binary:
 
 ```bash
 cargo build --release
 cargo test
 ```
 
-Then put the binary on your `PATH`, for example:
+Then put the binary on your `PATH`. On macOS or Linux, for example:
 
 ```bash
 ln -s "$PWD/target/release/verifique" ~/.local/bin/verifique
 ```
 
-The tests need `git`, `python3` and running Postgres, Mongo and Redis. [e2e/](e2e/README.md) tests everything from the outside, from a fresh install to a real agent.
+On Windows, add `target\release` to your user `PATH`.
+
+The tests need `git`, `python3`, `psql`, `mongosh` and `redis-cli`, and running Postgres, Mongo and Redis. On Windows they also need Git for Windows. [e2e/](e2e/README.md) tests everything from the outside, from a fresh install to a real agent.
 
 ## Licence
 

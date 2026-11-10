@@ -6,7 +6,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::paths::CONFIG_FILE;
-use crate::services::KINDS;
+use crate::plugins::PUBLISHED;
+use crate::services::RESERVED;
 
 pub type Needs = BTreeMap<String, u32>;
 pub type Vars = BTreeMap<String, String>;
@@ -192,8 +193,12 @@ impl Config {
         if self.checks.is_empty() {
             bail!("{CONFIG_FILE} defines no checks");
         }
-        if let Some(kind) = self.services.keys().find(|kind| !KINDS.contains(&kind.as_str())) {
-            bail!("unknown service {kind}; have {}", KINDS.join(", "));
+        for kind in self.services.keys() {
+            let plain = kind.starts_with(|c: char| c.is_ascii_lowercase())
+                && kind.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+            if !plain || RESERVED.contains(&kind.as_str()) {
+                bail!("services.{kind}: a service is named after its plugin, such as {}", PUBLISHED.join(", "));
+            }
         }
         for (name, stack) in &self.stacks {
             if let Some((app, _)) = stack.apps.iter().find(|(_, app)| app.ready.is_some() && app.port.is_none()) {
@@ -201,7 +206,7 @@ impl Config {
             }
             let settings = stack.env.values().chain(stack.apps.values().flat_map(|app| app.env.values()));
             for value in settings.chain(&stack.seed) {
-                for kind in KINDS {
+                for kind in PUBLISHED {
                     if value.contains(&format!("{{{kind}.")) && !self.services.contains_key(kind) {
                         bail!("stack {name} uses {kind}, which \"services\" does not declare");
                     }

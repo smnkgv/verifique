@@ -48,8 +48,9 @@ got when you started them, and let `{NAME} doctor` run and stop the stacks it pr
 ## 1. Check the prerequisites
 
 Database servers must already be running. {NAME} never installs one, and neither should you: tell
-the user what is missing and stop. It supports `postgres`, `mongo` and `redis`, and needs `psql`,
-`mongosh` or `redis-cli` to reach them.
+the user what is missing and stop. Support for each kind of database is a plugin: `postgres`,
+`mongo` and `redis` so far. `{NAME} plugin list` shows which are installed. If the project needs one
+that isn't, ask the user to run `{NAME} plugin add <name>`.
 
 ## 2. Find what two copies of the app would fight over
 
@@ -114,6 +115,10 @@ checks:
         notes: |
             What a newcomer would need to know to reach the app.
 ```
+
+Every command is POSIX `sh`, on every OS: on Windows, {NAME} runs it with the `sh` that comes with
+Git for Windows. Write paths with forward slashes, and keep commands to what `sh` and the project's
+own tools can do, so the file works for everyone on the project, whatever their OS.
 
 When an agent submits, anything it adds after `--` goes on the end of the check's `run`, so a
 check that runs tests can be pointed at some of them. Never make a check pick its tests out of the

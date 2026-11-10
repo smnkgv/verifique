@@ -79,12 +79,12 @@ content, and a verdict with proof.
     `stack exec` runs a command in it with its settings, as its seed runs, for the project's own
     tools that need the apps up.
 21. **Slots keep their worktrees,** and `clean` removes them. When free disk falls below a floor, 5 GB by default, the copies no check is using are deleted, and checks wait if that isn't enough.
-22. **An installed background service.** Installing it records the shell's `PATH`, and a command
-    shows what the service sees.
+22. **An installed background service.** Installing it records the `PATH` the user works with: the
+    login shell's on macOS and Linux, the terminal's on Windows. A command shows what the service sees.
 
 ### Product
 
-23. **A single binary, written in Rust.**
+23. **A small core, written in Rust,** with add-ons as separate programs beside it (37).
 24. **CLI, desktop notifications and JSON output.** Notifications fire only for `needs-you`, grouped
     per repository.
 25. **A status-bar panel, as Docker has Docker Desktop.** The CLI is the core and works alone. The
@@ -93,7 +93,7 @@ content, and a verdict with proof.
     run, green after a pass, and red with a count when something needs you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
     with actions limited to viewing proof, handing a branch back and running a job next. It reads the
     core's `--json` output and acts only through the CLI. A CLI-only install stays available. The
-    macOS panel is built. Windows also needs the core ported.
+    macOS panel is built; the Windows tray and Linux are not yet.
 26. **Rehearsal:** three real repositories, web first and then native mobile, followed by an unrelated
     project, each from a stripped copy. A rehearsal passes on: setup by a fresh agent with no help, `doctor` passing,
     a real change reaching a verdict you have reviewed, at least 4 of 5 planted bugs caught with no good
@@ -105,9 +105,55 @@ content, and a verdict with proof.
 29. **Built in public.** Version 0.1 was released before that day, so the release says what has and hasn't been tested. Project configuration and sign-in scripts
     stay in each project's own repository, never here.
 
+### Platforms
+
+30. **macOS, Linux and Windows are equals.** One platform layer, `src/platform`, gives the rest of
+    the code one interface, and each OS provides all of it in a module of its own. Nothing outside it
+    names an OS. Docs, installs and releases treat the three alike.
+31. **Commands are POSIX sh on every OS:** the system `sh` on macOS and Linux, and the `sh` that
+    comes with Git for Windows, found through git because `bash.exe` in System32 is WSL's launcher.
+    An interpreter built into verifique was tried on real configs first: `deno_task_shell` has no
+    `eval`, `exec`, `if` or `for` and prints `${VAR:-x}` as text, `brush` has only placeholders for
+    processes and pipes on Windows, and both would still need Git for Windows for `grep`, `sort` and
+    the projects' own `.sh` scripts.
+32. **A step and everything it starts end together.** On macOS and Linux it is a process group,
+    asked to stop with SIGTERM, given 3 seconds, then killed. On Windows it is a Job Object, ended at
+    once, because Windows has no signal a program without a window reliably answers. A job also ends
+    when the queue dies, so nothing is left holding a slot's ports.
+33. **The queue starts at logon, as the user, with no admin rights,** and restarts after a crash: a
+    LaunchAgent, a systemd user unit, or a scheduled task. The task starts it through
+    `verifique-service`, a launcher with no window, because every console program a task starts opens
+    one. The launcher also brings the queue back whenever it ends, since a scheduled task only
+    restarts a program that fails to start. All three log to `~/.verifique/server.log`.
+34. **Each OS answers for its ports, processes and disk.** Who holds a port, a process's name and
+    folder, and free disk come from libraries that ask the OS directly, with no `lsof` or `ps`.
+    Windows has no tool that shows a process's folder, so asking it directly is the only way to tell
+    a leftover of verifique's own from someone else's server.
+35. **Notifications are the OS's own:** `osascript`, `notify-send`, or a toast under verifique's own
+    name, which `service install` registers for the user.
+36. **The settings `stack exec` reads stay with their owner:** mode 600 on macOS and Linux. On
+    Windows the file keeps its folder's permissions, and the user's own folder is private.
+
+### Add-ons
+
+37. **Each technology is a plugin, installed on top of the core.** verifique should grow to many
+    databases and more, and nobody should carry what their projects don't use. Postgres, Mongo and
+    Redis are the programs `verifique-postgres`, `verifique-mongo` and `verifique-redis`, each with its
+    own driver, so no client program is needed on any OS. They speak a versioned JSON protocol,
+    described in [PLUGINS.md](PLUGINS.md), and a plugin refuses any database not named `verifique_*`.
+38. **`verifique plugin add` installs them, the same way on every OS.** It fetches each plugin from
+    the release verifique came from and checks it against that release's checksums, so versions
+    match without a package per plugin in every package manager. `plugin list`, `plugin update` and
+    `doctor` say when one is behind.
+
 ## Known limits
 
--   macOS and Linux only: process groups and `sh`.
+-   On Windows, commands need Git for Windows. Its `sh` rewrites arguments that look like Unix
+    paths, such as `/api`, when it passes them to Windows programs, as Git Bash does everywhere.
+-   On Windows, a step ends at once, with no grace period for it to tidy up.
+-   Only macOS has run real projects so far.
+-   The Postgres and Redis plugins don't speak TLS yet, so a server that requires it, such as
+    `sslmode=require` or `rediss://`, is refused. Local servers rarely do.
 -   Fixed slots and rules only leave capacity and adoption to the user.
 -   `.env` is used as it is, so a setting the project file does not override can reach a real service.
     `doctor` only recognises database URLs: split host settings, email and payment keys go unnoticed.

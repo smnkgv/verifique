@@ -14,7 +14,7 @@ use crate::config::Needs;
 use crate::git;
 use crate::notify::Notifier;
 use crate::paths;
-use crate::process::{alive, kill_group};
+use crate::platform::{self, alive};
 use crate::scheduler::{pick, unavailable, Candidate};
 use crate::store::{Job, Store};
 use crate::worker::{self, Finished, Outcome};
@@ -49,7 +49,7 @@ pub fn is_running(store: &Store) -> Result<bool> {
 }
 
 pub fn is_paused(store: &Store) -> Result<bool> {
-    let holder = store.setting(KEY_PAUSED_BY)?.and_then(|value| value.parse::<i32>().ok());
+    let holder = store.setting(KEY_PAUSED_BY)?.and_then(|value| value.parse::<u32>().ok());
     Ok(holder.is_some_and(alive))
 }
 
@@ -106,8 +106,8 @@ impl Server {
     fn recover(&mut self) -> Result<()> {
         // A job a previous server left behind has no owner, and its stack holds the slot's ports.
         for mut job in self.store.running()? {
-            for pgid in std::mem::take(&mut job.pgids) {
-                kill_group(pgid, libc::SIGKILL);
+            for tree in std::mem::take(&mut job.trees) {
+                platform::end_orphaned_tree(tree);
             }
             // A check can simply run again, but whoever held a stack has lost it.
             if !job.plan_readable {
@@ -282,16 +282,15 @@ impl Server {
 
 pub fn serve(options: Options) -> Result<()> {
     let store = Store::open()?;
-    let holder = store.setting(KEY_PID)?.and_then(|value| value.parse::<i32>().ok());
-    if let Some(pid) = holder.filter(|pid| *pid != process::id() as i32 && is_running(&store).unwrap_or(false)) {
+    let holder = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
+    if let Some(pid) = holder.filter(|pid| *pid != process::id() && is_running(&store).unwrap_or(false)) {
         if alive(pid) {
             bail!("a server is already running (pid {pid})");
         }
     }
 
     let stop = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(libc::SIGTERM, Arc::clone(&stop))?;
-    signal_hook::flag::register(libc::SIGINT, Arc::clone(&stop))?;
+    platform::on_stop_request(Arc::clone(&stop))?;
 
     store.set(KEY_PID, &process::id().to_string())?;
     store.set(KEY_SLOTS, &options.slots.to_string())?;
@@ -334,6 +333,17 @@ pub fn serve(options: Options) -> Result<()> {
     server.store.unset(KEY_HEARTBEAT)?;
     server.store.unset(KEY_PID)?;
     Ok(())
+}
+
+/// Ask the running queue to finish what it holds and exit, the way its service manager does. A pid
+/// a dead server left behind may belong to someone else by now, so only a live server is asked.
+pub fn ask_to_stop() -> Result<()> {
+    let store = Store::open()?;
+    let pid = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
+    match pid {
+        Some(pid) if is_running(&store)? => platform::ask_to_stop(pid),
+        _ => bail!("no {} server is running", paths::NAME),
+    }
 }
 
 pub fn no_server_message() -> String {

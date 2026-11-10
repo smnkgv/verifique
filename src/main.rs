@@ -6,6 +6,8 @@ mod init;
 mod instance;
 mod notify;
 mod paths;
+mod platform;
+mod plugins;
 mod process;
 mod scheduler;
 mod server;
@@ -122,6 +124,14 @@ enum Commands {
         #[command(subcommand)]
         action: ServiceAction,
     },
+    /// Add-ons such as database support, installed on top of verifique
+    Plugin {
+        #[command(subcommand)]
+        action: PluginAction,
+    },
+    /// Ask the queue running from this home to stop, as its service manager would
+    #[command(hide = true)]
+    StopServer,
 }
 
 #[derive(clap::Args)]
@@ -165,6 +175,24 @@ enum StackAction {
         /// such as `&&`
         #[arg(last = true, required = true)]
         command: Vec<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum PluginAction {
+    /// Install plugins from this version's release, such as `postgres mongo redis`
+    Add {
+        #[arg(required = true)]
+        names: Vec<String>,
+    },
+    /// Which plugins are installed, where, and at which version
+    List,
+    /// Bring every installed plugin to this version of verifique
+    Update,
+    /// Uninstall plugins
+    Remove {
+        #[arg(required = true)]
+        names: Vec<String>,
     },
 }
 
@@ -344,9 +372,7 @@ fn stack_exec(id: i64, command: Vec<String>) -> Result<ExitCode> {
     let exec: Value = serde_json::from_str(&raw)?;
     let env: BTreeMap<String, String> = serde_json::from_value(exec["env"].clone())?;
     let cwd = exec["cwd"].as_str().ok_or_else(|| anyhow!("stack {id} recorded no folder"))?;
-    let status = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(command.join(" "))
+    let status = platform::shell(&command.join(" "))?
         .current_dir(cwd)
         .envs(&env)
         .status()
@@ -637,8 +663,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
     // Agents pipe output into `head` and `grep -q`, which stop reading early. A long-lived server
     // should outlast its reader, and everything else should end quietly as other commands do.
     if !matches!(cli.command, Commands::Serve(_)) {
-        // SAFETY: restores the default disposition, before any other thread exists.
-        unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
+        platform::end_quietly_on_closed_output();
     }
     match cli.command {
         Commands::Serve(machine) => {
@@ -683,6 +708,19 @@ fn run(cli: Cli) -> Result<ExitCode> {
         }
         Commands::Clear { branch, check } => clear(branch, check),
         Commands::Clean => clean(),
+        Commands::Plugin { action } => {
+            match action {
+                PluginAction::Add { names } => plugins::add(&names)?,
+                PluginAction::List => plugins::list()?,
+                PluginAction::Update => plugins::update()?,
+                PluginAction::Remove { names } => plugins::remove(&names)?,
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::StopServer => {
+            server::ask_to_stop()?;
+            Ok(ExitCode::SUCCESS)
+        }
         Commands::Doctor => {
             doctor::run(&std::env::current_dir()?)?;
             Ok(ExitCode::SUCCESS)

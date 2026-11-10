@@ -37,7 +37,7 @@
         <div class="hero-words">
             <p class="strip">Open source <span>·</span> Free <span>·</span> Runs on your laptop</p>
             <h1>A verification queue for <em>coding agents.</em></h1>
-            <p class="sentence">Coding agents write code faster than anyone can check it. verifique is for getting every change checked by a second agent, on your own Mac, without it grinding to a halt.</p>
+            <p class="sentence">Coding agents write code faster than anyone can check it. verifique is for getting every change checked by a second agent, on your own laptop, without it grinding to a halt.</p>
         </div>
         <div class="hero-film">
             <video controls preload="none" playsinline poster="film/poster.jpg" aria-label="A two-minute film about what verifique is and what it’s for">
@@ -135,7 +135,7 @@
                     <figcaption><strong>With verifique:</strong> agents join a queue, and checks run a few at a time</figcaption>
                 </div>
             </figure>
-            <p>Checks no longer swamp your laptop. The price is waiting your turn: in my tests on three web apps, an agent check took about five minutes, so with two running at once, the last of fifteen agents that finish together gets its verdict after about forty. If your Mac has room, let more run at once. The closest thing you already know is CI, except that this runs on your laptop, before anything is pushed.</p>
+            <p>Checks no longer swamp your laptop. The price is waiting your turn: in my tests on three web apps, an agent check took about five minutes, so with two running at once, the last of fifteen agents that finish together gets its verdict after about forty. If your laptop has room, let more run at once. The closest thing you already know is CI, except that this runs on your laptop, before anything is pushed.</p>
             <h3 class="sub">Three terms the rest of this page uses</h3>
             <dl class="terms">
                 <div>
@@ -243,7 +243,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>Why not run each agent in the cloud?</summary>
-                <p>Cloud agents run each task on its own machine, so they don’t collide either. verifique is for work that stays on your Mac: uncommitted changes, your own seed data and setup, iOS simulators, which need a Mac, and no bill per machine-minute.</p>
+                <p>Cloud agents run each task on its own machine, so they don’t collide either. verifique is for work that stays on your laptop: uncommitted changes, your own seed data and setup, iOS simulators, which need a Mac, and no bill per machine-minute.</p>
             </details>
             <details>
                 <summary>Why not Docker?</summary>
@@ -275,7 +275,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>What does it work with?</summary>
-                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. The release is for Macs with Apple Silicon. On Linux it builds from source and passes its own tests, but no real check has run there yet, and Windows isn’t supported. The menu bar panel is a separate app you build yourself for now.</p>
+                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check through a small add-on you install with <code>verifique plugin add</code>. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. It runs on macOS, Linux and Windows, on ARM and Intel or AMD processors. The menu bar panel is a separate Mac app you build yourself for now.</p>
             </details>
         </section>
     </div>
@@ -286,7 +286,7 @@ failed: The search bar renders, but pressing Search never filters the product li
                 <p class="label">Get started</p>
                 <h2>Connect your project in four steps</h2>
                 <ol class="start">
-                    <li><strong>Install it.</strong> Use the commands here. Installing by the full name tells Homebrew to trust this one formula, not everything in its tap. The queue then runs in the background and starts when you log in.</li>
+                    <li><strong>Install it.</strong> Use the commands here, then add support for the databases your project uses. Installing by the full name tells Homebrew to trust this one formula, not everything in its tap. The queue then runs in the background and starts when you log in.</li>
                     <li><strong>Connect your project.</strong> Run <code>verifique init</code> and give the output to your coding agent. It reads your code and writes <code>verifique.yaml</code>: how to start your app, what two copies of it would fight over, and which checks to run.</li>
                     <li><strong>Prove it.</strong> <code>verifique doctor</code> starts two copies side by side and checks that each one used its own databases.</li>
                     <li><strong>Tell your agents.</strong> Add the lines from <code>verifique init --rules</code> to your project’s agent instructions, so they know how to submit their work.</li>
@@ -296,7 +296,8 @@ failed: The search bar renders, but pressing Search never filters the product li
                 <figure class="term">
                     <figcaption>Terminal</figcaption>
 <pre tabindex="0"><code>brew install smnkgv/verifique/verifique
-verifique service install</code></pre>
+verifique service install
+verifique plugin add postgres redis</code></pre>
                 </figure>
                 <details class="sample">
                     <summary>See a sample verifique.yaml</summary>
@@ -326,7 +327,7 @@ checks:
   <s># An agent uses the app by hand</s>
   manual: { stack: web, type: agent, agent: claude }</code></pre>
                 </details>
-                <p class="needs">You’ll need a Mac with Apple Silicon, your database servers already running (Postgres, MongoDB or Redis, with <code>psql</code>, <code>mongosh</code> or <code>redis-cli</code>), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes. On something else, <a href="https://github.com/smnkgv/verifique#build">build from source</a>.</p>
+                <p class="needs">You’ll need macOS, Linux or Windows (with Git for Windows), your database servers already running (Postgres, MongoDB or Redis), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes. Without Homebrew, or on Windows, <a href="https://github.com/smnkgv/verifique#install">install it another way</a>.</p>
             </div>
         </div>
     </section>
@@ -335,7 +336,7 @@ checks:
         <div>
             <h2>New and small</h2>
             <p>I run fifteen to twenty-five coding agents at a time on one laptop. Checking their work had become most of my day and I couldn’t find a tool for it, so I built this. Tools exist for parts of it: <a href="https://conductor.build">Conductor</a> and <a href="https://github.com/JohnWayneeee/agentgc">agentgc</a> give each worktree its own ports, <a href="https://github.com/yongjip/mergetrain">mergetrain</a> queues checks before you push, and agents such as Claude Code check their own work in a browser. I couldn’t find one that does all of it on a laptop, with a different agent signing off. If you know one, tell me.</p>
-            <p>It’s new and it will have rough edges. It has been tested on copies of real web and iOS apps, but only on Macs and only with Claude Code as the checker. If you try it, tell me where it breaks.</p>
+            <p>It’s new and it will have rough edges. It has been tested on copies of real web and iOS apps, but only on Macs and only with Claude Code as the checker. On Linux and Windows it passes its tests and the sample shop, but no real project has run there yet. If you try it, tell me where it breaks.</p>
             <p class="signature">Hlib Semeniuk · <a href="https://github.com/smnkgv/verifique/issues">Open an issue</a></p>
         </div>
         <div>

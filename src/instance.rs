@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::config::{App, ServiceSpec, Stack, Values};
+use crate::platform;
 use crate::process::{self, Env, Options, Proc};
 use crate::services::Service;
 
@@ -123,14 +124,15 @@ impl Instance {
     /// to start, and the check would then run against the wrong code. A worktree runs one job at
     /// a time, so a listener from this one can only be left over from an earlier job.
     fn clear_ports(&self, worktree: &Path) -> Result<()> {
-        let worktree = fs::canonicalize(worktree)?;
-        for port in self.values.ports.values() {
-            for pid in process::listeners(*port)? {
-                let name = process::name(pid);
-                match process::working_dir(pid) {
-                    Some(cwd) if cwd.starts_with(&worktree) => {
+        let worktree = platform::canonical(worktree)?;
+        let ports: Vec<u32> = self.values.ports.values().copied().collect();
+        for (port, pids) in platform::port_holders(&ports)? {
+            for pid in pids {
+                let (name, cwd) = platform::process_info(pid);
+                match cwd {
+                    Some(cwd) if platform::is_within(&cwd, &worktree) => {
                         eprintln!("stopping {name} (pid {pid}), left over on port {port}");
-                        process::stop_pid(pid);
+                        platform::stop_process(pid, process::GRACE);
                     }
                     cwd => {
                         let place = cwd.map_or_else(String::new, |cwd| format!(" in {}", cwd.display()));
@@ -153,7 +155,7 @@ impl Instance {
         ))
     }
 
-    pub fn start(&mut self, stack: &Stack, worktree: &Path, track: &dyn Fn(i32)) -> Result<()> {
+    pub fn start(&mut self, stack: &Stack, worktree: &Path, track: &dyn Fn(u32)) -> Result<()> {
         self.clear_ports(worktree)?;
         let slot = self.values.slot;
         for (name, app) in &stack.apps {
@@ -165,7 +167,7 @@ impl Instance {
             let log = self.log_dir.join(format!("app-{name}-{slot}.log"));
             let options = Options { cwd: &cwd, env: &env, log: &log, stdout: None };
             let proc = process::start(&self.values.expand_for(name, &app.run), &options)?;
-            track(proc.pgid);
+            track(proc.id);
             self.procs.push(proc);
         }
         Ok(())
