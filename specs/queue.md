@@ -101,8 +101,9 @@ disk first and makes checks wait rather than letting them fail.
 ### The panel
 
 23. A small separate app puts a tick in the macOS menu bar, the Windows notification area or a
-    Linux tray. Clicking it lists what needs you, what is running, what is queued and the recent
-    verdicts with their proof.
+    Linux tray. Clicking it opens the panel on the desktop in front of the user, over a full-screen
+    window too, listing what needs you, what is running, what is queued and the recent verdicts with
+    their proof.
 24. From the panel, a person can view a job's proof, hand a branch back, run a queued job next and
     change how many copies run at once.
 25. The tick is amber with the number of checks left while they run, green for five minutes after the

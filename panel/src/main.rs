@@ -136,6 +136,96 @@ fn soften_blur(window: &WebviewWindow) {
     }
 }
 
+/// A full-screen window gets a desktop of its own, where macOS shows another app's window only if it
+/// is a panel that doesn't make its app the active one, as menu bar apps' popovers are. Otherwise
+/// clicking the icon there would open the panel on another desktop, out of sight. So the panel's
+/// window becomes such a panel, which joins every desktop, full-screen ones included, open or pinned.
+#[cfg(target_os = "macos")]
+fn make_panel(window: &WebviewWindow) {
+    use objc2::runtime::{AnyClass, AnyObject, Bool, ClassBuilder, Sel};
+    use objc2::{msg_send, sel};
+    use std::sync::OnceLock;
+    const NONACTIVATING_PANEL: usize = 1 << 7;
+    const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
+    const FULL_SCREEN_AUXILIARY: usize = 1 << 8;
+    static PANEL: OnceLock<Option<&'static AnyClass>> = OnceLock::new();
+    extern "C-unwind" fn yes(_: &AnyObject, _: Sel) -> Bool {
+        Bool::YES
+    }
+    let panel = PANEL.get_or_init(|| {
+        let mut class = ClassBuilder::new(c"VerifiquePanel", AnyClass::get(c"NSPanel")?)?;
+        // SAFETY: the method has the signature AppKit expects of canBecomeKeyWindow.
+        unsafe { class.add_method(sel!(canBecomeKeyWindow), yes as extern "C-unwind" fn(_, _) -> _) };
+        Some(class.register())
+    });
+    let (Some(panel), Ok(ns_window)) = (panel, window.ns_window()) else { return };
+    // SAFETY: called on the main thread with the live window Tauri handed over. An NSPanel is an
+    // NSWindow of the same size that adds no state of its own, so the window can take its class;
+    // the only overrides of Tauri's that are lost are for windows dragged by their background.
+    unsafe {
+        let ns_window = &*(ns_window as *mut AnyObject);
+        AnyObject::set_class(ns_window, panel);
+        let style: usize = msg_send![ns_window, styleMask];
+        let _: () = msg_send![ns_window, setStyleMask: style | NONACTIVATING_PANEL];
+        let _: () = msg_send![ns_window, setHidesOnDeactivate: false];
+        let behaviour: usize = msg_send![ns_window, collectionBehavior];
+        let _: () = msg_send![ns_window, setCollectionBehavior: behaviour | CAN_JOIN_ALL_SPACES | FULL_SCREEN_AUXILIARY];
+    }
+}
+
+/// Clicking another window takes the keyboard from the panel, which closes it. A panel doesn't make
+/// its app the front one, though, so switching to another app without a click, as Command-Tab does,
+/// would leave it open, and one that joins every desktop would follow along. So it also closes
+/// whenever another app comes to the front.
+#[cfg(target_os = "macos")]
+fn close_when_another_app_comes_forward(app: &AppHandle) {
+    use objc2::rc::Retained;
+    use objc2::runtime::{AnyClass, AnyObject, ClassBuilder, Sel};
+    use objc2::{msg_send, sel};
+    use std::sync::OnceLock;
+    static APP: OnceLock<AppHandle> = OnceLock::new();
+    fn string(text: &std::ffi::CStr) -> *mut AnyObject {
+        let Some(class) = AnyClass::get(c"NSString") else { return std::ptr::null_mut() };
+        // SAFETY: stringWithUTF8String: takes a NUL-terminated UTF-8 string, which a CStr is.
+        unsafe { msg_send![class, stringWithUTF8String: text.as_ptr()] }
+    }
+    extern "C-unwind" fn came_forward(_: &AnyObject, _: Sel, notification: *mut AnyObject) {
+        // SAFETY: NSWorkspace passes a live notification whose user info names the app that came
+        // forward, and messages to nil return 0.
+        let pid: i32 = unsafe {
+            let info: *mut AnyObject = msg_send![notification, userInfo];
+            let app: *mut AnyObject = msg_send![info, objectForKey: string(c"NSWorkspaceApplicationKey")];
+            msg_send![app, processIdentifier]
+        };
+        if pid == 0 || pid as u32 == std::process::id() {
+            return;
+        }
+        let Some(window) = APP.get().and_then(|app| app.get_webview_window("panel")) else { return };
+        if !pinned() && window.is_visible().unwrap_or(false) {
+            *HIDDEN_AT.lock().unwrap() = Some(Instant::now());
+            let _ = window.hide();
+        }
+    }
+    if APP.set(app.clone()).is_err() {
+        return;
+    }
+    let (Some(object), Some(workspace)) = (AnyClass::get(c"NSObject"), AnyClass::get(c"NSWorkspace")) else { return };
+    let Some(mut class) = ClassBuilder::new(c"VerifiquePanelWatcher", object) else { return };
+    // SAFETY: the method has the signature NSNotificationCenter expects of an observer's selector.
+    unsafe { class.add_method(sel!(appCameForward:), came_forward as extern "C-unwind" fn(_, _, _)) };
+    let class = class.register();
+    // SAFETY: called on the main thread at startup, with messages AppKit has on every supported
+    // macOS. The watcher is never released, so the centre never calls one that is gone.
+    unsafe {
+        let watcher: Retained<AnyObject> = msg_send![class, new];
+        let workspace: *mut AnyObject = msg_send![workspace, sharedWorkspace];
+        let centre: *mut AnyObject = msg_send![workspace, notificationCenter];
+        let name = string(c"NSWorkspaceDidActivateApplicationNotification");
+        let _: () = msg_send![centre, addObserver: &*watcher, selector: sel!(appCameForward:), name: name, object: std::ptr::null_mut::<AnyObject>()];
+        let _ = Retained::into_raw(watcher);
+    }
+}
+
 fn change_pin(app: &AppHandle, on: bool) {
     PINNED.store(on, Ordering::Relaxed);
     let _ = if on {
@@ -149,6 +239,7 @@ fn change_pin(app: &AppHandle, on: bool) {
     if on {
         show_pinned(&window);
     } else {
+        #[cfg(not(target_os = "macos"))]
         let _ = window.set_visible_on_all_workspaces(false);
         #[cfg(target_os = "macos")]
         let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
@@ -395,7 +486,10 @@ fn open_by(window: &WebviewWindow, icon_x: f64, icon_y: f64, icon_w: f64, icon_h
     #[cfg(not(target_os = "macos"))]
     let (x, y) = keep_on_screen(window, icon_x + icon_w / 2.0, y, icon_y, scale);
     let _ = window.set_position(PhysicalPosition::new(x, y));
+    // Showing a panel makes it the window that takes the keyboard. Focusing it as well would make
+    // the app the active one, which on macOS takes the panel off a full-screen window's desktop.
     let _ = window.show();
+    #[cfg(not(target_os = "macos"))]
     let _ = window.set_focus();
 }
 
@@ -478,7 +572,13 @@ fn main() {
         .invoke_handler(tauri::generate_handler![is_pinned, set_pinned, blurs_behind, status, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
         .setup(|app| {
             #[cfg(target_os = "macos")]
-            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            {
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                if let Some(window) = app.get_webview_window("panel") {
+                    make_panel(&window);
+                }
+                close_when_another_app_comes_forward(app.handle());
+            }
             // An undecorated window's shadow on Windows comes with a white border on Windows 10.
             #[cfg(windows)]
             if let Some(window) = app.get_webview_window("panel") {
