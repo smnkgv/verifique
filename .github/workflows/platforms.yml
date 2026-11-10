@@ -228,6 +228,58 @@ jobs:
                   Linux) pkill -x verifique-panel || true ;;
                   macOS) kill "$pid" ;;
                   esac
+            - name: Install as an add-on
+              # The panel just built, served as a release, through verifique from this commit: it should
+              # land where the OS keeps apps, open, start at login, and go away again.
+              env:
+                  MSYS2_ARG_CONV_EXCL: "*"
+              run: |
+                  cargo build --release --locked --bin verifique
+                  cli=target/release/verifique
+                  release="$RUNNER_TEMP/release"
+                  mkdir -p "$release"
+                  arch=$([ "$RUNNER_ARCH" = ARM64 ] && echo arm64 || echo x64)
+                  case "$RUNNER_OS" in
+                  macOS) asset="verifique-panel-macos-$arch.zip"; ditto -c -k --keepParent panel/target/verifique.app "$release/$asset" ;;
+                  Windows) asset="verifique-panel-windows-$arch.exe"; cp panel/target/verifique-panel.exe "$release/$asset" ;;
+                  Linux) asset="verifique-panel-linux-$arch"; cp panel/target/verifique-panel "$release/$asset" ;;
+                  esac
+                  (cd "$release" && { sha256sum "$asset" 2>/dev/null || shasum -a 256 "$asset"; } > SHA256SUMS)
+                  if [ "$RUNNER_OS" = Windows ]; then
+                      export VERIFIQUE_RELEASES="file:///$(cygpath -m "$release")"
+                  else
+                      export VERIFIQUE_RELEASES="file://$release"
+                  fi
+                  fail() { echo "panel add-on: $1"; exit 1; }
+                  case "$RUNNER_OS" in
+                  macOS)
+                      "$cli" panel install
+                      sleep 5
+                      launchctl print "gui/$(id -u)/dev.verifique.panel" | grep -q "state = running" || fail "it isn't running"
+                      "$cli" panel remove
+                      [ ! -e "$HOME/Applications/verifique.app" ] || fail "the app is still there"
+                      [ ! -e "$HOME/Library/LaunchAgents/dev.verifique.panel.plist" ] || fail "it still opens at login"
+                      ;;
+                  Windows)
+                      "$cli" panel install
+                      sleep 5
+                      reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v "verifique panel" >/dev/null || fail "it doesn't open at login"
+                      tasklist /FI "IMAGENAME eq verifique-panel.exe" | grep -q verifique-panel || fail "it isn't running"
+                      taskkill /F /IM verifique-panel.exe >/dev/null
+                      sleep 2
+                      "$cli" panel remove
+                      ! reg query 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run' /v "verifique panel" >/dev/null 2>&1 || fail "it still opens at login"
+                      ;;
+                  Linux)
+                      # No screen outside xvfb-run, so the panel it opens closes at once; what matters is where it went.
+                      "$cli" panel install
+                      [ -x "$HOME/.local/bin/verifique-panel" ] || fail "the program isn't there"
+                      [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/verifique-panel.desktop" ] || fail "it doesn't open at login"
+                      "$cli" panel remove
+                      [ ! -e "$HOME/.local/bin/verifique-panel" ] || fail "the program is still there"
+                      ;;
+                  esac
+                  echo "panel add-on: installed, opened, started at login and removed"
             - name: Picture
               if: runner.os == 'macOS'
               uses: actions/upload-artifact@v4
