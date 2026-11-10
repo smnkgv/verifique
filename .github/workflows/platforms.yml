@@ -183,9 +183,26 @@ jobs:
                   Linux) panel/bundle-linux.sh ;;
                   Windows) pwsh -NoProfile -ExecutionPolicy Bypass -File panel/bundle-windows.ps1 ;;
                   esac
+            - name: CLI
+              # The released verifique, so the panel reads a real queue, empty here.
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  mkdir -p "$RUNNER_TEMP/cli"
+                  cd "$RUNNER_TEMP/cli"
+                  arch=$([ "$RUNNER_ARCH" = ARM64 ] && echo arm64 || echo x64)
+                  case "$RUNNER_OS" in
+                  macOS) gh release download -R "$GITHUB_REPOSITORY" -p "verifique-macos-$arch.tar.gz" && tar xzf verifique-*.tar.gz ;;
+                  Linux) gh release download -R "$GITHUB_REPOSITORY" -p "verifique-linux-$arch.tar.gz" && tar xzf verifique-*.tar.gz ;;
+                  Windows) gh release download -R "$GITHUB_REPOSITORY" -p "verifique-windows-$arch.zip" && unzip -q verifique-*.zip ;;
+                  esac
+                  if [ "$RUNNER_OS" = Windows ]; then cygpath -w "$PWD"; else pwd; fi >> "$GITHUB_PATH"
             - name: Start
+              # Pinned, so it shows without a click, and the picture shows it as it is on that desktop.
               run: |
                   log="$RUNNER_TEMP/panel.log"
+                  mkdir -p "$VERIFIQUE_HOME"
+                  touch "$VERIFIQUE_HOME/panel-pinned"
                   case "$RUNNER_OS" in
                   macOS) panel/target/verifique.app/Contents/MacOS/verifique >"$log" 2>&1 & ;;
                   Linux) xvfb-run -a dbus-run-session -- panel/target/verifique-panel >"$log" 2>&1 & ;;
@@ -200,11 +217,23 @@ jobs:
                       cat "$log"
                       exit 1
                   fi
+                  mkdir -p "$RUNNER_TEMP/shots"
+                  shot="$RUNNER_TEMP/shots/panel-$RUNNER_OS.png"
+                  case "$RUNNER_OS" in
+                  macOS) screencapture -x "$shot" || echo "no picture: screencapture failed" ;;
+                  Windows) pwsh -NoProfile -ExecutionPolicy Bypass -File e2e/panel/screenshot.ps1 -Path "$(cygpath -w "$shot")" || echo "no picture: the desktop couldn't be copied" ;;
+                  esac
                   case "$RUNNER_OS" in
                   Windows) taskkill //F //IM verifique-panel.exe >/dev/null ;;
                   Linux) pkill -x verifique-panel || true ;;
                   macOS) kill "$pid" ;;
                   esac
+            - name: Picture
+              uses: actions/upload-artifact@v4
+              with:
+                  name: panel-${{ runner.os }}
+                  path: ${{ runner.temp }}/shots
+                  if-no-files-found: ignore
             - name: Page
               run: |
                   cd e2e/panel
