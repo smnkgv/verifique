@@ -7,6 +7,7 @@
 :root {
     --surface: rgb(250 250 248 / 0.96);
     --glass: rgb(250 250 248 / 0.25);
+    --glass-unblurred: rgb(250 250 248 / 0.85);
     --raised: rgb(0 0 0 / 0.05);
     --line: rgb(0 0 0 / 0.1);
     --text: #1c1d1c;
@@ -21,6 +22,7 @@
     :root {
         --surface: rgb(29 31 29 / 0.97);
         --glass: rgb(29 31 29 / 0.25);
+        --glass-unblurred: rgb(29 31 29 / 0.85);
         --raised: rgb(255 255 255 / 0.07);
         --line: rgb(255 255 255 / 0.11);
         --text: #eff0ec;
@@ -44,7 +46,7 @@ html, body {
 
 body {
     color: var(--text);
-    font: 400 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    font: 400 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
     user-select: none;
     cursor: default;
@@ -108,6 +110,11 @@ h1 {
 
 .pinned #panel {
     background: var(--glass);
+}
+
+/* Where the OS blurs nothing behind the panel, less shows through, so it stays readable. */
+.pinned.unblurred #panel {
+    background: var(--glass-unblurred);
 }
 
 section {
@@ -296,7 +303,7 @@ const panel = document.getElementById("panel");
 let state = null, proof = null, lastError = "", pinned = false;
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-const repoName = (repo) => repo.split("/").filter(Boolean).pop();
+const repoName = (repo) => repo.split(/[\\/]/).filter(Boolean).pop();
 const label = (job) => `${repoName(job.repo)} · ${job.check}`;
 const since = (stamp) => (Date.now() - Date.parse(`${stamp.replace(" ", "T")}Z`)) / 1000;
 
@@ -445,6 +452,7 @@ panel.addEventListener("click", async (event) => {
     }
 });
 
+invoke("blurs_behind").then((blurs) => document.body.classList.toggle("unblurred", blurs === false), () => {});
 refresh();
 setInterval(refresh, REFRESH_MS);
 </script>

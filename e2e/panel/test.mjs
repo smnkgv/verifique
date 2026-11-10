@@ -1,7 +1,8 @@
-// The panel as a person sees it: the real page in a real browser, fed the CLI's JSON. The window itself
-// is native, so what the Tauri side does with a pin is checked by hand on a Mac.
+// The panel as a person sees it: the real page in a real browser, fed the CLI's JSON. The window and the
+// tray icon are native, so what the Tauri side does with them is checked by hand on each OS.
+// The browser is the installed Chrome, or Edge on Windows, whose engine is the one the panel runs in
+// there. PANEL_BROWSER names another Playwright channel.
 import assert from "node:assert/strict";
-import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
 const PAGE = new URL("../../panel/ui/index.html", import.meta.url);
@@ -12,7 +13,11 @@ const running = (id, name, slot) => job(id, name, { slots: [slot], started_at: n
 const finished = (id, name, status) => job(id, name, { status, finished_at: now });
 const quiet = { server: true, slots: 2, low_disk: null, paused: false, needs_you: [], running: [], queued: [], recent: [] };
 
-const browser = await chromium.launch({ channel: "chrome", headless: true });
+const channel = process.env.PANEL_BROWSER ?? (process.platform === "win32" ? "msedge" : "chrome");
+const browser = await chromium.launch({ channel, headless: true }).catch((error) => {
+    console.error(`The panel journey needs ${channel} installed, or PANEL_BROWSER set to a browser that is.`);
+    throw error;
+});
 const page = await browser.newPage({ viewport: { width: 400, height: 720 } });
 await page.addInitScript(() => {
     window.sample = null;
@@ -28,12 +33,13 @@ await page.addInitScript(() => {
                 }
                 if (name === "is_pinned") return window.pinnedNow;
                 if (name === "set_pinned") window.pinnedNow = args.on;
+                if (name === "blurs_behind") return !location.search.includes("unblurred");
                 return null;
             },
         },
     };
 });
-await page.goto(fileURLToPath(PAGE).replace(/^/, "file://"));
+await page.goto(PAGE.href);
 
 // A queue that can't be read says so, instead of leaving an empty line.
 await page.waitForFunction(() => document.getElementById("panel").innerText.includes("Can't read the queue"));
@@ -61,6 +67,11 @@ assert.match(panel, /and 3 more/);
 assert.ok(panel.indexOf("urgent") > panel.indexOf("repo3"), "the next check sits nearest Running");
 assert.ok(panel.indexOf("urgent") < panel.indexOf("Running"));
 assert.deepEqual(await look(), { look: "working", count: 10 });
+
+// A repository on Windows is named by its folder too.
+await show({ running: [{ ...running(1, "x", 4), repo: "C:\\src\\shop" }] });
+assert.match(await text(), /shop · manual/);
+assert.doesNotMatch(await text(), /src/);
 
 // The tick says what state the queue is in.
 await show({});
@@ -100,6 +111,15 @@ const glass = await page.evaluate(() => getComputedStyle(document.getElementById
 assert.match(glass, /0\.25\)$/);
 await page.getByRole("button", { name: "Unpin panel" }).click();
 await page.waitForFunction(() => !document.body.classList.contains("pinned"));
+
+// Where the OS blurs nothing behind it, as on Windows and Linux, a pinned panel lets less through.
+await page.goto(`${PAGE.href}?unblurred`);
+await page.waitForFunction(() => document.body.classList.contains("unblurred"));
+await show({});
+await page.getByRole("button", { name: "Pin panel" }).click();
+await page.waitForSelector("body.pinned");
+const frosted = await page.evaluate(() => getComputedStyle(document.getElementById("panel")).backgroundColor);
+assert.match(frosted, /0\.85\)$/);
 
 await browser.close();
 console.log("panel journey passed");

@@ -89,11 +89,15 @@ content, and a verdict with proof.
     per repository.
 25. **A status-bar panel, as Docker has Docker Desktop.** The CLI is the core and works alone. The
     desktop install adds an icon with a simple dropdown of slots, the queue and what needs you, using
-    Tauri so one codebase covers the macOS menu bar first, then the Windows tray and Linux. The icon is amber with the number of checks left while they
+    Tauri so one codebase covers the macOS menu bar, the Windows notification area and Linux trays. The icon is amber with the number of checks left while they
     run, green after a pass, and red with a count when something needs you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
     with actions limited to viewing proof, handing a branch back and running a job next. It reads the
-    core's `--json` output and acts only through the CLI. A CLI-only install stays available. The
-    macOS panel is built; the Windows tray and Linux are not yet.
+    core's `--json` output and acts only through the CLI. A CLI-only install stays available. Where
+    an OS lets an app do less, the panel goes without rather than imitate macOS: Windows puts no text
+    beside a tray icon, so the count is in a tooltip, and has no supported way to show a window on
+    every desktop; Linux trays pass an app only its menu, so the panel opens from the menu; and
+    neither blurs reliably behind a pinned panel, so it is less see-through there. On Wayland it runs
+    through XWayland, because Wayland lets no window place itself or stay on top.
 26. **Rehearsal:** three real repositories, web first and then native mobile, followed by an unrelated
     project, each from a stripped copy. A rehearsal passes on: setup by a fresh agent with no help, `doctor` passing,
     a real change reaching a verdict you have reviewed, at least 4 of 5 planted bugs caught with no good
@@ -163,7 +167,10 @@ content, and a verdict with proof.
     and `setup` steps have to test something real, and planted bugs measure how far to trust a pass.
 -   A checker's powers depend on the user's agent settings, so verdicts can rest on different
     abilities from one machine to another.
--   The panel is signed for one machine: sharing it needs an Apple Developer ID.
+-   The macOS panel is signed for one machine: sharing it needs an Apple Developer ID. The Windows
+    panel isn't signed at all, so Windows warns about a copy from anywhere else.
+-   The panel has run on macOS, and on Linux under X11 with a plain tray, but not yet in GNOME or
+    KDE. On Windows it compiles, but hasn't run yet.
 -   `doctor` pauses every check on the machine while it runs, which on a slow build is minutes.
 -   A server a checker starts by hand can outlive its job, using memory until the next job in that
     slot stops it.

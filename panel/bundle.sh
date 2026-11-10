@@ -1,6 +1,10 @@
 #!/bin/sh
 # Builds verifique.app. It is signed for this machine only: sharing it needs an Apple Developer ID.
 set -e
+if [ "$(uname)" != Darwin ]; then
+    echo "bundle.sh builds the macOS app. On Linux, run panel/bundle-linux.sh; on Windows, panel/bundle-windows.ps1." >&2
+    exit 1
+fi
 cd "$(dirname "$0")"
 cargo build --release
 APP=target/verifique.app
