@@ -33,10 +33,10 @@ queue behind the user's back.
 
 ### Installing
 
-1. The core is installed the same way on every system it supports (see [platforms](platforms.md)):
-   with Homebrew on macOS and Linux, by the formula's full name so Homebrew trusts that formula
-   alone, with Scoop on Windows, or with an install script on any of them. It can also be built
-   from source.
+1. The core is installed with each system's own package manager (see [platforms](platforms.md)):
+   with Homebrew on macOS, by the formula's full name so Homebrew trusts that formula alone; from
+   verifique's signed apt or dnf repository, or the AUR, on Linux; with Scoop on Windows; or with
+   an install script on any of them. It can also be built from source.
 2. Each kind of database a project uses is then added with `verifique plugin add` (see
    [add-ons](add-ons.md)). The installers say so as the next step.
 3. `verifique service install` then starts the queue in the background, and from then on at every

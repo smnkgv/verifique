@@ -45,18 +45,34 @@ Version 0.3, and early. It has been tested by its author on copies of three web 
 
 ## Install
 
-verifique runs on macOS, Linux and Windows, on ARM and Intel or AMD processors alike.
+verifique runs on macOS, Linux and Windows, on ARM and Intel or AMD processors alike, and installs
+with each system's own package manager, so upgrades come with the rest of your software.
 
-On macOS or Linux, with Homebrew:
+On macOS, with Homebrew:
 
 ```bash
 brew install smnkgv/verifique/verifique
 ```
 
-Or without it:
+On Debian and Ubuntu, from verifique's apt repository:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
+curl -fsSL https://smnkgv.github.io/verifique-packages/verifique.gpg | sudo tee /usr/share/keyrings/verifique.gpg > /dev/null
+echo "deb [signed-by=/usr/share/keyrings/verifique.gpg] https://smnkgv.github.io/verifique-packages/deb stable main" | sudo tee /etc/apt/sources.list.d/verifique.list
+sudo apt update && sudo apt install verifique
+```
+
+On Fedora and RHEL, from its dnf repository:
+
+```bash
+sudo curl -fsSL -o /etc/yum.repos.d/verifique.repo https://smnkgv.github.io/verifique-packages/rpm/verifique.repo
+sudo dnf install verifique
+```
+
+On Arch Linux, from the AUR, with a helper such as yay or paru:
+
+```bash
+yay -S verifique-bin
 ```
 
 On Windows, in PowerShell, with Scoop:
@@ -66,15 +82,22 @@ scoop bucket add verifique https://github.com/smnkgv/scoop-verifique
 scoop install verifique
 ```
 
-Or without it:
+Homebrew works on Linux too. Without a package manager, an install script puts the latest release
+in `~/.local/bin` on macOS and Linux, or in your user folder on Windows:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
+```
 
 ```powershell
 irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex
 ```
 
-Windows also needs [Git for Windows](https://git-scm.com/download/win) (`winget install Git.Git`).
-verifique runs project commands with its `sh`, as it runs them with the system `sh` on macOS and
-Linux.
+The apt, dnf and AUR packages are built from each release by
+[verifique-packages](https://github.com/smnkgv/verifique-packages), and the apt and dnf ones are
+signed. Windows also needs [Git for Windows](https://git-scm.com/download/win)
+(`winget install Git.Git`): verifique runs project commands with its `sh`, as it runs them with the
+system `sh` on macOS and Linux.
 
 Then start the queue, which starts again whenever you log in:
 

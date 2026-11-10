@@ -23,9 +23,10 @@ systems, and so should the queue they hand work to.
 
 ### Installing
 
-1. verifique installs on macOS, Linux and Windows, on ARM and on Intel or AMD processors alike. On
-   macOS and Linux it comes from Homebrew or an install script, on Windows from Scoop or an install
-   script (see [setup](setup.md)).
+1. verifique installs on macOS, Linux and Windows, on ARM and on Intel or AMD processors alike, from
+   each system's own package manager: Homebrew on macOS, apt, dnf or the AUR on Linux, and Scoop on
+   Windows, so upgrades come with the rest of the system. An install script covers anything else
+   (see [setup](setup.md)).
 2. Add-ons install the same way on every system (see [add-ons](add-ons.md)).
 
 ### One command language

@@ -156,6 +156,17 @@ content, and a verdict with proof.
     match without a package per plugin in every package manager. `plugin list`, `plugin update` and
     `doctor` say when one is behind.
 
+### Installing
+
+39. **Each system installs verifique with its own package manager,** from repositories the project
+    keeps itself, so upgrades come with the rest of the system: a Homebrew tap, a Scoop bucket, and
+    for Linux, signed apt and dnf repositories on GitHub Pages and an AUR package. Each is made from
+    the release's own builds, checked against its checksums, and the Linux ones are installed in
+    clean Ubuntu, Debian, Fedora and Arch containers before they are published. An install script
+    covers everything else. Distributions' own repositories need a maintainer to sponsor each
+    package and months of review, and Snap and Flatpak run programs in a sandbox, while verifique
+    has to start your apps and reach your databases and worktrees.
+
 ## Known limits
 
 -   On Windows, commands need Git for Windows. Its `sh` rewrites arguments that look like Unix
