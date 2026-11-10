@@ -1344,27 +1344,21 @@ fn a_forgotten_stack_stops_by_itself_and_leaves_nothing_behind() {
 }
 
 #[test]
-fn started_stacks_always_leave_a_slot_for_checks() {
+fn the_slot_count_is_how_many_copies_run_whatever_they_are_for() {
     let mut world = World::new();
     up_for_a_stack(&world);
     world.serve(2, &[]);
+    // Two slots run two started stacks side by side: no slot is kept back for checks.
     let first = start_stack(&world, "5");
+    let second = start_stack(&world, "5");
 
-    let second = world
-        .command(&world.repo, &["stack", "start", "--minutes", "5", "--json"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
+    // With both taken, a check waits its turn, and starts once a stack gives its slot back.
     let check = detached(&world.repo, || world.submit("look", ""));
+    sleep(Duration::from_secs(2));
+    assert_eq!(world.status_json()["queued"].as_array().unwrap().len(), 1);
+    assert!(world.run(&["stack", "stop", &first["job"].to_string()]).status.success());
     until_status(&world, &check, "passed");
-
-    let held = first["job"].to_string();
-    assert!(world.run(&["stack", "stop", &held]).status.success());
-    let out = second.wait_with_output().unwrap();
-    assert!(out.status.success());
-    let next: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert!(world.run(&["stack", "stop", &next["job"].to_string()]).status.success());
+    assert!(world.run(&["stack", "stop", &second["job"].to_string()]).status.success());
 }
 
 #[test]

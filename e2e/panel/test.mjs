@@ -70,8 +70,16 @@ assert.deepEqual(await look(), { look: "working", count: 10 });
 
 // A repository on Windows is named by its folder too.
 await show({ running: [{ ...running(1, "x", 4), repo: "C:\\src\\shop" }] });
-assert.match(await text(), /shop · manual/);
+assert.match(await text(), /shop · testing · manual/);
 assert.doesNotMatch(await text(), /src/);
+
+// How many copies run at once, and what each is for, in words anyone reads the same way.
+await show({ slots: 3, running: [running(1, "shop", 4), { ...running(2, "api", 5), check: "stack" }] });
+const counts = await text();
+assert.match(counts, /2 of 3 running/);
+assert.match(counts, /shop · testing · manual/);
+assert.match(counts, /api · kept running for you/);
+assert.match(counts, /Running at once/);
 
 // The tick says what state the queue is in.
 await show({});

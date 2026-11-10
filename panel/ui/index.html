@@ -304,7 +304,8 @@ let state = null, proof = null, lastError = "", pinned = false;
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 const repoName = (repo) => repo.split(/[\\/]/).filter(Boolean).pop();
-const label = (job) => `${repoName(job.repo)} · ${job.check}`;
+// A started stack is the app kept running for someone to use; anything else tests a change.
+const label = (job) => `${repoName(job.repo)} · ${["stack", "hold"].includes(job.check) ? "kept running for you" : `testing · ${job.check}`}`;
 const since = (stamp) => (Date.now() - Date.parse(`${stamp.replace(" ", "T")}Z`)) / 1000;
 
 function span(seconds) {
@@ -330,7 +331,7 @@ function needsLine(item) {
 
 function main(s) {
     const busy = new Set(s.running.flatMap((job) => job.slots)).size;
-    let html = `<header><h1>verifique</h1><span class="count">${busy}/${s.slots} slots busy, ${s.queued.length} queued</span><button class="pin" data-pin aria-label="${pinned ? "Unpin panel" : "Pin panel"}" aria-pressed="${pinned}" title="${pinned ? "Unpin" : "Keep on screen"}">${PIN_ICON}</button></header>`;
+    let html = `<header><h1>verifique</h1><span class="count">${busy} of ${s.slots} running, ${s.queued.length} queued</span><button class="pin" data-pin aria-label="${pinned ? "Unpin panel" : "Pin panel"}" aria-pressed="${pinned}" title="${pinned ? "Unpin" : "Keep on screen"}">${PIN_ICON}</button></header>`;
     if (!s.server) html += `<section class="needs"><h2>The queue isn't running</h2><p>Checks wait until it starts. Run: verifique service install</p></section>`;
     if (s.paused) html += `<section class="quiet">Paused while verifique doctor runs.</section>`;
     if (s.low_disk) html += `<section class="needs"><h2>Disk nearly full</h2><p>${esc(s.low_disk)}</p></section>`;
@@ -355,7 +356,7 @@ function main(s) {
         html += `<section><h2>Recent</h2>${recent.map((job) => `<button class="row" data-proof="${job.id}"><span>${esc(label(job))}</span><span class="${tone(job.status)}">${esc(WORDS[job.status] ?? job.status)}</span></button>`).join("")}</section>`;
     }
     if (!s.running.length && !s.queued.length && !recent.length) html += `<section class="quiet">Nothing in the queue yet.</section>`;
-    html += `<section class="slots"><span>Checks at once</span><div class="stepper"><button data-slots="${s.slots - 1}" aria-label="Fewer" ${s.slots <= 1 ? "disabled" : ""}>−</button><span>${s.slots}</span><button data-slots="${s.slots + 1}" aria-label="More" ${s.slots >= MAX_SLOTS ? "disabled" : ""}>+</button></div></section>`;
+    html += `<section class="slots"><span>Running at once</span><div class="stepper"><button data-slots="${s.slots - 1}" aria-label="Fewer" ${s.slots <= 1 ? "disabled" : ""}>−</button><span>${s.slots}</span><button data-slots="${s.slots + 1}" aria-label="More" ${s.slots >= MAX_SLOTS ? "disabled" : ""}>+</button></div></section>`;
     if (lastError) html += `<section class="needs"><p>${esc(lastError)}</p></section>`;
     html += `<footer><button data-logs>Open logs</button><button data-quit>Quit panel</button></footer>`;
     return html;

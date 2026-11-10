@@ -73,7 +73,8 @@ their verdicts stay reproducible.
 16. It gives no verdict, and never affects needs-you.
 17. It stops when its time runs out, when `verifique stack stop <job>` or `verifique cancel <job>` is
     run, when one of its apps exits, or when the queue stops or restarts.
-18. One slot always stays free of started stacks, so checks keep moving.
+18. A started stack takes a slot as a check does. The slot count is how many copies run at once,
+    started stacks and checks alike, and no slot is kept back for either.
 19. `stack stop` on a check is refused, and points to `verifique cancel`.
 
 ### Real data for a started stack
@@ -103,12 +104,10 @@ their verdicts stay reproducible.
 
 ## Limits
 
+-   With every slot taken by started stacks, checks wait until one stops or its time runs out.
+
 -   A started stack does not follow the work: it has the code from when it started.
 -   A started stack ends when the queue restarts, and whoever was using it loses it.
 
 ## Open questions
 
--   **Does one slot stay free with only one slot?** The user guide and decisions log say one slot
-    always stays free of started stacks. On a machine set to one slot, a started stack can take it,
-    and checks wait until it stops. Settled by the owner choosing between refusing started stacks on
-    one slot and documenting the exception.

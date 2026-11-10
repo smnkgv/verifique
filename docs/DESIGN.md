@@ -74,7 +74,9 @@ content, and a verdict with proof.
     about the risk, and `doctor` names remote databases left in place without blocking.
 20. **Investigations take a slot.** An agent reproducing a bug starts a timed stack through the same
     queue, with the same isolation and no verdict. It stops by itself, so a forgotten stack or a
-    crashed agent cannot jam the queue. One slot always stays free of them, so checks keep moving.
+    crashed agent cannot jam the queue. It takes a slot as a check does: the slot count is how many
+    copies run at once, whatever they are for. One slot used to be kept back for checks, but a count
+    that doesn't mean what it says read as a broken panel.
     A person can ask for one of the project's `seeds` to fill it with real data; checks never do.
     `stack exec` runs a command in it with its settings, as its seed runs, for the project's own
     tools that need the apps up.

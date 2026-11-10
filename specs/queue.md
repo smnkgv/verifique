@@ -104,7 +104,7 @@ disk first and makes checks wait rather than letting them fail.
     Linux tray. Clicking it lists what needs you, what is running, what is queued and the recent
     verdicts with their proof.
 24. From the panel, a person can view a job's proof, hand a branch back, run a queued job next and
-    change how many checks run at once.
+    change how many copies run at once.
 25. The tick is amber with the number of checks left while they run, green for five minutes after the
     last one passes, and red with a count when something needs you.
 26. Pinning the panel keeps it on screen in the top right corner, semi-transparent, on every desktop.

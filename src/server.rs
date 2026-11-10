@@ -225,10 +225,6 @@ impl Server {
         if free.is_empty() {
             return Ok(());
         }
-        // Holds never take the last slot, so an investigation cannot stop every check.
-        let holds = self.busy.values().filter(|running| running.hold).count();
-        let room_for_hold = holds < self.slots().saturating_sub(1).max(1);
-        runnable.retain(|job| room_for_hold || job.plan.hold_minutes.is_none());
         let candidates: Vec<Candidate> = runnable
             .iter()
             .map(|job| Candidate {

@@ -102,7 +102,7 @@ enum Commands {
     },
     /// Run one queued job next
     Next { job: i64 },
-    /// Change how many checks run at once, while the server runs
+    /// Change how many copies of apps run at once, checks and started stacks alike, while the queue runs
     Slots { count: usize },
     /// Hand a branch in needs-you back to its agents
     Clear {
@@ -143,6 +143,7 @@ enum Commands {
 
 #[derive(clap::Args)]
 struct Machine {
+    /// How many copies of apps run at once, checks and started stacks alike
     #[arg(long, default_value_t = 2)]
     slots: usize,
     #[arg(long, default_value_t = 4)]
@@ -499,7 +500,8 @@ fn status(as_json: bool) -> Result<ExitCode> {
     if paused {
         println!("paused: `{} doctor` is running, and checks start again when it ends\n", paths::NAME);
     }
-    println!("{}/{slots} slots busy, {} queued", running.len(), queued.len());
+    let busy: std::collections::BTreeSet<u32> = running.iter().flat_map(|job| job.slots.iter().copied()).collect();
+    println!("{} of {slots} running, {} queued", busy.len(), queued.len());
     let line = |job: &Job| {
         format!(
             "  #{}  {}  {}  {}",

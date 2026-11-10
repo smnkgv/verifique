@@ -220,15 +220,16 @@ verifique stack exec <job> -- <command>   # runs it in the slot, with the stack'
 verifique stack stop <job>           # or it stops by itself
 ```
 
-A started stack goes through the same queue with the same isolation, and gives no verdict. One slot
-always stays free of them, and it runs the code as it was when it started, so start a new one to see
+A started stack goes through the same queue with the same isolation, and gives no verdict. It takes
+a slot as a check does, and it runs the code as it was when it started, so start a new one to see
 changes. `--seed dump -- <files>` also runs one of the stack's `seeds` after its usual seed, such as
 to load real data. Checks never use them. `stack exec` runs a command as the seed runs, once the
 apps are up, such as one of the project's own tools that loads data through them.
 
 A check runs its browser headless, and `verifique submit --headed` opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
 
-`verifique slots <n>` changes how many checks run at once while the server runs. A check that's
+`verifique slots <n>` changes how many copies of your apps run at once, checks and started stacks
+alike, while the server runs. A check that's
 already running is never stopped, and restarting the service goes back to the installed number.
 
 `verifique status` shows the queue and what needs you. `verifique show <job>` gives one job's proof, and
@@ -239,7 +240,7 @@ stay fast; `verifique clean` removes them.
 
 A small app adds a tick to the macOS menu bar, the Windows notification area or a Linux tray. Click
 it to see what needs you, what's running, what's queued and recent verdicts with their proof, and to
-change how many checks run at once. It reads the CLI's `--json` output and acts only through the CLI,
+change how many run at once. It reads the CLI's `--json` output and acts only through the CLI,
 so it can't do anything the CLI can't.
 
 The tick turns amber with the number of checks left while they run, green for five minutes after the
