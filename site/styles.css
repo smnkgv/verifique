@@ -227,19 +227,6 @@ h1 em {
     box-shadow: 0 0 0 1px var(--band-line), 0 24px 60px rgb(0 0 0 / 0.35);
 }
 
-.see-verdict {
-    display: block;
-    margin-top: 12px;
-    color: var(--on-band-soft);
-    font: 400 0.82rem var(--mono);
-    text-align: right;
-    text-decoration: none;
-}
-
-.see-verdict:hover {
-    color: var(--on-band);
-}
-
 .hero-action {
     grid-area: action;
     margin-top: 28px;
@@ -403,6 +390,12 @@ h1 em {
 .queue rect {
     fill: var(--amber);
     opacity: 0.55;
+}
+
+.lane {
+    fill: none;
+    stroke: var(--ink-soft);
+    stroke-width: 1.2;
 }
 
 .slot rect {
@@ -843,10 +836,6 @@ footer a:hover {
 
     .hero-film {
         margin-top: 28px;
-    }
-
-    .see-verdict {
-        text-align: center;
     }
 
     .hero-action {

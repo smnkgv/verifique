@@ -44,7 +44,6 @@
                 <source src="film/the-search-button.mp4" type="video/mp4">
                 <a href="film/the-search-button.mp4">Watch the film</a>
             </video>
-            <a class="see-verdict" href="#verdict">See a real verdict →</a>
         </div>
         <div class="hero-action">
             <a class="button" href="#install">Install verifique</a>
@@ -80,7 +79,7 @@
             <p>verifique handles both. Every check gets its own slot, with a git worktree no other running check uses, its own ports and freshly created databases, so the isolation is built in. And the checks wait in one queue for the whole laptop, shared by every repository: agents hand over their work and carry on with their next task, and only as many checks run at once as you allow, two by default.</p>
             <figure class="ways">
                 <div>
-                    <svg viewBox="0 0 300 212" role="img" aria-label="Doing it yourself: ten agents each start their own copy of the app at once, each on its own port, and the laptop runs out of memory.">
+                    <svg viewBox="0 0 300 212" role="img" aria-label="Doing it yourself: ten agents each start their own copy of the app at once, each on its own port, and the laptop runs out of memory and CPU.">
                         <g class="wires">
                             <path d="M24 21 60 86M52 21 80 86M80 21 100 86M108 21 120 86M136 21 140 86M164 21 160 86M192 21 180 86M220 21 200 86M248 21 220 86M276 21 240 86"/>
                         </g>
@@ -96,23 +95,28 @@
                             <text x="62" y="113">:3501</text><text x="106" y="113">:3502</text><text x="150" y="113">:3503</text><text x="194" y="113">:3504</text><text x="238" y="113">:3505</text>
                             <text x="62" y="141">:3506</text><text x="106" y="141">:3507</text><text x="150" y="141">:3508</text><text x="194" y="141">:3509</text><text x="238" y="141">:3510</text>
                         </g>
-                        <text class="meter-text" x="48" y="182">memory</text>
-                        <rect class="meter-track" x="100" y="174" width="150" height="10" rx="5"/>
-                        <rect class="meter-full" x="100" y="174" width="150" height="10" rx="5"/>
+                        <text class="meter-text" x="48" y="172">memory</text>
+                        <rect class="meter-track" x="100" y="164" width="150" height="10" rx="5"/>
+                        <rect class="meter-full" x="100" y="164" width="150" height="10" rx="5"/>
+                        <text class="meter-text" x="48" y="190">CPU</text>
+                        <rect class="meter-track" x="100" y="182" width="150" height="10" rx="5"/>
+                        <rect class="meter-full" x="100" y="182" width="150" height="10" rx="5"/>
                     </svg>
                     <figcaption><strong>Doing it yourself:</strong> every agent runs its own copy of the app, all at once</figcaption>
                 </div>
                 <div>
-                    <svg viewBox="0 0 300 212" role="img" aria-label="With verifique: ten agents hand their work to one queue, and the laptop runs two checks at a time, each in its own slot, with memory to spare.">
+                    <svg viewBox="0 0 300 212" role="img" aria-label="With verifique: ten agents hand their work to one queue, and the laptop runs two checks at a time, each in its own slot, with memory and CPU to spare.">
                         <g class="wires">
-                            <path d="M24 14 150 46M52 14 150 46M80 14 150 46M108 14 150 46M136 14 150 46M164 14 150 46M192 14 150 46M220 14 150 46M248 14 150 46M276 14 150 46"/>
-                            <path d="M150 46V58M150 76V90M98 90H202M98 90V98M202 90V98"/>
+                            <path d="M24 14 150 50M52 14 150 50M80 14 150 50M108 14 150 50M136 14 150 50M164 14 150 50M192 14 150 50M220 14 150 50M248 14 150 50M276 14 150 50"/>
+                            <path d="M150 82V90M98 90H202M98 90V98M202 90V98M94 93 98 98 102 93M198 93 202 98 206 93"/>
                         </g>
                         <g class="agents">
                             <circle cx="24" cy="14" r="7"/><circle cx="52" cy="14" r="7"/><circle cx="80" cy="14" r="7"/><circle cx="108" cy="14" r="7"/><circle cx="136" cy="14" r="7"/><circle cx="164" cy="14" r="7"/><circle cx="192" cy="14" r="7"/><circle cx="220" cy="14" r="7"/><circle cx="248" cy="14" r="7"/><circle cx="276" cy="14" r="7"/>
                         </g>
+                        <rect class="lane" x="90" y="50" width="120" height="32" rx="8"/>
+                        <text class="meter-text" x="82" y="70" text-anchor="end">queue</text>
                         <g class="queue">
-                            <rect x="96" y="58" width="16" height="18" rx="4"/><rect x="116" y="58" width="16" height="18" rx="4"/><rect x="136" y="58" width="16" height="18" rx="4"/><rect x="156" y="58" width="16" height="18" rx="4"/><rect x="176" y="58" width="16" height="18" rx="4"/>
+                            <rect x="102" y="57" width="16" height="18" rx="4"/><rect x="122" y="57" width="16" height="18" rx="4"/><rect x="142" y="57" width="16" height="18" rx="4"/><rect x="162" y="57" width="16" height="18" rx="4"/><rect x="182" y="57" width="16" height="18" rx="4"/>
                         </g>
                         <rect class="laptop" x="34" y="86" width="232" height="118" rx="10"/>
                         <g class="slot">
@@ -121,9 +125,12 @@
                         </g>
                         <text class="slot-text" x="98" y="127" text-anchor="middle">check 1</text>
                         <text class="slot-text" x="202" y="127" text-anchor="middle">check 2</text>
-                        <text class="meter-text" x="48" y="182">memory</text>
-                        <rect class="meter-track" x="100" y="174" width="150" height="10" rx="5"/>
-                        <rect class="meter-ok" x="100" y="174" width="58" height="10" rx="5"/>
+                        <text class="meter-text" x="48" y="172">memory</text>
+                        <rect class="meter-track" x="100" y="164" width="150" height="10" rx="5"/>
+                        <rect class="meter-ok" x="100" y="164" width="58" height="10" rx="5"/>
+                        <text class="meter-text" x="48" y="190">CPU</text>
+                        <rect class="meter-track" x="100" y="182" width="150" height="10" rx="5"/>
+                        <rect class="meter-ok" x="100" y="182" width="72" height="10" rx="5"/>
                     </svg>
                     <figcaption><strong>With verifique:</strong> agents join a queue, and checks run a few at a time</figcaption>
                 </div>
