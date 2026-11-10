@@ -47,10 +47,12 @@ Version 0.3, and early. It has been tested by its author on copies of three web 
 
 verifique runs on macOS, Linux and Windows, on ARM and Intel or AMD processors alike.
 
-On macOS or Linux, with Homebrew:
+On macOS or Linux, with Homebrew, which asks you to trust a tap before installing from it:
 
 ```bash
-brew install smnkgv/verifique/verifique
+brew tap smnkgv/verifique
+brew trust smnkgv/verifique
+brew install verifique
 ```
 
 Or without it:
