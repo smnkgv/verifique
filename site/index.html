@@ -35,7 +35,7 @@
 
     <section class="hero" id="top">
         <div class="hero-words">
-            <p class="strip">Open source <span>·</span> Free <span>·</span> Runs on your laptop</p>
+            <p class="strip">Open source <span>·</span> Free <span>·</span> macOS, Linux and Windows</p>
             <h1>A verification queue for <em>coding agents.</em></h1>
             <p class="sentence">Coding agents write code faster than anyone can check it. verifique is for getting every change checked by a second agent, on your own laptop, without it grinding to a halt.</p>
         </div>
@@ -185,7 +185,7 @@
                         <source media="(prefers-color-scheme: dark)" srcset="img/menubar-dark.png">
                         <img src="img/menubar-light.png" width="372" height="497" alt="The Mac menu bar with verifique’s amber tick and the number 5 beside it. Below it, the open panel shows three checks queued, two running in slots 4 and 5, and three recent verdicts: two passed and one failed." loading="lazy">
                     </picture>
-                    <figcaption>It lives in your Mac’s menu bar, or the tray on Windows and Linux. Click the tick to see the same steps as they happen: queued, running, then a verdict. The number beside it is how many checks are left.</figcaption>
+                    <figcaption>It lives in the menu bar on macOS, the notification area on Windows and the tray on Linux, shown here on macOS. Open it from the tick to see the same steps as they happen: queued, running, then a verdict. The tick also tells you how many checks are left.</figcaption>
                 </figure>
             </div>
             <figure class="term agent-sees">
@@ -247,7 +247,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>Why not Docker?</summary>
-                <p>Run your database servers however you like. verifique runs the app itself natively, because builds reuse their caches between checks, Docker on a Mac costs memory, and iOS simulators can’t run in a container.</p>
+                <p>Run your database servers however you like. verifique runs the app itself natively, because builds reuse their caches between checks, Docker on macOS and Windows runs inside a virtual machine that costs memory, and iOS simulators can’t run in a container.</p>
             </details>
             <details>
                 <summary>Can the checker get it wrong?</summary>
@@ -275,7 +275,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>What does it work with?</summary>
-                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check through a small add-on you install with <code>verifique plugin add</code>. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. It runs on macOS, Linux and Windows, on ARM and Intel or AMD processors. The status-bar panel is an add-on too: <code>verifique panel install</code> puts it in place on any of the three, and the Mac app is signed and notarized by Apple.</p>
+                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check through a small add-on you install with <code>verifique plugin add</code>. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. It runs on macOS, Linux and Windows, on ARM and Intel or AMD processors. The status-bar panel is an add-on too, which <code>verifique panel install</code> puts in place on any of the three.</p>
             </details>
         </section>
     </div>
@@ -286,19 +286,46 @@ failed: The search bar renders, but pressing Search never filters the product li
                 <p class="label">Get started</p>
                 <h2>Connect your project in four steps</h2>
                 <ol class="start">
-                    <li><strong>Install it.</strong> Use the commands here, then add support for the databases your project uses, and the status-bar panel if you want it. Installing by the full name tells Homebrew to trust this one formula, not everything in its tap. The queue then runs in the background and starts when you log in.</li>
+                    <li><strong>Install it.</strong> Pick your system and run the commands here: verifique itself, the queue, support for the databases your project uses, and the status-bar panel if you want it. The queue then runs in the background and starts when you log in.</li>
                     <li><strong>Connect your project.</strong> Run <code>verifique init</code> and give the output to your coding agent. It reads your code and writes <code>verifique.yaml</code>: how to start your app, what two copies of it would fight over, and which checks to run.</li>
                     <li><strong>Prove it.</strong> <code>verifique doctor</code> starts two copies side by side and checks that each one used its own databases.</li>
                     <li><strong>Tell your agents.</strong> Add the lines from <code>verifique init --rules</code> to your project’s agent instructions, so they know how to submit their work.</li>
                 </ol>
             </div>
             <div class="install-side">
-                <figure class="term">
-                    <figcaption>Terminal</figcaption>
+                <figure class="term os-install">
+                    <figcaption>
+                        <span class="os-label">Install</span>
+                        <span class="os-tabs" role="tablist" aria-label="Your system" hidden>
+                            <button type="button" role="tab" id="tab-macos" aria-controls="os-macos" data-os="macos">macOS</button>
+                            <button type="button" role="tab" id="tab-linux" aria-controls="os-linux" data-os="linux">Linux</button>
+                            <button type="button" role="tab" id="tab-windows" aria-controls="os-windows" data-os="windows">Windows</button>
+                        </span>
+                    </figcaption>
+                    <div class="os-panel" id="os-macos" role="tabpanel" aria-labelledby="tab-macos">
+                        <p class="os-name">macOS, in Terminal</p>
 <pre tabindex="0"><code>brew install smnkgv/verifique/verifique
 verifique service install
 verifique plugin add postgres redis
 verifique panel install</code></pre>
+                        <p class="os-note">Installing by the full name tells Homebrew to trust this one formula. Without Homebrew: <code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh</code>. The panel is signed and notarized by Apple, and also comes as a download for <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-arm64.dmg">Apple Silicon</a> or <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-x64.dmg">Intel</a>.</p>
+                    </div>
+                    <div class="os-panel" id="os-linux" role="tabpanel" aria-labelledby="tab-linux">
+                        <p class="os-name">Linux, in a terminal</p>
+<pre tabindex="0"><code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
+verifique service install
+verifique plugin add postgres redis
+verifique panel install</code></pre>
+                        <p class="os-note">This puts verifique in <code>~/.local/bin</code>, and the queue runs as a systemd user service. With Homebrew: <code>brew install smnkgv/verifique/verifique</code>. The panel needs WebKitGTK and an AppIndicator library, on Debian and Ubuntu <code>sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1</code>.</p>
+                    </div>
+                    <div class="os-panel" id="os-windows" role="tabpanel" aria-labelledby="tab-windows">
+                        <p class="os-name">Windows, in PowerShell</p>
+<pre tabindex="0"><code>irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex
+verifique service install
+verifique plugin add postgres redis
+verifique panel install</code></pre>
+                        <p class="os-note">verifique also needs <a href="https://git-scm.com/download/win">Git for Windows</a> (<code>winget install Git.Git</code>), for git and the <code>sh</code> it runs your project’s commands with. With Scoop: <code>scoop bucket add verifique https://github.com/smnkgv/scoop-verifique</code>, then <code>scoop install verifique</code>.</p>
+                    </div>
                 </figure>
                 <details class="sample">
                     <summary>See a sample verifique.yaml</summary>
@@ -328,7 +355,7 @@ checks:
   <s># An agent uses the app by hand</s>
   manual: { stack: web, type: agent, agent: claude }</code></pre>
                 </details>
-                <p class="needs">You’ll need macOS, Linux or Windows (with Git for Windows), your database servers already running (Postgres, MongoDB or Redis), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes. Without Homebrew, or on Windows, <a href="https://github.com/smnkgv/verifique#install">install it another way</a>. The panel also comes as a download for Macs with <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-arm64.dmg">Apple Silicon</a> or <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-x64.dmg">Intel</a>.</p>
+                <p class="needs">You’ll need your database servers already running (Postgres, MongoDB or Redis), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes.</p>
             </div>
         </div>
     </section>
@@ -337,7 +364,7 @@ checks:
         <div>
             <h2>New and small</h2>
             <p>I run fifteen to twenty-five coding agents at a time on one laptop. Checking their work had become most of my day and I couldn’t find a tool for it, so I built this. Tools exist for parts of it: <a href="https://conductor.build">Conductor</a> and <a href="https://github.com/JohnWayneeee/agentgc">agentgc</a> give each worktree its own ports, <a href="https://github.com/yongjip/mergetrain">mergetrain</a> queues checks before you push, and agents such as Claude Code check their own work in a browser. I couldn’t find one that does all of it on a laptop, with a different agent signing off. If you know one, tell me.</p>
-            <p>It’s new and it will have rough edges. It has been tested on copies of real web and iOS apps, but only on Macs and only with Claude Code as the checker. On Linux and Windows it passes its tests and the sample shop, but no real project has run there yet. If you try it, tell me where it breaks.</p>
+            <p>It’s new and it will have rough edges. Its tests and the sample shop pass on macOS, Linux and Windows alike, but the copies of real web and iOS apps it has been tried on so far all ran on Macs, and only with Claude Code as the checker. If you try it, on any of the three, tell me where it breaks.</p>
             <p class="signature">Hlib Semeniuk · <a href="https://github.com/smnkgv/verifique/issues">Open an issue</a></p>
         </div>
         <div>
@@ -357,5 +384,36 @@ checks:
     </nav>
     <span>© 2026 Hlib Semeniuk</span>
 </footer>
+<script>
+// The install commands open on the visitor's own system. Without this script all three show, one after another.
+(function () {
+    var box = document.querySelector(".os-install");
+    if (!box) return;
+    var tabs = Array.prototype.slice.call(box.querySelectorAll('[role="tab"]'));
+    var platform = ((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || navigator.userAgent || "").toLowerCase();
+    var own = /win/.test(platform) ? "windows" : /linux|x11|cros|chrome os|bsd/.test(platform) && !/android/.test(platform) ? "linux" : "macos";
+    function show(os, focus) {
+        tabs.forEach(function (tab) {
+            var on = tab.dataset.os === os;
+            tab.setAttribute("aria-selected", on ? "true" : "false");
+            tab.tabIndex = on ? 0 : -1;
+            document.getElementById(tab.getAttribute("aria-controls")).hidden = !on;
+            if (on && focus) tab.focus();
+        });
+    }
+    tabs.forEach(function (tab, i) {
+        tab.addEventListener("click", function () { show(tab.dataset.os); });
+        tab.addEventListener("keydown", function (event) {
+            var step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+            if (!step) return;
+            event.preventDefault();
+            show(tabs[(i + step + tabs.length) % tabs.length].dataset.os, true);
+        });
+    });
+    box.classList.add("tabbed");
+    box.querySelector(".os-tabs").hidden = false;
+    show(own);
+})();
+</script>
 </body>
 </html>

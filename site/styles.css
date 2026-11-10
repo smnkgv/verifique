@@ -721,6 +721,70 @@ h3.sub {
     overflow-x: auto;
 }
 
+.os-install.tabbed figcaption {
+    padding-block: 0;
+}
+
+.os-install.tabbed .os-label,
+.os-install.tabbed .os-name {
+    display: none;
+}
+
+.os-tabs {
+    display: flex;
+    gap: 6px;
+    margin-left: -8px;
+}
+
+.os-tabs[hidden] {
+    display: none;
+}
+
+.os-tabs button {
+    padding: 11px 8px 9px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--on-band-soft);
+    font: inherit;
+    cursor: pointer;
+}
+
+.os-tabs button:hover {
+    color: var(--on-band);
+}
+
+.os-tabs button[aria-selected="true"] {
+    border-bottom-color: var(--tick);
+    color: var(--on-band);
+}
+
+.os-tabs button:focus-visible {
+    outline-offset: -2px;
+}
+
+.os-panel + .os-panel {
+    border-top: 1px solid var(--band-line);
+}
+
+.os-name {
+    padding: 14px 18px 0;
+    color: var(--on-band-soft);
+    font: 400 0.76rem var(--mono);
+}
+
+.os-note {
+    padding: 0 18px 18px;
+    color: var(--on-band-soft);
+    font-size: 0.875rem;
+    line-height: 1.52;
+    overflow-wrap: anywhere;
+}
+
+.os-note code {
+    color: var(--on-band);
+}
+
 .sample {
     margin-top: 12px;
     border-radius: 12px;
