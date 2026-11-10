@@ -198,7 +198,7 @@ jobs:
                   esac
                   if [ "$RUNNER_OS" = Windows ]; then cygpath -w "$PWD"; else pwd; fi >> "$GITHUB_PATH"
             - name: Start
-              # Pinned, so it shows without a click, and the picture shows it as it is on that desktop.
+              # Pinned, so it shows without a click, and a picture on macOS shows it as it is.
               run: |
                   log="$RUNNER_TEMP/panel.log"
                   mkdir -p "$VERIFIQUE_HOME"
@@ -217,18 +217,19 @@ jobs:
                       cat "$log"
                       exit 1
                   fi
-                  mkdir -p "$RUNNER_TEMP/shots"
-                  shot="$RUNNER_TEMP/shots/panel-$RUNNER_OS.png"
-                  case "$RUNNER_OS" in
-                  macOS) screencapture -x "$shot" || echo "no picture: screencapture failed" ;;
-                  Windows) pwsh -NoProfile -ExecutionPolicy Bypass -File e2e/panel/screenshot.ps1 -Path "$(cygpath -w "$shot")" || echo "no picture: the desktop couldn't be copied" ;;
-                  esac
+                  # A picture on macOS only: GitHub's Windows machines have no screen a program can copy, and the
+                  # Linux panel's screen exists only inside xvfb-run.
+                  if [ "$RUNNER_OS" = macOS ]; then
+                      mkdir -p "$RUNNER_TEMP/shots"
+                      screencapture -x "$RUNNER_TEMP/shots/panel-macOS.png" || echo "no picture: screencapture failed"
+                  fi
                   case "$RUNNER_OS" in
                   Windows) taskkill //F //IM verifique-panel.exe >/dev/null ;;
                   Linux) pkill -x verifique-panel || true ;;
                   macOS) kill "$pid" ;;
                   esac
             - name: Picture
+              if: runner.os == 'macOS'
               uses: actions/upload-artifact@v4
               with:
                   name: panel-${{ runner.os }}
