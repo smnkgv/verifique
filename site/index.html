@@ -185,7 +185,7 @@
                         <source media="(prefers-color-scheme: dark)" srcset="img/menubar-dark.png">
                         <img src="img/menubar-light.png" width="372" height="497" alt="The Mac menu bar with verifique’s amber tick and the number 5 beside it. Below it, the open panel shows three checks queued, two running in slots 4 and 5, and three recent verdicts: two passed and one failed." loading="lazy">
                     </picture>
-                    <figcaption>It lives in your Mac’s menu bar. Click the tick to see the same steps as they happen: queued, running, then a verdict. The number beside it is how many checks are left.</figcaption>
+                    <figcaption>It lives in your Mac’s menu bar, or the tray on Windows and Linux. Click the tick to see the same steps as they happen: queued, running, then a verdict. The number beside it is how many checks are left.</figcaption>
                 </figure>
             </div>
             <figure class="term agent-sees">
@@ -275,7 +275,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>What does it work with?</summary>
-                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check through a small add-on you install with <code>verifique plugin add</code>. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. It runs on macOS, Linux and Windows, on ARM and Intel or AMD processors. The menu bar panel is a separate Mac app you build yourself for now.</p>
+                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check through a small add-on you install with <code>verifique plugin add</code>. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. It runs on macOS, Linux and Windows, on ARM and Intel or AMD processors. The status-bar panel is an add-on too: <code>verifique panel install</code> puts it in place on any of the three, and the Mac app is signed and notarized by Apple.</p>
             </details>
         </section>
     </div>
@@ -286,7 +286,7 @@ failed: The search bar renders, but pressing Search never filters the product li
                 <p class="label">Get started</p>
                 <h2>Connect your project in four steps</h2>
                 <ol class="start">
-                    <li><strong>Install it.</strong> Use the commands here, then add support for the databases your project uses. Installing by the full name tells Homebrew to trust this one formula, not everything in its tap. The queue then runs in the background and starts when you log in.</li>
+                    <li><strong>Install it.</strong> Use the commands here, then add support for the databases your project uses, and the status-bar panel if you want it. Installing by the full name tells Homebrew to trust this one formula, not everything in its tap. The queue then runs in the background and starts when you log in.</li>
                     <li><strong>Connect your project.</strong> Run <code>verifique init</code> and give the output to your coding agent. It reads your code and writes <code>verifique.yaml</code>: how to start your app, what two copies of it would fight over, and which checks to run.</li>
                     <li><strong>Prove it.</strong> <code>verifique doctor</code> starts two copies side by side and checks that each one used its own databases.</li>
                     <li><strong>Tell your agents.</strong> Add the lines from <code>verifique init --rules</code> to your project’s agent instructions, so they know how to submit their work.</li>
@@ -297,7 +297,8 @@ failed: The search bar renders, but pressing Search never filters the product li
                     <figcaption>Terminal</figcaption>
 <pre tabindex="0"><code>brew install smnkgv/verifique/verifique
 verifique service install
-verifique plugin add postgres redis</code></pre>
+verifique plugin add postgres redis
+verifique panel install</code></pre>
                 </figure>
                 <details class="sample">
                     <summary>See a sample verifique.yaml</summary>
@@ -327,7 +328,7 @@ checks:
   <s># An agent uses the app by hand</s>
   manual: { stack: web, type: agent, agent: claude }</code></pre>
                 </details>
-                <p class="needs">You’ll need macOS, Linux or Windows (with Git for Windows), your database servers already running (Postgres, MongoDB or Redis), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes. Without Homebrew, or on Windows, <a href="https://github.com/smnkgv/verifique#install">install it another way</a>.</p>
+                <p class="needs">You’ll need macOS, Linux or Windows (with Git for Windows), your database servers already running (Postgres, MongoDB or Redis), and Claude Code and Node for agent checks. Checks use your project’s <code>.env</code>, so keep test keys in it. Not ready to connect a project? <a href="https://github.com/smnkgv/verifique/tree/main/examples/shop">Try the sample shop</a>, which takes a few minutes. Without Homebrew, or on Windows, <a href="https://github.com/smnkgv/verifique#install">install it another way</a>. The panel also comes as a download for Macs with <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-arm64.dmg">Apple Silicon</a> or <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-x64.dmg">Intel</a>.</p>
             </div>
         </div>
     </section>
