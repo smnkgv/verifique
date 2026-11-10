@@ -6,11 +6,18 @@ if [ "$(uname)" != Darwin ]; then
     exit 1
 fi
 cd "$(dirname "$0")"
-cargo build --release
+# A processor to build for, such as x86_64-apple-darwin, or this Mac's own when none is given.
+if [ -n "${1:-}" ]; then
+    cargo build --release --target "$1"
+    BUILT="${CARGO_TARGET_DIR:-target}/$1/release"
+else
+    cargo build --release
+    BUILT="${CARGO_TARGET_DIR:-target}/release"
+fi
 APP=target/verifique.app
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp target/release/verifique-panel "$APP/Contents/MacOS/verifique"
+cp "$BUILT/verifique-panel" "$APP/Contents/MacOS/verifique"
 ICONS=target/icon.iconset
 rm -rf "$ICONS" && mkdir -p "$ICONS"
 for size in 16 32 128 256 512; do

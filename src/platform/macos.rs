@@ -19,6 +19,9 @@ use crate::paths::user_home as home_dir;
 use crate::paths;
 
 const DEFAULT_LABEL: &str = "dev.verifique.server";
+const PANEL_LABEL: &str = "dev.verifique.panel";
+
+pub const PANEL_PACKAGE: &str = ".zip";
 const BOOTSTRAP_ATTEMPTS: u32 = 20;
 const BOOTSTRAP_RETRY: Duration = Duration::from_millis(500);
 
@@ -115,5 +118,72 @@ pub fn restart_service() -> Result<()> {
 pub fn uninstall_service() -> Result<()> {
     let _ = run("launchctl", &["bootout", &format!("{}/{}", domain(), label())]);
     let _ = fs::remove_file(plist_path());
+    Ok(())
+}
+
+fn panel_app() -> PathBuf {
+    home_dir().join("Applications/verifique.app")
+}
+
+fn panel_plist() -> PathBuf {
+    home_dir().join("Library/LaunchAgents").join(format!("{PANEL_LABEL}.plist"))
+}
+
+fn panel_agent(app: &Path) -> String {
+    let program = xml(&app.join("Contents/MacOS/verifique").to_string_lossy());
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>{PANEL_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{program}</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>ProcessType</key><string>Interactive</string>
+</dict>
+</plist>
+"#
+    )
+}
+
+/// In ~/Applications, where Spotlight and Launchpad find it, opened at login by a LaunchAgent.
+pub fn install_panel(package: &Path, start: bool) -> Result<PathBuf> {
+    let app = panel_app();
+    let folder = app.parent().map(Path::to_path_buf).unwrap_or_default();
+    fs::create_dir_all(&folder)?;
+    // A panel this installed is stopped before its app is replaced; one started by hand keeps going.
+    if panel_plist().exists() {
+        let _ = run("launchctl", &["bootout", &format!("{}/{PANEL_LABEL}", domain())]);
+    }
+    if app.exists() {
+        fs::remove_dir_all(&app)?;
+    }
+    run("ditto", &["-x", "-k", &package.to_string_lossy(), &folder.to_string_lossy()])?;
+    if !app.is_dir() {
+        anyhow::bail!("the panel's package held no verifique.app");
+    }
+    if start {
+        let plist = panel_plist();
+        if let Some(parent) = plist.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&plist, panel_agent(&app))?;
+        bootstrap(&domain(), &plist)?;
+    }
+    Ok(app)
+}
+
+pub fn remove_panel() -> Result<()> {
+    if panel_plist().exists() {
+        let _ = run("launchctl", &["bootout", &format!("{}/{PANEL_LABEL}", domain())]);
+        fs::remove_file(panel_plist())?;
+    }
+    let app = panel_app();
+    if app.exists() {
+        fs::remove_dir_all(&app)?;
+    }
     Ok(())
 }

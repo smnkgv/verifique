@@ -11,7 +11,8 @@ glossary_terms: [Add-on, Database server, Slot]
 
 Support for each kind of database is an add-on: a separate program installed on top of verifique's
 core with `verifique plugin add <name>`, the same way on every system, from the same release as the
-core. People install only what their projects use.
+core. The status-bar panel is an add-on too, installed with `verifique panel install` (see
+[queue](queue.md)). People install only what they use.
 
 ## Why
 

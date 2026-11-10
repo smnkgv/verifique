@@ -83,7 +83,9 @@ systems, and so should the queue they hand work to.
 -   On Windows, Git's sh rewrites arguments that look like Unix paths, such as `/api`, when it passes
     them to Windows programs, as Git Bash does everywhere.
 -   On Windows, apps get no grace period to shut down cleanly when a step is stopped.
--   There is no panel for Linux or Windows yet (see [queue](queue.md)).
+-   The panel does less on Windows and Linux, which let an app do less: on Windows the count is in
+    a tooltip and a pinned panel stays on one desktop, and Linux trays open the panel from a menu
+    (see [queue](queue.md)).
 
 ## Open questions
 

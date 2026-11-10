@@ -247,34 +247,23 @@ last one passes, and red with a count when something needs you. Press the pin in
 right-click the tick, to keep it on screen in the top right corner, semi-transparent, on every
 desktop.
 
-Build it from a clone, with Rust. On macOS:
+Install it on top of verifique, the same way on every OS:
 
 ```bash
-panel/bundle.sh
-open panel/target/verifique.app
+verifique panel install
 ```
 
-The build is signed for your own machine only.
+It comes from the same release as your verifique, checked against that release's checksums. It
+goes where your OS keeps apps (`~/Applications` on macOS, beside verifique on Windows, `~/.local/bin`
+on Linux) with an entry in your app menu, and it opens now and whenever you log in. `--no-start`
+installs it without opening it. `verifique panel remove` takes it away again. On Linux it needs
+WebKitGTK and an AppIndicator library, which Debian and Ubuntu install with
+`sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1`.
 
-On Windows, in PowerShell, with the C++ build tools Rust asks for:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File panel\bundle-windows.ps1
-panel\target\verifique-panel.exe
-```
-
-To start it when you log in, put a shortcut to it in your Startup folder (`shell:startup`).
-
-On Linux it needs WebKitGTK and an AppIndicator library. On Debian or Ubuntu:
-
-```bash
-sudo apt install libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
-panel/bundle-linux.sh
-panel/target/verifique-panel &
-```
-
-Copy `panel/target/verifique-panel.desktop` to `~/.local/share/applications` to have it in the app
-menu, and to `~/.config/autostart` to start it when you log in.
+To build it yourself from a clone, with Rust, run `panel/bundle.sh` on macOS,
+`panel\bundle-windows.ps1` on Windows, or `panel/bundle-linux.sh` on Linux, which needs the
+libraries' development packages too (`libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
+librsvg2-dev libxdo-dev`).
 
 Windows and Linux let an app do less than macOS does, and the panel goes without rather than imitate it:
 

@@ -36,6 +36,10 @@ use crate::paths::{self, NAME};
 const APP_ID: &str = "verifique";
 const APP_ID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\verifique";
 const LAUNCHER: &str = "verifique-service.exe";
+const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+const RUN_VALUE: &str = "verifique panel";
+
+pub const PANEL_PACKAGE: &str = ".exe";
 const NO_GIT_SH: &str = "verifique runs commands with the sh that comes with Git for Windows, and found none. \
     Install Git for Windows (winget install Git.Git, or https://git-scm.com/download/win), or point \
     VERIFIQUE_SH at another sh.exe";
@@ -444,6 +448,68 @@ pub fn uninstall_service() -> Result<()> {
     let _ = run("schtasks", &["/Delete", "/F", "/TN", &name]);
     let _ = run("reg", &["delete", APP_ID_KEY, "/f"]);
     let _ = fs::remove_file(task_file());
+    Ok(())
+}
+
+fn known_folder(variable: &str, fallback: &str) -> PathBuf {
+    env::var_os(variable).map_or_else(|| paths::user_home().join(fallback), PathBuf::from)
+}
+
+/// Beside verifique.exe where install.ps1 puts it, so the panel finds the CLI there.
+fn panel_program() -> PathBuf {
+    known_folder("LOCALAPPDATA", r"AppData\Local").join(r"Programs\verifique\verifique-panel.exe")
+}
+
+fn panel_shortcut() -> PathBuf {
+    known_folder("APPDATA", r"AppData\Roaming").join(r"Microsoft\Windows\Start Menu\Programs\verifique.lnk")
+}
+
+/// A single-quoted PowerShell string.
+fn powershell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "''"))
+}
+
+/// Beside the CLI, with a Start menu entry and, to open at login, a value under the user's Run key.
+pub fn install_panel(package: &Path, start: bool) -> Result<PathBuf> {
+    let program = panel_program();
+    if let Some(parent) = program.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    // A panel that's running can't be replaced, but it can be moved aside.
+    let aside = program.with_extension("old");
+    let _ = fs::remove_file(&aside);
+    if program.exists() {
+        fs::rename(&program, &aside)?;
+    }
+    fs::copy(package, &program)?;
+    let _ = fs::remove_file(&aside);
+    let shortcut = panel_shortcut();
+    if let Some(parent) = shortcut.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let script = format!(
+        "$link = (New-Object -ComObject WScript.Shell).CreateShortcut({}); $link.TargetPath = {}; $link.Save()",
+        powershell_quote(&shortcut.to_string_lossy()),
+        powershell_quote(&program.to_string_lossy())
+    );
+    run("powershell", &["-NoProfile", "-NonInteractive", "-Command", &script])?;
+    if start {
+        let quoted = format!("\"{}\"", program.display());
+        run("reg", &["add", RUN_KEY, "/v", RUN_VALUE, "/t", "REG_SZ", "/d", &quoted, "/f"])?;
+        // DETACHED_PROCESS and CREATE_NEW_PROCESS_GROUP: it outlives this command and its console.
+        Command::new(&program).creation_flags(0x0000_0008 | 0x0000_0200).spawn()?;
+    }
+    Ok(program)
+}
+
+pub fn remove_panel() -> Result<()> {
+    let _ = run("reg", &["delete", RUN_KEY, "/v", RUN_VALUE, "/f"]);
+    let _ = fs::remove_file(panel_shortcut());
+    let program = panel_program();
+    if program.exists() {
+        fs::remove_file(&program).map_err(|_| anyhow!("the panel is still running: quit it from its tray icon, then run this again"))?;
+    }
+    let _ = fs::remove_file(program.with_extension("old"));
     Ok(())
 }
 

@@ -11,18 +11,15 @@ use std::sync::{Mutex, OnceLock};
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use verifique_plugin::{Description, Reply, DESCRIBE, PROGRAM_PREFIX, PROTOCOL};
 
 use crate::paths::{self, NAME};
 use crate::platform;
+use crate::release::{self, Release, VERSION};
 
 /// The plugins verifique's own releases carry.
 pub const PUBLISHED: [&str; 3] = ["postgres", "mongo", "redis"];
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-const RELEASES: &str = "https://github.com/smnkgv/verifique/releases/download";
-const CHECKSUMS: &str = "SHA256SUMS";
 
 /// Where `plugin add` puts plugins: one folder per user, whichever queue they serve.
 pub fn dir() -> PathBuf {
@@ -129,74 +126,20 @@ impl Plugin {
     }
 }
 
-/// This machine as release files name it, such as `macos-arm64` or `windows-x64`.
-fn target() -> Result<String> {
-    let os = match std::env::consts::OS {
-        "macos" => "macos",
-        "linux" => "linux",
-        "windows" => "windows",
-        other => bail!("{NAME} publishes no plugins for {other}"),
-    };
-    let arch = match std::env::consts::ARCH {
-        "aarch64" => "arm64",
-        "x86_64" => "x64",
-        other => bail!("{NAME} publishes no plugins for {other} processors"),
-    };
-    Ok(format!("{os}-{arch}"))
-}
-
-fn release() -> String {
-    std::env::var("VERIFIQUE_RELEASES").unwrap_or_else(|_| format!("{RELEASES}/v{VERSION}"))
-}
-
-/// curl ships with macOS, every common Linux and Windows 10 and later.
-fn download(url: &str, to: &Path) -> Result<()> {
-    let out = Command::new("curl")
-        .args(["-fsSL", "--retry", "2", "-o"])
-        .arg(to)
-        .arg(url)
-        .output()
-        .context("running curl, which downloads plugins")?;
-    if !out.status.success() {
-        bail!("downloading {url}: {}", String::from_utf8_lossy(&out.stderr).trim());
-    }
-    Ok(())
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
 /// Fetch each plugin from the release verifique itself came from, check it against the release's
 /// checksums, and put it in the plugins folder, replacing any older one.
 pub fn add(names: &[String]) -> Result<()> {
     let folder = dir();
-    fs::create_dir_all(&folder)?;
-    let release = release();
-    let sums_file = folder.join(format!(".{CHECKSUMS}.part"));
-    download(&format!("{release}/{CHECKSUMS}"), &sums_file)
-        .with_context(|| format!("{NAME} {VERSION} has no published plugins to fetch"))?;
-    let sums = fs::read_to_string(&sums_file)?;
-    let _ = fs::remove_file(&sums_file);
-    let expected: BTreeMap<&str, &str> = sums
-        .lines()
-        .filter_map(|line| line.split_once(char::is_whitespace))
-        .map(|(sum, file)| (file.trim().trim_start_matches('*'), sum.trim()))
-        .collect();
-    let target = target()?;
+    let release = Release::open(&folder)?;
+    let target = release::target()?;
     for name in names {
         let asset = format!("{}-{target}{}", program(name), std::env::consts::EXE_SUFFIX);
-        let Some(sum) = expected.get(asset.as_str()) else {
+        if !release.has(&asset) {
             let published = PUBLISHED.join(", ");
             bail!("{NAME} {VERSION} publishes no plugin called {name} for {target}. It publishes {published}");
-        };
-        let part = folder.join(format!(".{asset}.part"));
-        download(&format!("{release}/{asset}"), &part)?;
-        let got = hex(&Sha256::digest(fs::read(&part)?));
-        if got != *sum {
-            let _ = fs::remove_file(&part);
-            bail!("{asset} doesn't match the release's checksum, so it was not installed");
         }
+        let part = folder.join(format!(".{asset}.part"));
+        release.fetch(&asset, &part)?;
         platform::make_executable(&part)?;
         let file = installed_file(name);
         // A program that is running can't be replaced on Windows, but it can be moved aside.

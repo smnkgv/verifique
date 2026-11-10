@@ -200,6 +200,21 @@ pub fn notify(title: &str, message: &str) {
     os::notify(title, message)
 }
 
+/// The ending of the panel's release file for this OS: an app bundle zipped on macOS, a program
+/// on Windows and Linux.
+pub const PANEL_PACKAGE: &str = os::PANEL_PACKAGE;
+
+/// Put the panel from `package` where this OS keeps apps, with an entry in its app menu, replacing
+/// an older one. With `start`, it also opens now and whenever the user logs in. Returns where it is.
+pub fn install_panel(package: &Path, start: bool) -> Result<PathBuf> {
+    os::install_panel(package, start)
+}
+
+/// Take away everything `install_panel` added.
+pub fn remove_panel() -> Result<()> {
+    os::remove_panel()
+}
+
 /// What the queue's service is started with.
 pub struct ServiceSpec<'a> {
     /// The verifique binary.

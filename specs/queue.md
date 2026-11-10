@@ -100,8 +100,9 @@ disk first and makes checks wait rather than letting them fail.
 
 ### The panel
 
-23. On macOS, a small separate app puts a tick in the menu bar. Clicking it lists what needs you,
-    what is running, what is queued and the recent verdicts with their proof.
+23. A small separate app puts a tick in the macOS menu bar, the Windows notification area or a
+    Linux tray. Clicking it lists what needs you, what is running, what is queued and the recent
+    verdicts with their proof.
 24. From the panel, a person can view a job's proof, hand a branch back, run a queued job next and
     change how many checks run at once.
 25. The tick is amber with the number of checks left while they run, green for five minutes after the
@@ -109,6 +110,11 @@ disk first and makes checks wait rather than letting them fail.
 26. Pinning the panel keeps it on screen in the top right corner, semi-transparent, on every desktop.
 27. The panel reads the CLI's `--json` output and acts only through the CLI, so it can do nothing the
     CLI cannot. The CLI works alone, and installing without the panel stays possible.
+28. The panel is an add-on: `verifique panel install` fetches it from the same release as the CLI,
+    checked against that release's checksums, puts it where the system keeps apps with an entry in
+    its app menu, and opens it now and whenever the user logs in. `verifique panel remove` takes it
+    away. Where a system lets an app do less, the panel goes without rather than imitate macOS (see
+    [platforms](platforms.md)).
 
 ## Never
 
@@ -121,9 +127,12 @@ disk first and makes checks wait rather than letting them fail.
 -   Fixed slots and rules only leave capacity and adoption to the user.
 -   Waiting a turn costs time: with agent checks of about five minutes and two slots, the last of
     fifteen agents that finish together waits about forty minutes.
--   The panel is built and signed for the user's own machine only. Sharing it needs an Apple
-    developer identity.
--   There is no panel for Linux or Windows yet. The CLI does everything the panel does.
+-   Until the Mac panel is signed and notarized with an Apple developer identity, it installs only
+    through `verifique panel install`. macOS refuses a copy downloaded in a browser.
+-   On Linux the panel needs WebKitGTK, an AppIndicator library, and a tray that shows app
+    indicators.
+-   The panel has run on macOS and Linux, but on Windows only as far as starting in CI. The CLI does
+    everything the panel does.
 
 ## Open questions
 

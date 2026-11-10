@@ -5,10 +5,12 @@ mod git;
 mod init;
 mod instance;
 mod notify;
+mod panel;
 mod paths;
 mod platform;
 mod plugins;
 mod process;
+mod release;
 mod scheduler;
 mod server;
 mod service;
@@ -129,6 +131,11 @@ enum Commands {
         #[command(subcommand)]
         action: PluginAction,
     },
+    /// The status-bar panel, installed on top of verifique
+    Panel {
+        #[command(subcommand)]
+        action: PanelAction,
+    },
     /// Ask the queue running from this home to stop, as its service manager would
     #[command(hide = true)]
     StopServer,
@@ -194,6 +201,18 @@ enum PluginAction {
         #[arg(required = true)]
         names: Vec<String>,
     },
+}
+
+#[derive(Subcommand)]
+enum PanelAction {
+    /// Install the panel from this version's release, and open it now and whenever you log in
+    Install {
+        /// Install it without opening it, now or at login
+        #[arg(long)]
+        no_start: bool,
+    },
+    /// Uninstall the panel
+    Remove,
 }
 
 #[derive(Subcommand)]
@@ -714,6 +733,13 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 PluginAction::List => plugins::list()?,
                 PluginAction::Update => plugins::update()?,
                 PluginAction::Remove { names } => plugins::remove(&names)?,
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Panel { action } => {
+            match action {
+                PanelAction::Install { no_start } => panel::install(!no_start)?,
+                PanelAction::Remove => panel::remove()?,
             }
             Ok(ExitCode::SUCCESS)
         }

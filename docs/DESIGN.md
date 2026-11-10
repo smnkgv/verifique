@@ -92,7 +92,11 @@ content, and a verdict with proof.
     Tauri so one codebase covers the macOS menu bar, the Windows notification area and Linux trays. The icon is amber with the number of checks left while they
     run, green after a pass, and red with a count when something needs you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
     with actions limited to viewing proof, handing a branch back and running a job next. It reads the
-    core's `--json` output and acts only through the CLI. A CLI-only install stays available. Where
+    core's `--json` output and acts only through the CLI. A CLI-only install stays available: the
+    panel is an add-on, which `verifique panel install` fetches from the same release, checked
+    against its checksums, puts where the OS keeps apps and opens at login, the same way on every
+    OS. CI signs and notarizes the Mac app with an Apple Developer ID once its secrets exist, which
+    also gives a `.dmg` for people who download it in a browser. Where
     an OS lets an app do less, the panel goes without rather than imitate macOS: Windows puts no text
     beside a tray icon, so the count is in a tooltip, and has no supported way to show a window on
     every desktop; Linux trays pass an app only its menu, so the panel opens from the menu; and
@@ -167,8 +171,9 @@ content, and a verdict with proof.
     and `setup` steps have to test something real, and planted bugs measure how far to trust a pass.
 -   A checker's powers depend on the user's agent settings, so verdicts can rest on different
     abilities from one machine to another.
--   The macOS panel is signed for one machine: sharing it needs an Apple Developer ID. The Windows
-    panel isn't signed at all, so Windows warns about a copy from anywhere else.
+-   Until CI has the Apple Developer ID's secrets, the Mac panel isn't signed or notarized, so it
+    installs only through `verifique panel install`: macOS refuses a copy downloaded in a browser.
+    The Windows panel isn't signed, so Windows warns about a copy downloaded in a browser.
 -   The panel has run on macOS, and on Linux under X11 with a plain tray, but not yet in GNOME or
     KDE. On Windows it compiles, but hasn't run yet.
 -   `doctor` pauses every check on the machine while it runs, which on a slow build is minutes.
