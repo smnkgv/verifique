@@ -2,7 +2,7 @@
 
 A verification queue for coding agents.
 
-Coding agents write code faster than anyone can check that it works. verifique is for running as many as you like and still trusting what they hand you.
+Coding agents write code faster than anyone can check that it works. verifique is for running as many as you like and still trusting what they hand you. [verifique.ai](https://verifique.ai) has a two-minute film about it.
 
 ## What it's for
 
@@ -15,7 +15,7 @@ locally.
 
 verifique keeps verification on your laptop and runs only as many checks at once as you allow, two by
 default. Agents hand their work over instead of fighting over the machine, and a second agent that
-starts fresh checks it. The price is waiting your turn when many agents finish together.
+starts fresh checks it. When many agents finish at once, their checks wait their turn.
 
 ## How it works
 
@@ -37,24 +37,46 @@ verifique wait   ◀────── verdict stored against the content ◀─
 ```
 
 One server runs per machine and serves every project on it, because projects share the machine's
-memory and ports. It knows nothing about your framework or how you test.
+memory and ports. It doesn't depend on your framework or on how you test.
 
 ## Status
 
-Version 0.3, and early. It has been tested by its author on copies of three web apps and one iOS app, and Android has passed one check after a manual fix. Only Claude Code has been tested as the checker. It runs on macOS, Linux and Windows, where it passes its tests and the example shop, but real projects have only run on macOS so far. [docs/DESIGN.md](docs/DESIGN.md) holds the decisions behind it.
+Version 0.3, and early. It has been used on copies of three web apps and an iOS app, with Claude Code
+as the checker. Each release passes its tests and the example shop on macOS, Linux and Windows.
+Android and other checkers have had little testing so far. [docs/DESIGN.md](docs/DESIGN.md) has the
+decisions behind it.
 
-## Install
+## Get started
 
-verifique runs on macOS, Linux and Windows, on ARM and Intel or AMD processors alike, and installs
-with each system's own package manager, so upgrades come with the rest of your software.
+You need your database servers already running (Postgres, MongoDB or Redis), and Claude Code and Node
+for agent checks. To try it before connecting a project, [examples/shop](examples/shop) is a one-page
+shop with a broken Search button, which takes about two minutes.
 
-On macOS, with Homebrew:
+<a name="install"></a>
+
+### 1. Install
+
+verifique runs on macOS, Linux and Windows, on ARM and Intel or AMD processors, and installs with each
+system's own package manager, which then keeps it up to date.
+
+**macOS**, with Homebrew:
 
 ```bash
 brew install smnkgv/verifique/verifique
 ```
 
-On Debian and Ubuntu, from verifique's apt repository:
+**Windows**: verifique needs [Git for Windows](https://git-scm.com/download/win)
+(`winget install Git.Git`), whose `sh` runs your project's commands. Then, in PowerShell, with Scoop:
+
+```powershell
+scoop bucket add verifique https://github.com/smnkgv/scoop-verifique
+scoop install verifique
+```
+
+**Linux**, from verifique's signed repositories:
+
+<details>
+<summary>Debian and Ubuntu</summary>
 
 ```bash
 curl -fsSL https://smnkgv.github.io/verifique-packages/verifique.gpg | sudo tee /usr/share/keyrings/verifique.gpg > /dev/null
@@ -62,15 +84,22 @@ echo "deb [signed-by=/usr/share/keyrings/verifique.gpg] https://smnkgv.github.io
 sudo apt update && sudo apt install verifique
 ```
 
-On Fedora and RHEL, from its dnf repository:
+</details>
+
+<details>
+<summary>Fedora and RHEL</summary>
 
 ```bash
 sudo curl -fsSL -o /etc/yum.repos.d/verifique.repo https://smnkgv.github.io/verifique-packages/rpm/verifique.repo
 sudo dnf install verifique
 ```
 
-On Arch Linux, from its pacman repository, on x86-64: trust the signing key once, add the
-repository, then install:
+</details>
+
+<details>
+<summary>Arch Linux (x86-64)</summary>
+
+Trust the signing key once, add the repository, then install:
 
 ```bash
 curl -fsSL https://smnkgv.github.io/verifique-packages/verifique.asc | sudo pacman-key --add -
@@ -79,15 +108,10 @@ printf '\n[verifique]\nServer = https://smnkgv.github.io/verifique-packages/arch
 sudo pacman -Syu verifique
 ```
 
-On Windows, in PowerShell, with Scoop:
+</details>
 
-```powershell
-scoop bucket add verifique https://github.com/smnkgv/scoop-verifique
-scoop install verifique
-```
-
-Homebrew works on Linux too. Without a package manager, an install script puts the latest release
-in `~/.local/bin` on macOS and Linux, or in your user folder on Windows:
+**Anywhere else**, an install script puts the latest release in `~/.local/bin`, or in your user
+folder on Windows:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh
@@ -97,237 +121,102 @@ curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | 
 irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex
 ```
 
-The apt, dnf and pacman packages are built from each release by
-[verifique-packages](https://github.com/smnkgv/verifique-packages) and signed, so `apt upgrade`,
-`dnf upgrade` and `pacman -Syu` keep verifique current. Windows also needs [Git for
-Windows](https://git-scm.com/download/win) (`winget install Git.Git`): verifique runs project
-commands with its `sh`, as it runs them with the system `sh` on macOS and Linux.
-
-Then start the queue, which starts again whenever you log in:
+Then start the queue, which runs in the background and starts again whenever you log in, add support
+for the databases your projects use, and add the status-bar panel if you want it:
 
 ```bash
 verifique service install
+verifique plugin add postgres redis
+verifique panel install
 ```
 
-## Prerequisites
+### 2. Connect your project
 
-Database servers must already be running, however you installed them. verifique never installs one, and
-only ever creates and drops databases named `verifique_*`. Support for each database is an add-on, so
-install the ones your projects use:
-
-```bash
-verifique plugin add postgres mongo redis
-```
-
-Each plugin talks to its server itself, so no client such as `psql` is needed. `verifique plugin list`
-shows what's installed, and after upgrading verifique, `verifique plugin update` brings the plugins
-along. [docs/PLUGINS.md](docs/PLUGINS.md) describes them. Redis is the exception to the naming: each slot owns the numbered database that matches it, and clears it for every check, so keep nothing else in those. A slot Redis has no database for is refused.
-
-**Your `.env` is live.** Checks run your app unattended with the `.env` in the repository's main checkout, even for work
-submitted from a worktree, so anything in it is real: a check can send real email, charge real cards or write to any service it points at. Only
-slot ports and the settings in `verifique.yaml` are replaced. `verifique doctor` names remote databases it
-finds, but it cannot see everything.
-
-## Try it
-
-[examples/shop](examples/shop) is a one-page shop with a broken Search button. A real agent fails it, you fix it, and the same check passes, in about two minutes.
-
-## Connect a project
-
-Run this and give the output to your coding agent:
+In your repository, run this and give what it prints to your coding agent:
 
 ```bash
 verifique init
 ```
 
-It writes one file at the repository root, then proves it with `verifique doctor`, which starts two
-copies side by side and confirms each used its own database:
+The agent reads your code and writes `verifique.yaml`: how to start your app, what two copies of it
+would fight over, and which checks to run.
 
-```yaml
-services:
-    postgres: { url: postgres://postgres:postgres@127.0.0.1:5432 }
-    redis: {}
+### 3. Prove it
 
-stacks:
-    web:
-        prepare:
-            - pnpm install --frozen-lockfile
-            - pnpm build
-        seed: pnpm db:migrate && pnpm db:seed # on a fresh database, for every check
-        seeds: # optional: extra data for a stack started by hand
-            dump: ./scripts/load-dump.sh
-        setup: ./scripts/sign-in.sh # optional: prints sign-in details for a throwaway user
-        env: # wins over .env
-            DATABASE_URL: "{postgres.url}"
-            REDIS_URL: "{redis.url}"
-        apps:
-            web:
-                run: pnpm start
-                port: 3500 # base + slot
-                ready: /
-                env:
-                    PORT: "{port}"
-
-checks:
-    typecheck:
-        run: pnpm typecheck
-    e2e:
-        stack: web
-        slots: 2 # one stack per worker, from one build
-        run: pnpm playwright test
-    manual:
-        type: agent
-        stack: web
-        agent: claude # or { command: "your-agent $VERIFIQUE_PROMPT" }
-        tools: [] # added to your own agent settings
-        notes: |
-            What a newcomer would need to know.
+```bash
+verifique doctor
 ```
 
-Commands are POSIX `sh` on every OS: the system `sh` on macOS and Linux, and Git for Windows' `sh` on
-Windows. Write paths in them with forward slashes, which all three understand.
+It starts two copies of your app side by side and checks that each one used its own databases.
 
-Commands get `{slot}`, `{port}`, `{port.<app>}`, `{app.<app>.url}`, and for each service `.url`,
-`.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and `.prefix`.
+### 4. Tell your agents
 
-A stack needs no apps: one with only `prepare`, `seed` and `env` gives a test suite its own
-databases without building the app.
+```bash
+verifique init --rules
+```
 
-A check also gets these variables: `VERIFIQUE_SLOT`, `VERIFIQUE_SLOTS`, `VERIFIQUE_STACKS` (a JSON file with
-every stack's ports and values), `VERIFIQUE_PORT_<APP>`, `VERIFIQUE_COMMIT`, `VERIFIQUE_TREE`,
-`VERIFIQUE_REQUEST`, `VERIFIQUE_BRIEF`, `VERIFIQUE_DIFF`, `VERIFIQUE_SETUP`, `VERIFIQUE_PROMPT`, `VERIFIQUE_RESULT`,
-`VERIFIQUE_EVIDENCE`, `VERIFIQUE_REPO` and `VERIFIQUE_JOB`.
+Add what it prints to your project's agent instructions, such as `CLAUDE.md` or `AGENTS.md`, so your
+agents know how to hand their work over.
 
-How a check reports:
+### Good to know
 
--   By default, exit 0 passes and anything else fails.
--   `verdict: file` means it writes `{"verdict": "passed" | "failed" | "blocked", "summary": "…"}` to
-    `$VERIFIQUE_RESULT`. A crash, or no readable file, is an error and never a pass.
--   `type: agent` also needs `steps`, `saw` and at least one file in `$VERIFIQUE_EVIDENCE` before a pass
-    counts.
-
-Anything limited, such as a simulator, goes in `needs` and is declared on the machine with
-`--resource simulator=1`.
+-   Checks run your app with the `.env` from the repository's main checkout, so keep test keys in
+    it: a check reaches whatever the `.env` points at.
+-   verifique only creates and drops databases named `verifique_*`. On Redis, each slot uses the
+    numbered database that matches it and clears it for every check.
+-   After upgrading verifique, run `verifique service restart` and `verifique plugin update`.
 
 ## Use it
 
-Start the server once, on the machine:
-
-```bash
-verifique service install --slots 2 --resource simulator=1
-```
-
-After a new build, run `verifique service restart`. Then, from any repository or worktree, an agent of any kind can run:
+From any repository or worktree, an agent hands its work over and waits for the verdict:
 
 ```bash
 verifique submit --check manual --request-file request.md --brief "Open Settings, then Filters"
 verifique wait <job>     # exit 0 passed, 1 failed, 2 blocked or error, 3 replaced or cancelled
 ```
 
--   Anything after `--` goes on the end of a command check's `run`, such as the tests to run:
-    `verifique submit --check e2e --request-file request.md --brief "…" -- tests/login.spec.ts`.
--   Uncommitted work is captured without touching the branch, and verdicts belong to the content, so
-    a later commit of the same content already counts as verified.
--   A newer submission replaces that branch's queued run of the same check, and `verifique cancel <job>`
-    stops a queued or running one. Either way, whoever waits on it gets exit 3, and a cancel never
-    counts towards `needs-you`.
--   Repositories take turns for free slots, and a retry goes ahead of new work. `verifique next <job>`
-    overrides that.
--   A check with `slots` gets as many stacks as the machine has, and smaller jobs wait so it cannot
-    starve.
--   Slot copies and their builds use real disk. When less than 5 GB is free, verifique deletes the copies no check is using, and if that isn't enough, checks wait. Change the limit with `--min-free-gb` on `verifique service install`.
--   Three failures in a row, or one `blocked`, put a branch in `needs-you` and raise a desktop
-    notification. Submissions are then refused until `verifique clear`.
+-   Uncommitted work is included, and a verdict belongs to the content, so committing the same
+    content later keeps it verified.
+-   A newer submission replaces that branch's queued run of the same check, and
+    `verifique cancel <job>` stops one.
+-   After three failures in a row, or one `blocked`, the branch needs you: you get a notification,
+    and `verifique clear` hands it back.
+-   `verifique status` shows the queue, `verifique show <job>` shows one job's proof, and every
+    command that reads state takes `--json`.
 
-To investigate rather than verify, an agent starts a stack of its own for a while:
+To use the app by hand in a slot of its own, with no check:
 
 ```bash
-verifique stack start --minutes 30   # waits for a slot, then prints addresses and logs
-verifique stack exec <job> -- <command>   # runs it in the slot, with the stack's settings
-verifique stack stop <job>           # or it stops by itself
+verifique stack start --minutes 30
+verifique stack stop <job>
 ```
 
-A started stack goes through the same queue with the same isolation, and gives no verdict. It takes
-a slot as a check does, and it runs the code as it was when it started, so start a new one to see
-changes. `--seed dump -- <files>` also runs one of the stack's `seeds` after its usual seed, such as
-to load real data. Checks never use them. `stack exec` runs a command as the seed runs, once the
-apps are up, such as one of the project's own tools that loads data through them.
-
-A check runs its browser headless, and `verifique submit --headed` opens a window for one run. Commands that manage their own browser get `VERIFIQUE_HEADED=1`.
-
-`verifique slots <n>` changes how many copies of your apps run at once, checks and started stacks
-alike, while the server runs. A check that's
-already running is never stopped, and restarting the service goes back to the installed number.
-
-`verifique status` shows the queue and what needs you. `verifique show <job>` gives one job's proof, and
-every command that reads state takes `--json`. Slots keep their worktrees between checks so builds
-stay fast; `verifique clean` removes them.
+`verifique service install --slots <n>` sets how many copies of your apps run at once, and
+`verifique slots <n>` changes it while the queue runs. [specs/](specs/README.md) describes everything
+verifique does, and [docs/CONFIG.md](docs/CONFIG.md) every setting in `verifique.yaml`.
 
 ## Status-bar panel
 
-A small app adds a tick to the macOS menu bar, the Windows notification area or a Linux tray. Click
-it to see what needs you, what's running, what's queued and recent verdicts with their proof, and to
-change how many run at once. It reads the CLI's `--json` output and acts only through the CLI,
-so it can't do anything the CLI can't.
-
-The tick turns amber with the number of checks left while they run, green for five minutes after the
-last one passes, and red with a count when something needs you. Press the pin in the panel, or
-right-click the tick, to keep it on screen in the top right corner, semi-transparent, on every
-desktop.
-
-Install it on top of verifique, the same way on every OS:
-
-```bash
-verifique panel install
-```
-
-It comes from the same release as your verifique, checked against that release's checksums. It
-goes where your OS keeps apps (`~/Applications` on macOS, beside verifique on Windows, `~/.local/bin`
-on Linux) with an entry in your app menu, and it opens now and whenever you log in. `--no-start`
-installs it without opening it. `verifique panel remove` takes it away again. On Linux it needs
-WebKitGTK and an AppIndicator library, which Debian and Ubuntu install with
+A small app shows the queue in the macOS menu bar, the Windows notification area or a Linux tray:
+what needs you, what's running, what's queued and recent verdicts with their proof. It works only
+through the CLI. Install it with `verifique panel install`. On Linux it needs WebKitGTK and an
+AppIndicator library, which Debian and Ubuntu install with
 `sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1`.
-
-To build it yourself from a clone, with Rust, run `panel/bundle.sh` on macOS,
-`panel\bundle-windows.ps1` on Windows, or `panel/bundle-linux.sh` on Linux, which needs the
-libraries' development packages too (`libwebkit2gtk-4.1-dev libayatana-appindicator3-dev
-librsvg2-dev libxdo-dev`).
-
-Windows and Linux let an app do less than macOS does, and the panel goes without rather than imitate it:
-
--   Windows shows no text beside a tray icon, so the count is in the tick's tooltip. A pinned panel
-    stays on the desktop it was pinned on, as Windows gives apps no supported way to show a window
-    on every desktop.
--   On Linux the tick needs a tray that shows app indicators. KDE Plasma has one, and GNOME needs the
-    AppIndicator extension, which Ubuntu turns on. The tray gives the panel no clicks, only a menu,
-    so clicking the tick opens its menu, and Show panel opens the panel beside it. The count shows
-    where the tray shows indicator labels, as GNOME's does.
--   Wayland lets no window place itself or stay on top, so on Wayland the panel runs through
-    XWayland. With `GDK_BACKEND=wayland` it runs natively, and the desktop decides where it opens.
--   Neither gives an app a blur it can count on behind a window that isn't in focus, so there a pinned
-    panel lets less through, to stay readable.
-
-The CLI does everything the panel does.
 
 ## Build
 
-Rust 1.95 or later, on macOS, Linux or Windows. This builds verifique and its plugins, which it
-finds beside its own binary:
+With Rust 1.95 or later:
 
 ```bash
 cargo build --release
 cargo test
 ```
 
-Then put the binary on your `PATH`. On macOS or Linux, for example:
-
-```bash
-ln -s "$PWD/target/release/verifique" ~/.local/bin/verifique
-```
-
-On Windows, add `target\release` to your user `PATH`.
-
-The tests need `git`, `python3`, `psql`, `mongosh` and `redis-cli`, and running Postgres, Mongo and Redis. On Windows they also need Git for Windows. [e2e/](e2e/README.md) tests everything from the outside, from a fresh install to a real agent.
+Then put `target/release/verifique` on your `PATH`, and if your queue runs this build, run
+`verifique service restart` after each build. `panel/bundle.sh` builds the panel on macOS,
+`panel/bundle-windows.ps1` on Windows and `panel/bundle-linux.sh` on Linux. The tests need `git`,
+`python3`, `psql`, `mongosh` and `redis-cli`, and running Postgres, Mongo and Redis.
+[e2e/](e2e/README.md) tests everything from the outside, from a fresh install to a real agent.
 
 ## Licence
 
