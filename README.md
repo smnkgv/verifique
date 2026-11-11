@@ -182,7 +182,10 @@ agents know how to hand their work over.
     it: a check reaches whatever the `.env` points at.
 -   verifique only creates and drops databases named `verifique_*`. On Redis, each slot uses the
     numbered database that matches it and clears it for every check.
--   After upgrading verifique, run `verifique service restart` and `verifique plugin update`.
+-   When a new release is out, the panel shows an Update button and `verifique status` says to run
+    `verifique update`. Either one updates verifique however you installed it, restarts the queue
+    and brings the add-ons and panel along, after saying what a restart would stop. To know, the
+    queue asks GitHub for the latest version once a day, and `verifique updates off` stops it.
 
 ## Use it
 

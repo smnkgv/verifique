@@ -3,7 +3,7 @@ status: active
 last-reviewed: 2026-11-09
 owner: Hlib Semeniuk
 confidence: best-effort
-related: [databases, slots-and-isolation, checks, setup, queue]
+related: [databases, slots-and-isolation, checks, setup, queue, updates]
 glossary_terms: [.env, Checker, Agent check, Setup step, Started stack, The service, Database server]
 ---
 
@@ -53,7 +53,9 @@ connect a project. Hiding the risks would make verdicts cheaper and accidents li
 ### What leaves the machine
 
 11. verifique has no account and no server of its own. Verdicts and their proof stay on the machine:
-    there is no shared dashboard, and nothing appears on pull requests.
+    there is no shared dashboard, and nothing appears on pull requests. Once a day the queue asks
+    GitHub, where verifique's releases are published, for the latest version, sending nothing about
+    the user or their projects, and `verifique updates off` stops it (see [updates](updates.md)).
 12. An agent check sends the request, the diff and what it sees in the app to the agent's model
     provider, as the user's coding agent already does.
 13. The app, its build and the checker's browser reach the network as they do when the user runs
@@ -76,6 +78,7 @@ connect a project. Hiding the risks would make verdicts cheaper and accidents li
 
 -   verifique never bypasses the user's agent permissions.
 -   It never sends anything to a server of its own.
+-   It never updates itself without being asked.
 -   It never drops a database it did not name.
 
 ## Limits

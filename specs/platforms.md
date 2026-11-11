@@ -3,7 +3,7 @@ status: active
 last-reviewed: 2026-11-10
 owner: Hlib Semeniuk
 confidence: best-effort
-related: [queue, slots-and-isolation, stacks, setup, add-ons, safety]
+related: [queue, slots-and-isolation, stacks, setup, add-ons, safety, updates]
 glossary_terms: [The service, Stack, Slot, Started stack, .env, Queue]
 ---
 
@@ -26,7 +26,8 @@ systems, and so should the queue they hand work to.
 1. verifique installs on macOS, Linux and Windows, on ARM and on Intel or AMD processors alike, from
    each system's own package manager: Homebrew on macOS, apt, dnf or pacman on Linux, and Scoop on
    Windows, so upgrades come with the rest of the system. An install script covers anything else
-   (see [setup](setup.md)).
+   (see [setup](setup.md)). When a newer release is out, `verifique update` and the panel update
+   verifique through whichever of these installed it (see [updates](updates.md)).
 2. Add-ons install the same way on every system (see [add-ons](add-ons.md)).
 
 ### One command language

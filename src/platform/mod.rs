@@ -13,6 +13,8 @@
 //! | Start the queue at logon     | LaunchAgent          | systemd user unit | scheduled task                 |
 //! | Tell the user                | `osascript`          | `notify-send`     | toast                          |
 //! | Owner-only file              | mode 600             | mode 600          | the folder's own permissions   |
+//! | How verifique was installed  | Homebrew's Cellar, else install.sh | Homebrew, then apt, dnf or pacman's records, else install.sh | Scoop's apps folder, else install.ps1 |
+//! | Update it                    | `brew upgrade`, else swap the release in | `brew upgrade`, the package manager through sudo or pkexec, else swap | swap the release in, Scoop's too |
 //!
 //! Who holds a port, a process's name and folder, and free disk come from libraries that already
 //! do this per OS, so they are answered once, here.
@@ -213,6 +215,35 @@ pub fn install_panel(package: &Path, start: bool) -> Result<PathBuf> {
 /// Take away everything `install_panel` added.
 pub fn remove_panel() -> Result<()> {
     os::remove_panel()
+}
+
+/// The command that brings the verifique at `program`, its real file, to the latest release, told
+/// from how it was installed: a package manager's folder or records, or else the install script's.
+/// None when nothing says how it got there. A build from source is told apart before this.
+pub fn update_command(program: &Path) -> Option<String> {
+    os::update_command(program)
+}
+
+/// Bring the verifique at `program` to `version` the way it was installed: Homebrew's or the system
+/// package manager's own upgrade, or else the release's files swapped in, as the install scripts do.
+/// `interactive` says a person is at a terminal to answer a password prompt there. Returns where
+/// the new program is, or None when nothing says how this one was installed.
+pub fn upgrade(program: &Path, version: &str, interactive: bool) -> Result<Option<PathBuf>> {
+    os::upgrade(program, version, interactive)
+}
+
+/// The ending of verifique's own release archive for this OS.
+pub const RELEASE_ARCHIVE: &str = os::RELEASE_ARCHIVE;
+
+/// Start `command` on its own, so it carries on after this process, such as to replace the panel
+/// that started this one.
+pub fn spawn_detached(command: Command) -> io::Result<()> {
+    os::spawn_detached(command)
+}
+
+/// Whether `install_panel` has put the panel on this machine.
+pub fn panel_installed() -> bool {
+    os::panel_installed()
 }
 
 /// What the queue's service is started with.

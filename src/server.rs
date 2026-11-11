@@ -17,6 +17,7 @@ use crate::paths;
 use crate::platform::{self, alive};
 use crate::scheduler::{pick, unavailable, Candidate};
 use crate::store::{Job, Store};
+use crate::updates;
 use crate::worker::{self, Finished, Outcome};
 
 pub const KEY_PID: &str = "server_pid";
@@ -100,6 +101,7 @@ struct Server {
     freeing: Arc<AtomicBool>,
     done: Sender<Done>,
     notifier: Notifier,
+    updates: updates::Checker,
 }
 
 impl Server {
@@ -291,6 +293,7 @@ pub fn serve(options: Options) -> Result<()> {
     store.set(KEY_PID, &process::id().to_string())?;
     store.set(KEY_SLOTS, &options.slots.to_string())?;
     store.set(KEY_FIRST_SLOT, &options.first_slot.to_string())?;
+    updates::queue_started(&store)?;
 
     let (done_tx, done_rx) = mpsc::channel();
     let poll = options.poll;
@@ -304,6 +307,7 @@ pub fn serve(options: Options) -> Result<()> {
         freeing: Arc::new(AtomicBool::new(false)),
         done: done_tx,
         notifier: Notifier::default(),
+        updates: updates::Checker::default(),
     };
     server.recover()?;
     println!("{} serving {slots} slot(s) from slot {first_slot}", paths::NAME);
@@ -316,6 +320,8 @@ pub fn serve(options: Options) -> Result<()> {
         server.notifier.flush();
         server.stop_cancelled()?;
         server.dispatch()?;
+        // Telling people about a new release never decides anything, so it never stops the queue.
+        let _ = server.updates.tick(&server.store);
         sleep(poll);
     }
 
@@ -328,6 +334,7 @@ pub fn serve(options: Options) -> Result<()> {
     }
     server.store.unset(KEY_HEARTBEAT)?;
     server.store.unset(KEY_PID)?;
+    updates::queue_stopped(&server.store)?;
     Ok(())
 }
 

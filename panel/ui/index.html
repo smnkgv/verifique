@@ -240,6 +240,30 @@ button.row:hover > :first-child {
     font-variant-numeric: tabular-nums;
 }
 
+/* A newer verifique, or an update to finish, with the button that does it. */
+.update {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.update > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.update > button {
+    flex: none;
+    color: var(--accent);
+}
+
+.update > button:hover {
+    text-decoration: underline;
+}
+
 footer {
     display: flex;
     justify-content: space-between;
@@ -295,12 +319,16 @@ const MAX_SLOTS = 8;
 const MAX_HEIGHT = 640;
 const PASSED_SHOWN_S = 300;
 const QUEUED_SHOWN = 5;
+const UPDATES_MS = 60000;
+const UPDATED_SHOWN_MS = 5000;
 const PIN_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.2 1.5 14.5 5.8l-1.4 1.1-.9-.2-2.5 2.5.2 3-1.2 1.2-2.7-2.7-3.2 3.2-.8-.8 3.2-3.2L2.5 7.200l1.2-1.200 3 .2 2.500-2.500-.2-.9z"/></svg>`;
 
 const tauri = window.__TAURI__;
 const invoke = (name, args) => tauri.core.invoke(name, args);
 const panel = document.getElementById("panel");
 let state = null, proof = null, lastError = "", pinned = false;
+// The update the CLI says is waiting, and where the person is with it.
+let update = null, confirming = false, updating = false, updated = "", updateError = "";
 
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 const repoName = (repo) => repo.split(/[\\/]/).filter(Boolean).pop();
@@ -358,7 +386,34 @@ function main(s) {
     if (!s.running.length && !s.queued.length && !recent.length) html += `<section class="quiet">Nothing in the queue yet.</section>`;
     html += `<section class="slots"><span>Running at once</span><div class="stepper"><button data-slots="${s.slots - 1}" aria-label="Fewer" ${s.slots <= 1 ? "disabled" : ""}>−</button><span>${s.slots}</span><button data-slots="${s.slots + 1}" aria-label="More" ${s.slots >= MAX_SLOTS ? "disabled" : ""}>+</button></div></section>`;
     if (lastError) html += `<section class="needs"><p>${esc(lastError)}</p></section>`;
+    html += updateView(s);
     html += `<footer><button data-logs>Open logs</button><button data-quit>Quit panel</button></footer>`;
+    return html;
+}
+
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+// What restarting the queue stops, as `verifique update` says it in a terminal.
+function stopping(s) {
+    const stacks = s.running.filter((job) => STACKS.includes(job.check)).length;
+    const checks = s.running.length - stacks;
+    const parts = [];
+    if (stacks) parts.push(count(stacks, "started stack stops", "started stacks stop"));
+    if (checks) parts.push(`${count(checks, "running check starts", "running checks start")} again from the beginning`);
+    return parts.join(", and ");
+}
+
+function updateView(s) {
+    if (updated) return `<section class="update"><span>${esc(updated)}</span></section>`;
+    if (updating) return `<section class="update quiet"><span>Updating…</span></section>`;
+    let html = "";
+    if (confirming && update) {
+        html += `<section><p>Updating restarts the queue: ${esc(stopping(s))}.</p><div class="actions"><button class="pill" data-update-now>Update now</button><button class="pill" data-update-cancel>Not now</button></div></section>`;
+    } else if (update) {
+        const action = update.updatable ? `<button data-update>Update</button>` : update.url ? `<button data-release="${esc(update.url)}">What's new</button>` : "";
+        html += `<section class="update"><span title="${esc(update.line)}">${esc(update.short)}</span>${action}</section>`;
+    }
+    if (updateError) html += `<section class="needs"><p>${esc(updateError)}</p></section>`;
     return html;
 }
 
@@ -393,7 +448,40 @@ function showProgress(s) {
     const last = s.recent.find((job) => !STACKS.includes(job.check));
     const justPassed = last?.status === "passed" && since(last.finished_at) < PASSED_SHOWN_S;
     const look = s.needs_you.length ? "needs" : left ? "working" : justPassed ? "passed" : "idle";
-    invoke("show_progress", { look, count: s.needs_you.length || left });
+    invoke("show_progress", { look, count: s.needs_you.length || left, update: update?.short ?? "" });
+}
+
+// The CLI asks GitHub nothing here: it says what the queue found when it last asked, once a day.
+async function refreshUpdates() {
+    if (updating) return;
+    try {
+        update = JSON.parse(await invoke("updates")).notice;
+    } catch {
+        update = null;
+    }
+    if (!update) confirming = false;
+    if (state) showProgress(state);
+    if (!proof) paint();
+}
+
+// The CLI does the whole update; a new panel replaces this one at the end when there is one.
+async function runUpdate() {
+    confirming = false;
+    updating = true;
+    updateError = "";
+    paint();
+    try {
+        const said = await invoke("update");
+        updated = said.includes("panel reopens") ? "Updated. The panel reopens in a moment." : "Updated.";
+        setTimeout(() => {
+            updated = "";
+            if (!proof) paint();
+        }, UPDATED_SHOWN_MS);
+    } catch (error) {
+        updateError = String(error);
+    }
+    updating = false;
+    await refreshUpdates();
 }
 
 async function refresh() {
@@ -406,7 +494,7 @@ async function refresh() {
     } catch (error) {
         lastError = String(error);
         state = null;
-        invoke("show_progress", { look: "needs", count: 0 });
+        invoke("show_progress", { look: "needs", count: 0, update: "" });
     }
     if (!proof) paint();
 }
@@ -444,6 +532,21 @@ panel.addEventListener("click", async (event) => {
         act("hand_back", { repo: item.repo, branch: item.branch });
     } else if (d.open) {
         invoke("open_path", { path: d.open });
+    } else if (d.update !== undefined && update && !updating) {
+        // Restarting the queue ends started stacks, so the person decides with that in front of them.
+        if (update.restarts && state?.running.length) {
+            confirming = true;
+            paint();
+        } else {
+            runUpdate();
+        }
+    } else if (d.updateNow !== undefined) {
+        runUpdate();
+    } else if (d.updateCancel !== undefined) {
+        confirming = false;
+        paint();
+    } else if (d.release) {
+        invoke("open_release", { url: d.release });
     } else if (d.pin !== undefined) {
         act("set_pinned", { on: !pinned });
     } else if (d.logs !== undefined) {
@@ -456,6 +559,8 @@ panel.addEventListener("click", async (event) => {
 invoke("blurs_behind").then((blurs) => document.body.classList.toggle("unblurred", blurs === false), () => {});
 refresh();
 setInterval(refresh, REFRESH_MS);
+refreshUpdates();
+setInterval(refreshUpdates, UPDATES_MS);
 </script>
 </body>
 </html>
