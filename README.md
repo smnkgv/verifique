@@ -121,14 +121,32 @@ curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | 
 irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex
 ```
 
-Then start the queue, which runs in the background and starts again whenever you log in, add support
-for the databases your projects use, and add the status-bar panel if you want it:
+Then start the queue, which runs in the background and starts again whenever you log in, and add
+support for the databases your projects use:
 
 ```bash
 verifique service install
 verifique plugin add postgres redis
+```
+
+Last, decide whether you want the status-bar panel: a tick in the macOS menu bar, the Windows
+notification area or a Linux tray that shows what needs you, what's running, what's queued and recent
+verdicts with their proof. It's optional, and `verifique status` shows the same in a terminal.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/img/menubar-dark.png">
+  <img src="site/img/menubar-light.png" width="300" alt="The verifique panel open below its tick in the macOS menu bar, listing queued and running checks and recent verdicts.">
+</picture>
+
+To add it:
+
+```bash
 verifique panel install
 ```
+
+It opens now and whenever you log in, and `verifique panel remove` takes it away again. On Linux it
+needs WebKitGTK and an AppIndicator library, which Debian and Ubuntu install with
+`sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1`.
 
 ### 2. Connect your project
 
@@ -194,14 +212,6 @@ verifique stack stop <job>
 `verifique service install --slots <n>` sets how many copies of your apps run at once, and
 `verifique slots <n>` changes it while the queue runs. [specs/](specs/README.md) describes everything
 verifique does, and [docs/CONFIG.md](docs/CONFIG.md) every setting in `verifique.yaml`.
-
-## Status-bar panel
-
-A small app shows the queue in the macOS menu bar, the Windows notification area or a Linux tray:
-what needs you, what's running, what's queued and recent verdicts with their proof. It works only
-through the CLI. Install it with `verifique panel install`. On Linux it needs WebKitGTK and an
-AppIndicator library, which Debian and Ubuntu install with
-`sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1`.
 
 ## Build
 
