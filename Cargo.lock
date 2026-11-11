@@ -2292,7 +2292,7 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "verifique"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -2312,7 +2312,7 @@ dependencies = [
 
 [[package]]
 name = "verifique-mongo"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "mongodb",
  "serde_json",
@@ -2321,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "verifique-plugin"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -2329,7 +2329,7 @@ dependencies = [
 
 [[package]]
 name = "verifique-postgres"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "postgres",
  "serde_json",
@@ -2338,7 +2338,7 @@ dependencies = [
 
 [[package]]
 name = "verifique-redis"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "redis",
  "serde_json",
