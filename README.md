@@ -69,10 +69,14 @@ sudo curl -fsSL -o /etc/yum.repos.d/verifique.repo https://smnkgv.github.io/veri
 sudo dnf install verifique
 ```
 
-On Arch Linux, from the AUR, with a helper such as yay or paru:
+On Arch Linux, from its pacman repository, on x86-64: trust the signing key once, add the
+repository, then install:
 
 ```bash
-yay -S verifique-bin
+curl -fsSL https://smnkgv.github.io/verifique-packages/verifique.asc | sudo pacman-key --add -
+sudo pacman-key --lsign-key BD3CA969126EAF73205EBAE45C27008897635E6B
+printf '\n[verifique]\nServer = https://smnkgv.github.io/verifique-packages/arch/$arch\n' | sudo tee -a /etc/pacman.conf
+sudo pacman -Syu verifique
 ```
 
 On Windows, in PowerShell, with Scoop:
@@ -93,11 +97,11 @@ curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | 
 irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex
 ```
 
-The apt, dnf and AUR packages are built from each release by
-[verifique-packages](https://github.com/smnkgv/verifique-packages), and the apt and dnf ones are
-signed. Windows also needs [Git for Windows](https://git-scm.com/download/win)
-(`winget install Git.Git`): verifique runs project commands with its `sh`, as it runs them with the
-system `sh` on macOS and Linux.
+The apt, dnf and pacman packages are built from each release by
+[verifique-packages](https://github.com/smnkgv/verifique-packages) and signed, so `apt upgrade`,
+`dnf upgrade` and `pacman -Syu` keep verifique current. Windows also needs [Git for
+Windows](https://git-scm.com/download/win) (`winget install Git.Git`): verifique runs project
+commands with its `sh`, as it runs them with the system `sh` on macOS and Linux.
 
 Then start the queue, which starts again whenever you log in:
 

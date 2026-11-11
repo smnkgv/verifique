@@ -318,7 +318,7 @@ sudo apt update &amp;&amp; sudo apt install verifique
 verifique service install
 verifique plugin add postgres redis
 verifique panel install</code></pre>
-                        <p class="os-note">That’s Debian and Ubuntu, from verifique’s signed apt repository. On Fedora and RHEL: <code>sudo curl -fsSL -o /etc/yum.repos.d/verifique.repo https://smnkgv.github.io/verifique-packages/rpm/verifique.repo</code>, then <code>sudo dnf install verifique</code>. On Arch, from the AUR: <code>yay -S verifique-bin</code>. Anywhere else: <code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh</code>. The queue runs as a systemd user service. The panel needs WebKitGTK and an AppIndicator library, on Debian and Ubuntu <code>sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1</code>.</p>
+                        <p class="os-note">That’s Debian and Ubuntu, from verifique’s signed apt repository. On Fedora and RHEL: <code>sudo curl -fsSL -o /etc/yum.repos.d/verifique.repo https://smnkgv.github.io/verifique-packages/rpm/verifique.repo</code>, then <code>sudo dnf install verifique</code>. On Arch, from its signed pacman repository, as the <a href="https://github.com/smnkgv/verifique#install">README</a> shows. Anywhere else: <code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh</code>. The queue runs as a systemd user service. The panel needs WebKitGTK and an AppIndicator library, on Debian and Ubuntu <code>sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1</code>.</p>
                     </div>
                     <div class="os-panel" id="os-windows" role="tabpanel" aria-labelledby="tab-windows">
                         <p class="os-name">Windows, in PowerShell</p>
