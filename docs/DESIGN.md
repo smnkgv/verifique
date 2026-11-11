@@ -169,6 +169,12 @@ content, and a verdict with proof.
     everything else. Distributions' own repositories need a maintainer to sponsor each package and
     months of review, and Snap and Flatpak run programs in a sandbox, while verifique has to start
     your apps and reach your databases and worktrees.
+40. **A stack names the host its apps answer at,** `127.0.0.1` unless it says otherwise. Some apps
+    accept cookies or origins at one name only, such as `localhost`, and one setting then replaces
+    a rule every agent on that project would otherwise have to remember.
+41. **`doctor` runs with the queue's `PATH`,** which the queue records when it starts, because it
+    proves what checks will do, and a check gets the queue's tools, not those of whoever runs
+    `doctor`.
 
 ## Known limits
 

@@ -1,6 +1,6 @@
 ---
 status: active
-last-reviewed: 2026-11-10
+last-reviewed: 2026-11-11
 owner: Hlib Semeniuk
 confidence: best-effort
 related: [stacks, checks, databases, queue, safety, slots-and-isolation, platforms, add-ons]
@@ -60,7 +60,8 @@ queue behind the user's back.
        changes behaviour. Point cloud credentials in the home folder at nothing unless a check needs
        them. If `.env` lacks something, tell the user what to add rather than filling it in.
        Make sure the queue's `PATH`, which `verifique service env` shows, gives the versions
-       production uses. Keep every step from changing anything outside its slot, such as installers
+       production uses. If the app only works at one host name, such as `localhost`, name it on the
+       stack. Keep every step from changing anything outside its slot, such as installers
        that clean shared caches. For a phone app, run the backend as a stack and the app on a
        simulator, declared as a limited resource.
     4. Only if the app hardcodes a value, make small edits so it reads the value from the
@@ -69,9 +70,11 @@ queue behind the user's back.
     5. Prove it with `verifique doctor`, never weakening a ready path to make it pass, and report
        any remote-database warning to the user. Then submit every check once and read each verdict.
        A test suite runs whole. Setup is finished only when every check has passed, or its only
-       failures also happen without verifique.
+       failures also happen without verifique. A failure is studied in a started stack, never by
+       resubmitting the check, because every failed check counts toward needs-you.
     6. Propose the rules to the user as a change to the project's agent instructions, written the
        way those instructions write their own rules and placed where they say such rules belong.
+       Before removing or narrowing a rule, find everything that still depends on it.
        Change every existing rule the setup makes untrue, such as how to start the app or run its
        tests.
 7. The guide tells the agent never to stop a process by name or pattern, and to stop only what it
@@ -117,6 +120,8 @@ queue behind the user's back.
     `doctor` says so.
 18. A stack that needs a limited resource, such as one simulator, is proved with a single copy.
 19. A stack in which two copies or two apps would share a port is refused.
+20. It runs every step with the queue's `PATH`, as checks do, so it proves a stack with the tools its
+    checks will get. Until a queue has run, it uses the caller's and says so.
 
 ## Never
 

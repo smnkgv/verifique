@@ -242,6 +242,7 @@ impl Run<'_> {
             .iter()
             .map(|instance| serde_json::json!({
                 "slot": instance.values.slot,
+                "host": instance.values.host,
                 "ports": instance.values.ports,
                 "values": instance.values.tokens(),
             }))
@@ -305,9 +306,10 @@ impl Run<'_> {
     }
 
     /// What `stack exec` needs to run a command as the seed runs: in the slot, with the stack's
-    /// settings and the queue's PATH. It holds `.env`'s values, so only its owner can read it.
-    fn write_exec(&self, instance: &Instance) -> Result<PathBuf, Halt> {
-        let mut env = instance.env.clone();
+    /// settings, the stack list a check gets, and the queue's PATH. It holds `.env`'s values, so
+    /// only its owner can read it.
+    fn write_exec(&self, stacks_env: &Env) -> Result<PathBuf, Halt> {
+        let mut env = stacks_env.clone();
         if let Ok(path) = std::env::var("PATH") {
             env.entry("PATH".to_string()).or_insert(path);
         }
@@ -347,14 +349,14 @@ impl Run<'_> {
             self.timed("setup", |run| run.setup(instances))?;
         }
         self.store.set_content(self.job.id, &request.commit, &request.tree)?;
-        self.describe_stacks(instances)?;
-        self.write_exec(&instances[0])?;
+        let stacks_env = self.describe_stacks(instances)?;
+        self.write_exec(&stacks_env)?;
         Ok(())
     }
 
     fn hold(&mut self, instances: &mut [Instance], minutes: f64) -> Result<Finished, Halt> {
-        self.describe_stacks(instances)?;
-        let exec = self.write_exec(&instances[0])?;
+        let stacks_env = self.describe_stacks(instances)?;
+        let exec = self.write_exec(&stacks_env)?;
         let mut minutes = minutes;
         let mut until = self.restart_timer(minutes)?;
         let mut down = false;

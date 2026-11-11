@@ -129,6 +129,10 @@ A stack needs no apps. A check that only needs its own databases, such as a test
 from a stack with just `prepare`, `seed` and `env`, without building the app. With nothing running
 before the check, `doctor` takes its settings as proof for a database its seed leaves alone.
 
+verifique reaches apps at `127.0.0.1`. If an app only works at one name, such as `localhost` for
+its cookies or allowed origins, set `host` on the stack: every address verifique gives out, to the
+apps, the checker and people, then uses it.
+
 Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}`, and for each service
 `.url`, `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and
 `.prefix`: use `.url` if the app takes a database number, or `.prefix` if it prefixes its keys.
@@ -156,10 +160,10 @@ Whatever `setup` prints reaches the checker agent and its model provider, so onl
 credentials.
 
 The queue runs every step with the PATH recorded when it was installed, which `{NAME} service env`
-shows. Make sure that gives the versions production uses, such as the same Node, and tell the user if
-it doesn't. A step must change nothing outside the slot: some installers clean shared caches, such
-as `playwright install`, which deletes browser versions other projects use unless
-`PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
+shows, and `doctor` uses the same. Make sure that gives the versions production uses, such as the
+same Node, and tell the user if it doesn't. A step must change nothing outside the slot: some
+installers clean shared caches, such as `playwright install`, which deletes browser versions other
+projects use unless `PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
 
 If the product is a phone app, a stack runs its backend and the app runs on a simulator or emulator.
 A phone is limited, so start the queue with `--resource simulator=1` and name it under `needs` on the
@@ -180,7 +184,9 @@ about a remote database, and tell the user.
 
 Then submit every check once with `{NAME} submit` and read each verdict. A test suite runs whole, not
 a sample of it. Setup is finished only when every check has passed, or its only failures also happen
-without {NAME}: report those rather than skipping a test.
+without {NAME}: report those rather than skipping a test. Every failed check counts toward needs-you,
+so don't resubmit one to study a failure: investigate in a started stack, which never counts, and run
+the tests there with `{NAME} stack exec`.
 
 ## 6. Propose the rules
 
@@ -188,7 +194,8 @@ The project's agents need the rules below. Propose them to the user as a change 
 agent instructions: write them the way those instructions write their own rules, keeping what each
 one means, and put them where the instructions say such rules belong. Change every rule or
 reference the setup makes untrue, such as how to start the app or run its tests, and keep any part
-of it that still holds.
+of it that still holds. Before removing or narrowing a rule, find everything that still depends on
+it, such as tests or tools the project still runs itself.
 
 {rules}
 "#,

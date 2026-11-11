@@ -26,6 +26,8 @@ pub const KEY_SLOTS: &str = "server_slots";
 pub const KEY_FIRST_SLOT: &str = "server_first_slot";
 pub const KEY_PAUSED_BY: &str = "paused_by";
 pub const KEY_LOW_DISK: &str = "low_disk";
+/// The PATH every step runs with, so `doctor` can prove stacks with the same tools.
+pub const KEY_PATH: &str = "server_path";
 
 /// A heartbeat older than this means the server is gone, however it ended.
 pub const HEARTBEAT_LIMIT: u64 = 15;
@@ -291,6 +293,7 @@ pub fn serve(options: Options) -> Result<()> {
     store.set(KEY_PID, &process::id().to_string())?;
     store.set(KEY_SLOTS, &options.slots.to_string())?;
     store.set(KEY_FIRST_SLOT, &options.first_slot.to_string())?;
+    store.set(KEY_PATH, &std::env::var("PATH").unwrap_or_default())?;
 
     let (done_tx, done_rx) = mpsc::channel();
     let poll = options.poll;

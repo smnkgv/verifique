@@ -73,6 +73,10 @@ pub struct Stack {
     pub seeds: BTreeMap<String, String>,
     #[serde(default)]
     pub setup: Option<String>,
+    /// The name its apps are reached at, when only one works, such as `localhost` for an app whose
+    /// cookies or allowed origins name it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
 }
 
 impl Stack {
@@ -204,6 +208,12 @@ impl Config {
             if let Some((app, _)) = stack.apps.iter().find(|(_, app)| app.ready.is_some() && app.port.is_none()) {
                 bail!("app {app} in stack {name} has \"ready\" but no \"port\" to check it on");
             }
+            if let Some(host) = &stack.host {
+                let plain = !host.is_empty() && host.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-');
+                if !plain {
+                    bail!("stack {name}: host is a name such as localhost, without http:// or a port");
+                }
+            }
             let settings = stack.env.values().chain(stack.apps.values().flat_map(|app| app.env.values()));
             for value in settings.chain(&stack.seed) {
                 for kind in PUBLISHED {
@@ -305,11 +315,14 @@ impl Config {
 pub struct Values {
     pub slot: u32,
     pub ports: BTreeMap<String, u32>,
+    /// What every address verifique gives out names: the stack's `host`, or 127.0.0.1.
+    pub host: String,
     tokens: Vars,
 }
 
 impl Values {
     pub fn new(stack: Option<&Stack>, slot: u32, service_tokens: Vars) -> Self {
+        let host = stack.and_then(|stack| stack.host.clone()).unwrap_or_else(|| "127.0.0.1".to_string());
         let mut ports = BTreeMap::new();
         let mut tokens = service_tokens;
         tokens.insert("slot".to_string(), slot.to_string());
@@ -318,13 +331,17 @@ impl Values {
                 let port = base + slot;
                 ports.insert(name.clone(), port);
                 tokens.insert(format!("app.{name}.port"), port.to_string());
-                tokens.insert(format!("app.{name}.url"), format!("http://127.0.0.1:{port}"));
+                tokens.insert(format!("app.{name}.url"), format!("http://{host}:{port}"));
             }
         }
         for (name, port) in &ports {
             tokens.insert(format!("port.{name}"), port.to_string());
         }
-        Self { slot, ports, tokens }
+        Self { slot, ports, host, tokens }
+    }
+
+    pub fn url(&self, port: u32) -> String {
+        format!("http://{}:{port}", self.host)
     }
 
     pub fn tokens(&self) -> &Vars {
@@ -381,6 +398,21 @@ mod tests {
         let values = Values::new(Some(&stack), 4, Vars::new());
         assert_eq!(values.expand_for("api", "{port}"), "3604");
         assert_eq!(values.expand("{app.api.url}/x"), "http://127.0.0.1:3604/x");
+    }
+
+    #[test]
+    fn a_stack_can_name_the_host_its_apps_are_reached_at() {
+        let api = App { run: "x".to_string(), port: Some(3600), ..App::default() };
+        let stack = Stack {
+            apps: BTreeMap::from([("api".to_string(), api)]),
+            host: Some("localhost".to_string()),
+            ..Stack::default()
+        };
+        let values = Values::new(Some(&stack), 4, Vars::new());
+        assert_eq!(values.expand("{app.api.url}/x"), "http://localhost:3604/x");
+        assert_eq!(values.url(3604), "http://localhost:3604");
+        let yaml = "stacks: { s: { host: \"http://localhost\", apps: { api: { run: x } } } }\nchecks: { c: { run: y } }";
+        assert!(parse(yaml).unwrap_err().to_string().contains("without http://"));
     }
 
     #[test]

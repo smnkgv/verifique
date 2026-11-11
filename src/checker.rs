@@ -62,7 +62,7 @@ pub fn prompt(input: &Inputs) -> String {
             .values
             .ports
             .iter()
-            .map(|(name, port)| format!("- {name}: http://127.0.0.1:{port}"))
+            .map(|(name, port)| format!("- {name}: {}", input.values.url(*port)))
             .collect();
         sections.push(format!(
             "The stack is running only for you, on its own data:\n{}",

@@ -176,7 +176,7 @@ impl Instance {
     pub fn ready_urls(&self, stack: &Stack) -> Vec<String> {
         let ready = |(name, app): (&String, &App)| {
             let (ready, port) = (app.ready.as_ref()?, self.values.ports.get(name)?);
-            Some(format!("http://127.0.0.1:{port}{}", self.values.expand_for(name, ready)))
+            Some(format!("{}{}", self.values.url(*port), self.values.expand_for(name, ready)))
         };
         stack.apps.iter().filter_map(ready).collect()
     }

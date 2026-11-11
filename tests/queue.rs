@@ -908,6 +908,64 @@ fn doctor_starts_two_stacks_side_by_side_and_stops_them() {
 }
 
 #[test]
+fn doctor_proves_a_stack_with_the_tools_the_queue_runs_it_with() {
+    let world = World::new();
+    let tools = world.root.join("tools");
+    fs::create_dir_all(&tools).unwrap();
+    let marker = tools.join("queue-only-tool");
+    fs::write(&marker, "#!/bin/sh\nexit 0\n").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&marker, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let yaml = format!(
+        "stacks:\n  web:\n    prepare: [queue-only-tool]\n    apps:\n      web: {{ run: \"python3 -m http.server {{port}} --bind 127.0.0.1\", \
+         port: {}, ready: / }}\nchecks:\n  smoke: {{ stack: web, run: \"true\" }}\n",
+        world.base_port
+    );
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    let inherited = std::env::var_os("PATH").unwrap();
+    let path = std::env::join_paths(std::iter::once(tools.clone()).chain(std::env::split_paths(&inherited))).unwrap();
+    let mut server = world
+        .command(&world.repo, &["serve", "--slots", "1", "--first-slot", &FIRST_SLOT.to_string(), "--min-free-gb", "0"])
+        .env("PATH", &path)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while world.status_json()["server"] != true {
+        assert!(Instant::now() < deadline, "the queue never started");
+        sleep(Duration::from_millis(50));
+    }
+
+    let out = world.run(&["doctor"]);
+    let printed = String::from_utf8_lossy(&out.stdout);
+    let _ = world.run(&["stop-server"]);
+    let _ = server.wait();
+    assert!(out.status.success(), "{printed}\n{}", String::from_utf8_lossy(&out.stderr));
+    assert!(printed.contains("doctor passed"), "{printed}");
+}
+
+#[test]
+fn a_stack_named_at_localhost_is_given_out_at_localhost() {
+    let mut world = World::new();
+    world.use_isolation("", r#"API_URL: "{app.api.url}""#, "'true'", r#"  look: { stack: web, run: 'true' }"#);
+    let yaml = fs::read_to_string(world.repo.join("verifique.yaml")).unwrap();
+    fs::write(world.repo.join("verifique.yaml"), yaml.replace("  web:\n", "  web:\n    host: localhost\n")).unwrap();
+    world.serve(1, &[]);
+    let started = start_stack(&world, "5");
+    let job = started["job"].to_string();
+    let port = started["stacks"][0]["ports"]["api"].as_u64().unwrap();
+    assert_eq!(started["stacks"][0]["host"], "localhost");
+    let out = world.run(&["stack", "exec", &job, "--", "echo \"$API_URL\""]);
+    assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), format!("http://localhost:{port}"));
+    let printed = world.run(&["stack", "rebuild", &job]);
+    assert!(String::from_utf8_lossy(&printed.stdout).contains(&format!("api: http://localhost:{port}")));
+}
+
+#[test]
 fn doctor_catches_an_app_that_ignores_its_slots_port() {
     let world = World::new();
     let port = world.base_port;
@@ -1461,6 +1519,9 @@ fn a_command_runs_in_a_started_stack_with_its_settings_and_passes_its_exit_code_
     assert!(printed.contains(&world.database(FIRST_SLOT)), "{printed}");
     assert!(printed.contains("/worktrees/"), "{printed}");
     assert_eq!(world.run(&["stack", "exec", &job, "--", "exit", "7"]).status.code(), Some(7));
+    let stacks = world.run(&["stack", "exec", &job, "--", "cat \"$VERIFIQUE_STACKS\""]);
+    let listed: serde_json::Value = serde_json::from_slice(&stacks.stdout).unwrap();
+    assert_eq!(listed[0]["slot"].as_u64(), Some(u64::from(FIRST_SLOT)));
 
     let check = world.submit("look", "");
     let refused = world.run(&["stack", "exec", &check, "--", "true"]);
