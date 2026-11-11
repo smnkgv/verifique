@@ -135,22 +135,7 @@
                     <figcaption><strong>With verifique:</strong> agents join a queue, and checks run a few at a time</figcaption>
                 </div>
             </figure>
-            <p>Checks no longer swamp your laptop. The price is waiting your turn: in my tests on three web apps, an agent check took about five minutes, so with two running at once, the last of fifteen agents that finish together gets its verdict after about forty. If your laptop has room, let more run at once. The closest thing you already know is CI, except that this runs on your laptop, before anything is pushed.</p>
-            <h3 class="sub">Three terms the rest of this page uses</h3>
-            <dl class="terms">
-                <div>
-                    <dt>Check</dt>
-                    <dd>One round of verification on a piece of work. It can be a command, such as your test suite, or an agent check, where a second agent that didn’t write the code uses your app and compares it with your request.</dd>
-                </div>
-                <div>
-                    <dt>Slot</dt>
-                    <dd>A private place for one check to run: its own git worktree, ports for each app you list, and fresh Postgres, MongoDB or Redis databases. You get two by default, and can change the number while it runs.</dd>
-                </div>
-                <div>
-                    <dt>Verdict</dt>
-                    <dd>The result of a check: passed, failed, or blocked, which means the check couldn’t get far enough to say. If the check itself breaks, it’s an error instead.</dd>
-                </div>
-            </dl>
+            <p>Checks no longer swamp your laptop: they wait their turn, and if your laptop has room, you can let more run at once.</p>
         </section>
 
         <section id="how">
@@ -165,11 +150,11 @@
                     </li>
                     <li>
                         <h3>The work waits in the queue</h3>
-                        <p>The agent carries on with something else, and waiting spends no tokens. Repositories take turns, and a fix goes ahead of that repository’s new work.</p>
+                        <p>The agent carries on with something else, and waiting spends no tokens.</p>
                     </li>
                     <li>
                         <h3>A slot becomes free</h3>
-                        <p>verifique copies the work into the slot, builds it, creates fresh databases and starts your app. The app runs natively on your existing database servers, not in a container.</p>
+                        <p>verifique copies the work into the slot, builds it, creates fresh databases and starts your app.</p>
                     </li>
                     <li>
                         <h3>The check runs</h3>
@@ -177,7 +162,7 @@
                     </li>
                     <li>
                         <h3>A verdict comes back</h3>
-                        <p>If it failed, the agent that wrote the code gets the reason, fixes it and submits again. After three failures in a row, or one blocked check, verifique stops accepting that check from that branch and notifies you.</p>
+                        <p>If it failed, the agent that wrote the code gets the reason, fixes it and submits again. If it keeps failing, verifique stops and lets you know.</p>
                     </li>
                 </ol>
                 <figure class="panel-shot">
@@ -215,7 +200,7 @@ failed: The search bar renders, but pressing Search never filters the product li
                     <p class="verdict-text">The shop has a working search bar: typing a query and pressing Search filters the product list in place, and clearing the box restores all six products. The request is met.</p>
                 </figure>
             </div>
-            <p class="small">Both verdicts are shortened, and the screenshots are the ones the checker saved. I scripted this fix so the run could be repeated. In a separate run, a real agent got a failing test back, fixed the bug itself, and the agent check then passed, all in about three minutes.</p>
+            <p class="small">Both verdicts are shortened, and the screenshots are the ones the checker saved.</p>
 
             <h3 class="sub">What a pass takes</h3>
             <p>A command, such as your test suite, passes when it exits 0, as it would anywhere. An agent check has to do more:</p>
@@ -223,11 +208,8 @@ failed: The search bar renders, but pressing Search never filters the product li
                 <li><strong>A fresh agent.</strong> The checker starts with no memory of writing the code.</li>
                 <li><strong>Your request.</strong> Agents are told to pass it on word for word, so the checker works from what you asked for, not a summary of what was done.</li>
                 <li><strong>Proof.</strong> A pass must list its steps and what it saw, with at least one evidence file, such as a screenshot or page snapshot.</li>
-                <li><strong>Nothing else broken.</strong> The checker is told to fail a change that does what you asked but breaks what used to work.</li>
-                <li><strong>No crashes.</strong> A checker that dies, or reports nothing readable, counts as an error, not a pass.</li>
                 <li><strong>The exact content.</strong> A pass is tied to a hash of the files. Commit the same files later and it still counts. Change a line and it doesn’t.</li>
             </ul>
-            <p>So far it has been tested by me alone, on copies of my own projects with bugs I planted. A test on real bugs from a real project is under way.</p>
         </section>
 
         <section id="questions" class="questions">
@@ -259,7 +241,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>What does it cost?</summary>
-                <p>verifique is free and open source under Apache-2.0. Waiting costs nothing, and so does a check that’s only a command. An agent check is an ordinary session of your coding agent, on your own plan: the sample shop’s two checks cost about 50 cents together, and a real app costs more. Connecting a project is a one-off: it cost $5 to $11 of agent time on three projects, and I didn’t record it on two larger ones.</p>
+                <p>verifique is free and open source under Apache-2.0. Waiting costs nothing, and so does a check that’s only a command. An agent check is an ordinary session of your coding agent, on your own plan: the sample shop’s two checks cost about 50 cents together, and a real app costs more. Connecting a project is a one-off: it cost $5 to $11 of agent time on three projects.</p>
             </details>
             <details>
                 <summary>Does my code leave my laptop?</summary>
@@ -267,7 +249,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>Is it safe to let checks run unattended?</summary>
-                <p>Treat a check like starting your app yourself. The checking agent gets the browser and its own job folder, plus whatever your own agent settings already allow, with no permission bypass. A check uses your project’s <code>.env</code>, so anything in there is live: it can send real email or charge a real card, so keep test keys in it, and point cloud credentials such as <code>~/.aws</code> at nothing. Postgres and MongoDB databases are only created and dropped if they’re named <code>verifique_*</code>. On Redis, each slot uses the numbered database that matches it and clears it for every check, so keep nothing else in those.</p>
+                <p>Treat a check like starting your app yourself. The checking agent gets the browser and its own job folder, plus whatever your own agent settings already allow, with no permission bypass. Checks use your project’s <code>.env</code>, so keep test keys in it, and point cloud credentials such as <code>~/.aws</code> at nothing. verifique only creates and drops databases named <code>verifique_*</code>.</p>
             </details>
             <details>
                 <summary>Is it for teams?</summary>
@@ -275,7 +257,7 @@ failed: The search bar renders, but pressing Search never filters the product li
             </details>
             <details>
                 <summary>What does it work with?</summary>
-                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis, which verifique isolates for each check through a small add-on you install with <code>verifique plugin add</code>. Any agent that can run a terminal command can submit work, but only Claude Code has been tested as the checker. Web apps have been tested on three products and iOS on one, and Android has passed one check after a manual fix. It runs on macOS, Linux and Windows, on ARM and Intel or AMD processors. The status-bar panel is an add-on too, which <code>verifique panel install</code> puts in place on any of the three.</p>
+                <p>Any framework whose app starts from a terminal command and keeps its data in Postgres, MongoDB or Redis. Any agent that can run a terminal command can submit work, and Claude Code is the checker it has been tested with. It has been tried on web and iOS apps, and Android is experimental.</p>
             </details>
         </section>
     </div>
@@ -286,7 +268,7 @@ failed: The search bar renders, but pressing Search never filters the product li
                 <p class="label">Get started</p>
                 <h2>Connect your project in four steps</h2>
                 <ol class="start">
-                    <li><strong>Install it.</strong> Pick your system and run the commands here: verifique itself, the queue, support for the databases your project uses, and the status-bar panel if you want it. The queue then runs in the background and starts when you log in.</li>
+                    <li><strong>Install it.</strong> Run the commands for your system. They install verifique, start the queue in the background and add support for your databases. The last line adds the status-bar panel, so leave it out if you don’t want it.</li>
                     <li><strong>Connect your project.</strong> Run <code>verifique init</code> and give the output to your coding agent. It reads your code and writes <code>verifique.yaml</code>: how to start your app, what two copies of it would fight over, and which checks to run.</li>
                     <li><strong>Prove it.</strong> <code>verifique doctor</code> starts two copies side by side and checks that each one used its own databases.</li>
                     <li><strong>Tell your agents.</strong> Add the lines from <code>verifique init --rules</code> to your project’s agent instructions, so they know how to submit their work.</li>
@@ -308,7 +290,7 @@ failed: The search bar renders, but pressing Search never filters the product li
 verifique service install
 verifique plugin add postgres redis
 verifique panel install</code></pre>
-                        <p class="os-note">Installing by the full name tells Homebrew to trust this one formula. Without Homebrew: <code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh</code>. The panel is signed and notarized by Apple, and also comes as a download for <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-arm64.dmg">Apple Silicon</a> or <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-x64.dmg">Intel</a>.</p>
+                        <p class="os-note">Without Homebrew: <code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh</code>. The panel also comes as a download for <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-arm64.dmg">Apple Silicon</a> or <a href="https://github.com/smnkgv/verifique/releases/latest/download/verifique-panel-macos-x64.dmg">Intel</a>.</p>
                     </div>
                     <div class="os-panel" id="os-linux" role="tabpanel" aria-labelledby="tab-linux">
                         <p class="os-name">Linux, in a terminal</p>
@@ -318,7 +300,7 @@ sudo apt update &amp;&amp; sudo apt install verifique
 verifique service install
 verifique plugin add postgres redis
 verifique panel install</code></pre>
-                        <p class="os-note">That’s Debian and Ubuntu, from verifique’s signed apt repository. On Fedora and RHEL: <code>sudo curl -fsSL -o /etc/yum.repos.d/verifique.repo https://smnkgv.github.io/verifique-packages/rpm/verifique.repo</code>, then <code>sudo dnf install verifique</code>. On Arch, from its signed pacman repository, as the <a href="https://github.com/smnkgv/verifique#install">README</a> shows. Anywhere else: <code>curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh | sh</code>. The queue runs as a systemd user service. The panel needs WebKitGTK and an AppIndicator library, on Debian and Ubuntu <code>sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1</code>.</p>
+                        <p class="os-note">That’s Debian and Ubuntu. Fedora, RHEL and Arch have their own repositories, and an install script covers anything else: the <a href="https://github.com/smnkgv/verifique#install">README</a> has their commands. The panel needs WebKitGTK and an AppIndicator library, on Debian and Ubuntu <code>sudo apt install libwebkit2gtk-4.1-0 libayatana-appindicator3-1</code>.</p>
                     </div>
                     <div class="os-panel" id="os-windows" role="tabpanel" aria-labelledby="tab-windows">
                         <p class="os-name">Windows, in PowerShell</p>
@@ -326,7 +308,7 @@ verifique panel install</code></pre>
 verifique service install
 verifique plugin add postgres redis
 verifique panel install</code></pre>
-                        <p class="os-note">verifique also needs <a href="https://git-scm.com/download/win">Git for Windows</a> (<code>winget install Git.Git</code>), for git and the <code>sh</code> it runs your project’s commands with. With Scoop: <code>scoop bucket add verifique https://github.com/smnkgv/scoop-verifique</code>, then <code>scoop install verifique</code>.</p>
+                        <p class="os-note">verifique also needs <a href="https://git-scm.com/download/win">Git for Windows</a> (<code>winget install Git.Git</code>). With Scoop instead: <code>scoop bucket add verifique https://github.com/smnkgv/scoop-verifique</code>, then <code>scoop install verifique</code>.</p>
                     </div>
                 </figure>
                 <details class="sample">
@@ -365,8 +347,8 @@ checks:
     <section class="closing">
         <div>
             <h2>New and small</h2>
-            <p>I run fifteen to twenty-five coding agents at a time on one laptop. Checking their work had become most of my day and I couldn’t find a tool for it, so I built this. Tools exist for parts of it: <a href="https://conductor.build">Conductor</a> and <a href="https://github.com/JohnWayneeee/agentgc">agentgc</a> give each worktree its own ports, <a href="https://github.com/yongjip/mergetrain">mergetrain</a> queues checks before you push, and agents such as Claude Code check their own work in a browser. I couldn’t find one that does all of it on a laptop, with a different agent signing off. If you know one, tell me.</p>
-            <p>It’s new and it will have rough edges. Its tests and the sample shop pass on macOS, Linux and Windows alike, but the copies of real web and iOS apps it has been tried on so far all ran on Macs, and only with Claude Code as the checker. If you try it, on any of the three, tell me where it breaks.</p>
+            <p>I run fifteen to twenty-five coding agents at a time on one laptop. Checking their work had become most of my day. Tools such as <a href="https://conductor.build">Conductor</a> cover parts of it, but I couldn’t find one that does all of it on a laptop, with a different agent signing off, so I built this. If you know one, tell me.</p>
+            <p>It’s new and it will have rough edges. Its tests pass on macOS, Linux and Windows, and the real apps it has been tried on so far ran on Macs, with Claude Code as the checker. If you try it, tell me where it breaks.</p>
             <p class="signature">Hlib Semeniuk · <a href="https://github.com/smnkgv/verifique/issues">Open an issue</a></p>
         </div>
         <div>
