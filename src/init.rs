@@ -11,9 +11,10 @@ Verification goes through {NAME}, so that agents never fight over this machine.
 -   Never start the app yourself, even to investigate. To reproduce a bug or try something by hand,
     run `{NAME} stack start --minutes 30`. It waits for a slot and prints the app's addresses and
     logs. Run the project's own commands against it, such as to load data, with
-    `{NAME} stack exec <job> -- <command>`. Run `{NAME} stack stop <job>` as soon as you are done,
-    because everyone else is waiting for that slot. A started stack has the code as it was when it
-    started: stop it and start a new one to see changes.
+    `{NAME} stack exec <job> -- <command>`. To see your later changes in it, run
+    `{NAME} stack rebuild <job>`: it keeps the stack's data, and `--fresh` empties and refills its
+    databases, which a change to their structure needs. Run `{NAME} stack stop <job>` as soon as you
+    are done, because everyone else is waiting for that slot.
 -   Never stop processes by name or pattern, such as `pkill -f`. Other agents' work runs on this
     machine under the same names.
 -   To verify work, run:

@@ -206,6 +206,7 @@ To use the app by hand in a slot of its own, with no check:
 
 ```bash
 verifique stack start --minutes 30
+verifique stack rebuild <job>   # your latest work, keeping its data; --fresh empties it
 verifique stack stop <job>
 ```
 

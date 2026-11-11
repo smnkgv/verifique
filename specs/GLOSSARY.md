@@ -113,6 +113,10 @@ come free.
 : The path verifique requests on an app's port to know it has started. It must prove the app works,
 not only that a port is open.
 
+**Rebuild**
+: Putting newer work into a started stack's slot with `verifique stack rebuild`. It keeps the
+stack's slot, addresses and data, unless `--fresh` asks for new databases.
+
 **Replaced**
 : The end of a queued job that a newer submission of the same check from the same branch took the
 place of. Not a verdict.

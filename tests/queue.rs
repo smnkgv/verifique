@@ -1474,6 +1474,115 @@ fn a_command_runs_in_a_started_stack_with_its_settings_and_passes_its_exit_code_
     assert!(!exec_file.exists());
 }
 
+/// A stack whose build copies `served.txt` to the page it serves, and whose database has a table.
+/// A `served.txt` that says "broken" fails the build.
+fn up_for_a_rebuild(world: &World) {
+    let port = world.base_port;
+    let yaml = format!(
+        r#"
+services:
+  postgres: {{ url: {POSTGRES} }}
+stacks:
+  web:
+    prepare:
+      - '! grep -q broken served.txt && cp served.txt built.txt'
+    seed: psql "$DATABASE_URL" -qc 'create table items (id int)'
+    env:
+      DATABASE_URL: "{{postgres.url}}"
+    apps:
+      web: {{ run: "python3 -m http.server {{port}} --bind 127.0.0.1", port: {port}, ready: /built.txt }}
+checks:
+  look: {{ stack: web, run: 'true' }}
+"#
+    );
+    fs::write(world.repo.join("verifique.yaml"), yaml).unwrap();
+    fs::write(world.repo.join("served.txt"), "one").unwrap();
+}
+
+fn served(port: u64) -> String {
+    let out = Command::new("curl").args(["-fsS", &format!("http://127.0.0.1:{port}/built.txt")]).output().unwrap();
+    String::from_utf8_lossy(&out.stdout).to_string()
+}
+
+fn items(world: &World, job: &str) -> String {
+    let out = world.run(&["stack", "exec", job, "--", "psql \"$DATABASE_URL\" -Atc 'select count(*) from items'"]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+fn rebuild(world: &World, job: &str, extra: &[&str]) -> Output {
+    let mut args = vec!["stack", "rebuild", job, "--json"];
+    args.extend(extra);
+    world.run(&args)
+}
+
+#[test]
+fn a_started_stack_rebuilds_with_the_latest_work_and_keeps_its_data_and_address() {
+    let mut world = World::new();
+    up_for_a_rebuild(&world);
+    world.serve(1, &[]);
+    let started = start_stack(&world, "5");
+    let job = started["job"].to_string();
+    let port = started["stacks"][0]["ports"]["web"].as_u64().unwrap();
+    assert_eq!(served(port), "one");
+    let insert = world.run(&["stack", "exec", &job, "--", "psql \"$DATABASE_URL\" -qc 'insert into items values (1)'"]);
+    assert!(insert.status.success(), "{}", String::from_utf8_lossy(&insert.stderr));
+
+    fs::write(world.repo.join("served.txt"), "two").unwrap();
+    let out = rebuild(&world, &job, &["--minutes", "9"]);
+    assert!(out.status.success(), "{}\n{}", String::from_utf8_lossy(&out.stderr), world.job_logs(&job));
+    let rebuilt: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(rebuilt["stacks"][0]["ports"]["web"].as_u64(), Some(port));
+    assert!(rebuilt["seconds_left"].as_u64().unwrap() > 8 * 60, "{rebuilt}");
+    assert_eq!(served(port), "two");
+    assert_eq!(items(&world, &job), "1");
+
+    let fresh = rebuild(&world, &job, &["--fresh"]);
+    assert!(fresh.status.success(), "{}\n{}", String::from_utf8_lossy(&fresh.stderr), world.job_logs(&job));
+    assert_eq!(items(&world, &job), "0");
+    assert_eq!(job_status(&world, &job), "running");
+}
+
+#[test]
+fn a_failed_rebuild_keeps_the_slot_and_data_for_the_next_one() {
+    let mut world = World::new();
+    up_for_a_rebuild(&world);
+    world.serve(1, &[]);
+    let started = start_stack(&world, "5");
+    let job = started["job"].to_string();
+    let port = started["stacks"][0]["ports"]["web"].as_u64().unwrap();
+    let insert = world.run(&["stack", "exec", &job, "--", "psql \"$DATABASE_URL\" -qc 'insert into items values (1)'"]);
+    assert!(insert.status.success(), "{}", String::from_utf8_lossy(&insert.stderr));
+
+    fs::write(world.repo.join("served.txt"), "broken").unwrap();
+    let out = rebuild(&world, &job, &[]);
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("prepare failed"), "{}", String::from_utf8_lossy(&out.stderr));
+    sleep(Duration::from_millis(500));
+    assert_eq!(job_status(&world, &job), "running");
+    assert_eq!(served(port), "");
+
+    fs::write(world.repo.join("served.txt"), "three").unwrap();
+    let out = rebuild(&world, &job, &[]);
+    assert!(out.status.success(), "{}\n{}", String::from_utf8_lossy(&out.stderr), world.job_logs(&job));
+    assert_eq!(served(port), "three");
+    assert_eq!(items(&world, &job), "1");
+
+    let check = world.submit("look", "");
+    let refused = world.run(&["stack", "rebuild", &check]);
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("is a check, not a started stack"));
+    let elsewhere = world.root.join("elsewhere");
+    fs::create_dir_all(&elsewhere).unwrap();
+    git(&elsewhere, &["init", "-q", "-b", "main"]);
+    let refused = world.run_in(&elsewhere, &["stack", "rebuild", &job]);
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("rebuild it from a checkout of that repository"));
+
+    assert!(world.run(&["stack", "stop", &job]).status.success());
+    until_status(&world, &job, "stopped");
+    let after = world.run(&["stack", "rebuild", &job]);
+    assert!(String::from_utf8_lossy(&after.stderr).contains("no longer up"));
+}
+
 #[test]
 fn a_stack_with_no_apps_gives_its_checks_their_own_database() {
     let mut world = World::new();

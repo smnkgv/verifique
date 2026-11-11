@@ -49,6 +49,15 @@ const SCHEMA: &str = "
         PRIMARY KEY (repo, branch, check_name)
     );
     CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS rebuilds (
+        job INTEGER PRIMARY KEY,
+        commit_sha TEXT NOT NULL,
+        tree TEXT NOT NULL,
+        fresh INTEGER NOT NULL,
+        minutes REAL,
+        status TEXT NOT NULL DEFAULT 'requested',
+        summary TEXT
+    );
 ";
 
 #[derive(Clone, Debug, Serialize)]
@@ -88,6 +97,17 @@ pub struct NeedsYou {
     pub check: String,
     pub failures: u32,
     pub reason: String,
+}
+
+/// A started stack asked to take newer work. `status` goes requested, running, then done or failed.
+#[derive(Debug)]
+pub struct Rebuild {
+    pub commit: String,
+    pub tree: String,
+    pub fresh: bool,
+    pub minutes: Option<f64>,
+    pub status: String,
+    pub summary: Option<String>,
 }
 
 pub struct Submission<'a> {
@@ -297,6 +317,62 @@ impl Store {
         Ok(self
             .db
             .query_row("SELECT release_requested FROM jobs WHERE id = ?1", [id], |row| row.get(0))?)
+    }
+
+    /// False while an earlier rebuild of the same stack is still waiting or running.
+    pub fn request_rebuild(&mut self, id: i64, commit: &str, tree: &str, fresh: bool, minutes: Option<f64>) -> Result<bool> {
+        let tx = self.db.transaction()?;
+        tx.execute("DELETE FROM rebuilds WHERE job = ?1 AND status IN ('done', 'failed')", [id])?;
+        let added = tx.execute(
+            "INSERT OR IGNORE INTO rebuilds (job, commit_sha, tree, fresh, minutes) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, commit, tree, fresh, minutes],
+        )?;
+        tx.commit()?;
+        Ok(added == 1)
+    }
+
+    pub fn rebuild(&self, id: i64) -> Result<Option<Rebuild>> {
+        Ok(self
+            .db
+            .query_row(
+                "SELECT commit_sha, tree, fresh, minutes, status, summary FROM rebuilds WHERE job = ?1",
+                [id],
+                |row| {
+                    Ok(Rebuild {
+                        commit: row.get(0)?,
+                        tree: row.get(1)?,
+                        fresh: row.get(2)?,
+                        minutes: row.get(3)?,
+                        status: row.get(4)?,
+                        summary: row.get(5)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    /// The waiting rebuild of a stack, now marked as running, if there is one.
+    pub fn take_rebuild(&self, id: i64) -> Result<Option<Rebuild>> {
+        let taken = self
+            .db
+            .execute("UPDATE rebuilds SET status = 'running' WHERE job = ?1 AND status = 'requested'", [id])?;
+        if taken == 0 {
+            return Ok(None);
+        }
+        self.rebuild(id)
+    }
+
+    pub fn end_rebuild(&self, id: i64, status: &str, summary: &str) -> Result<()> {
+        self.db
+            .execute("UPDATE rebuilds SET status = ?1, summary = ?2 WHERE job = ?3", params![status, summary, id])?;
+        Ok(())
+    }
+
+    /// The content a started stack now runs, after a rebuild put newer work in its slot.
+    pub fn set_content(&self, id: i64, commit: &str, tree: &str) -> Result<()> {
+        self.db
+            .execute("UPDATE jobs SET commit_sha = ?1, tree = ?2 WHERE id = ?3", params![commit, tree, id])?;
+        Ok(())
     }
 
     pub fn prioritise(&self, id: i64) -> Result<bool> {

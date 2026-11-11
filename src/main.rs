@@ -176,6 +176,19 @@ enum StackAction {
     },
     /// Stop a started stack and give its slot back
     Stop { job: i64 },
+    /// Rebuild a started stack in its slot with the work here, keeping its data and addresses
+    Rebuild {
+        job: i64,
+        /// Empty its databases and fill them again, as a new stack would, such as after a change
+        /// to their structure
+        #[arg(long)]
+        fresh: bool,
+        /// When it stops by itself from now on [default: as when it started]
+        #[arg(long)]
+        minutes: Option<f64>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Run a command in a started stack's slot with its settings, as its seed runs
     Exec {
         job: i64,
@@ -373,8 +386,63 @@ fn print_hold(job: &Job, until: u64, as_json: bool) -> Result<()> {
     }
     println!("\nlogs: {}", dir.display());
     println!("run a command in it with: {} stack exec {} -- <command>", paths::NAME, job.id);
+    println!("rebuild it with your latest work with: {} stack rebuild {}", paths::NAME, job.id);
     println!("stop it with: {} stack stop {}", paths::NAME, job.id);
     Ok(())
+}
+
+/// Put the work here into a started stack's slot, and return once it is up again.
+fn stack_rebuild(id: i64, fresh: bool, minutes: Option<f64>, as_json: bool) -> Result<ExitCode> {
+    if minutes.is_some_and(|minutes| !minutes.is_finite() || minutes <= 0.0) {
+        bail!("--minutes must be more than zero");
+    }
+    let cwd = std::env::current_dir()?;
+    let mut store = Store::open()?;
+    let job = store.get(id)?.ok_or_else(|| anyhow!("no job {id}"))?;
+    if job.plan.hold_minutes.is_none() {
+        bail!("job {id} is a check, not a started stack");
+    }
+    match (job.status.as_str(), job.hold_until) {
+        ("running", Some(_)) => {}
+        ("queued" | "running", _) => bail!("stack {id} is not up yet: `{} stack start` prints its addresses once it is", paths::NAME),
+        (status, _) => bail!("stack {id} is no longer up ({status}): start a new one with `{} stack start`", paths::NAME),
+    }
+    let repo = git::repo_root(&cwd)?;
+    if repo != job.repo {
+        bail!("stack {id} runs {}, not {repo}: rebuild it from a checkout of that repository", job.repo);
+    }
+    let snapshot = git::snapshot(&cwd)?;
+    if !store.request_rebuild(id, &snapshot.commit, &snapshot.tree, fresh, minutes)? {
+        bail!("stack {id} is already rebuilding: wait for that to finish");
+    }
+    warn_if_no_server(&store);
+    let data = if fresh { "with fresh databases" } else { "keeping its data" };
+    eprintln!("stack {id}: rebuilding with {} {data}", &snapshot.tree[..9]);
+    loop {
+        let rebuild = store.rebuild(id)?;
+        let job = store.get(id)?.ok_or_else(|| anyhow!("no job {id}"))?;
+        match rebuild.as_ref().map(|rebuild| rebuild.status.as_str()) {
+            Some("done") => {
+                print_hold(&job, job.hold_until.unwrap_or_default(), as_json)?;
+                return Ok(ExitCode::SUCCESS);
+            }
+            Some("failed") => {
+                let why = rebuild.and_then(|rebuild| rebuild.summary).unwrap_or_default();
+                eprintln!("rebuild failed: {why}");
+                eprintln!("logs: {}", paths::job_dir(id).display());
+                eprintln!(
+                    "stack {id} keeps its slot and data, with its apps stopped: fix it and run `{} stack rebuild {id}` again",
+                    paths::NAME
+                );
+                return Ok(ExitCode::from(exit_code("error")));
+            }
+            _ if TERMINAL.contains(&job.status.as_str()) => {
+                eprintln!("{}: {}", job.status, job.summary.unwrap_or_default());
+                return Ok(ExitCode::from(exit_code("error")));
+            }
+            _ => sleep(Duration::from_millis(500)),
+        }
+    }
 }
 
 /// Run a command in a started stack the way its seed runs, and pass its exit code on.
@@ -704,6 +772,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Commands::Stack { action } => match action {
             StackAction::Start { name, minutes, seed, json, args } => stack_start(name, minutes, seed, args, json),
             StackAction::Stop { job } => stack_stop(job),
+            StackAction::Rebuild { job, fresh, minutes, json } => stack_rebuild(job, fresh, minutes, json),
             StackAction::Exec { job, command } => stack_exec(job, command),
         },
         Commands::Cancel { job } => cancel(job),

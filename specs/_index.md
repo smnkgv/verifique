@@ -7,7 +7,7 @@ for the words. When you add, retire or re-review a spec, update its line here in
 |------|--------|------------|----------------|
 | [hand-off-and-verdicts](hand-off-and-verdicts.md) | active | best-effort | Handing work over with `submit`, waiting with `wait`, verdicts tied to content, replacing and cancelling, exit codes |
 | [slots-and-isolation](slots-and-isolation.md) | active | best-effort | Each check's own copy of the code, own ports and own databases, settings over `.env`, several slots for one check |
-| [stacks](stacks.md) | active | best-effort | What a stack is and how it comes up, and starting one by hand with `stack start`, `stack exec` and `stack stop` |
+| [stacks](stacks.md) | active | best-effort | What a stack is and how it comes up, and starting one by hand with `stack start`, `stack exec`, `stack rebuild` and `stack stop` |
 | [checks](checks.md) | active | best-effort | Command checks, agent checks and their instructions, proof and evidence, time limits, needs-you, limited resources |
 | [setup](setup.md) | active | best-effort | Installing, the `init` guide and the rules it proposes, and what `doctor` proves |
 | [queue](queue.md) | active | best-effort | One queue per machine, the background service, slot count, who goes next, the disk floor, notifications, the panel |

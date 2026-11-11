@@ -80,6 +80,9 @@ content, and a verdict with proof.
     A person can ask for one of the project's `seeds` to fill it with real data; checks never do.
     `stack exec` runs a command in it with its settings, as its seed runs, for the project's own
     tools that need the apps up.
+    `stack rebuild` puts newer work into it, keeping its slot and data, so chasing a bug doesn't
+    mean queueing again and losing what reproduced it. It rebuilds the production build rather than
+    running a dev server, so what an agent sees by hand is what a check sees.
 21. **Slots keep their worktrees,** and `clean` removes them. When free disk falls below a floor, 5 GB by default, the copies no check is using are deleted, and checks wait if that isn't enough.
 22. **An installed background service.** Installing it records the `PATH` the user works with: the
     login shell's on macOS and Linux, the terminal's on Windows. A command shows what the service sees.

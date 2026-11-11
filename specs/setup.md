@@ -79,8 +79,9 @@ queue behind the user's back.
 8. `verifique init --rules` prints only the rules.
 9. The rules tell a project's agents:
     -   Never start the app yourself, even to investigate: use `verifique stack start`, run project
-        commands in it with `verifique stack exec`, and stop it with `verifique stack stop` as soon
-        as you are done. Start a new one to see changes.
+        commands in it with `verifique stack exec`, see later changes in it with
+        `verifique stack rebuild`, with `--fresh` after a change to the databases' structure, and
+        stop it with `verifique stack stop` as soon as you are done.
     -   Never stop processes by name or pattern.
     -   Submit with the user's original request, word for word, and a brief on how to reach the
         change. Anything after `--` goes on the end of the check's command.

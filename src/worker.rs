@@ -15,7 +15,7 @@ use crate::instance::{copy_env_files, Instance};
 use crate::paths;
 use crate::process::{self, Ended, Env, Options};
 use crate::server::now;
-use crate::store::{Job, Store};
+use crate::store::{Job, Rebuild, Store};
 
 /// What a verifier reports. Only an agent has to fill in more than the verdict.
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -318,11 +318,46 @@ impl Run<'_> {
     }
 
     /// Keep the stack up for an investigation until it is stopped or its time runs out.
+    fn restart_timer(&self, minutes: f64) -> Result<u64, Halt> {
+        let until = now() + (minutes * 60.0).ceil() as u64;
+        self.store.set_hold_until(self.job.id, until)?;
+        Ok(until)
+    }
+
+    /// Newer work in the same slot, keeping its databases unless asked for fresh ones. A failure
+    /// leaves the apps stopped, for the next rebuild to bring back.
+    fn rebuild(&mut self, instances: &mut [Instance], request: &Rebuild) -> Result<(), Halt> {
+        for instance in instances.iter_mut() {
+            instance.stop();
+        }
+        let repo = Path::new(&self.job.repo);
+        git::checkout_slot(repo, &self.worktree, &request.commit)?;
+        if let Some(stack) = &self.job.plan.stack {
+            copy_env_files(stack, repo, &self.worktree)?;
+            for instance in instances.iter_mut() {
+                instance.load_env_files(stack, &self.worktree);
+            }
+        }
+        self.timed("prepare", |run| run.prepare(&instances[0]))?;
+        if request.fresh {
+            self.timed("seed", |run| run.fresh_data(instances))?;
+        }
+        self.timed("stack", |run| run.start_stacks(instances))?;
+        if request.fresh {
+            self.timed("setup", |run| run.setup(instances))?;
+        }
+        self.store.set_content(self.job.id, &request.commit, &request.tree)?;
+        self.describe_stacks(instances)?;
+        self.write_exec(&instances[0])?;
+        Ok(())
+    }
+
     fn hold(&mut self, instances: &mut [Instance], minutes: f64) -> Result<Finished, Halt> {
         self.describe_stacks(instances)?;
         let exec = self.write_exec(&instances[0])?;
-        let until = now() + (minutes * 60.0).ceil() as u64;
-        self.store.set_hold_until(self.job.id, until)?;
+        let mut minutes = minutes;
+        let mut until = self.restart_timer(minutes)?;
+        let mut down = false;
         let summary = loop {
             if self.stop.load(Ordering::Relaxed) {
                 break "ended because the server stopped".to_string();
@@ -333,7 +368,28 @@ impl Run<'_> {
             if now() >= until {
                 break format!("expired after {minutes} minutes");
             }
-            if !instances.iter_mut().all(Instance::running) {
+            if let Some(request) = self.store.take_rebuild(self.job.id)? {
+                minutes = request.minutes.unwrap_or(minutes);
+                let (status, summary) = match self.rebuild(instances, &request) {
+                    Ok(()) => ("done", String::new()),
+                    Err(Halt::Failed(summary)) => ("failed", summary),
+                    Err(Halt::Interrupted) => {
+                        self.store.end_rebuild(self.job.id, "failed", "the server stopped")?;
+                        break "ended because the server stopped".to_string();
+                    }
+                };
+                down = status == "failed";
+                if down {
+                    for instance in instances.iter_mut() {
+                        instance.stop();
+                    }
+                }
+                // Whoever waits on the rebuild reads the new time once it ends.
+                until = self.restart_timer(minutes)?;
+                self.store.end_rebuild(self.job.id, status, &summary)?;
+                continue;
+            }
+            if !down && !instances.iter_mut().all(Instance::running) {
                 break "ended because the stack stopped: see its logs".to_string();
             }
             sleep(HOLD_POLL);

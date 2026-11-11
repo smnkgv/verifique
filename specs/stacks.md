@@ -1,10 +1,10 @@
 ---
 status: active
-last-reviewed: 2026-11-09
+last-reviewed: 2026-11-11
 owner: Hlib Semeniuk
 confidence: best-effort
 related: [slots-and-isolation, checks, databases, queue, setup]
-glossary_terms: [Stack, Started stack, App, Base port, Ready path, Prepare, Seed, Extra seed, Setup step, Slot, Job, .env]
+glossary_terms: [Stack, Started stack, Rebuild, App, Base port, Ready path, Prepare, Seed, Extra seed, Setup step, Slot, Job, .env]
 ---
 
 # Stacks and started stacks
@@ -26,6 +26,11 @@ An agent reproducing a bug used to start the app itself, and so collided with ev
 the machine. A started stack goes through the same queue with the same isolation, so investigating
 is as safe as checking. It stops by itself, so a forgotten stack or a crashed agent cannot jam the
 queue, and it never takes the last slot, so checks keep moving.
+
+An agent chasing a bug changes the code and needs to see the change. Rebuilding a started stack keeps
+its slot, so the agent doesn't queue again, and keeps the data it set up to reproduce the bug. It
+rebuilds the production build rather than running a dev server, so what the agent sees by hand is
+what a check sees.
 
 People sometimes need real data to investigate. A started stack can load it. Checks never do, so
 their verdicts stay reproducible.
@@ -68,8 +73,8 @@ their verdicts stay reproducible.
 13. Once the stack is up, it prints each app's address, what `setup` printed, where the logs are, and
     how to run a command in it and stop it. `--json` prints the same as JSON.
 14. If the stack ends before it comes up, `stack start` prints why and exits 2.
-15. A started stack has the code as it was when it started, committed or not. To see later changes,
-    stop it and start a new one.
+15. A started stack has the code as it was when it started, committed or not, until it is rebuilt
+    (see below).
 16. It gives no verdict, and never affects needs-you.
 17. It stops when its time runs out, when `verifique stack stop <job>` or `verifique cancel <job>` is
     run, when one of its apps exits, or when the queue stops or restarts.
@@ -97,6 +102,24 @@ their verdicts stay reproducible.
 26. The settings `stack exec` uses include the values from `.env`, so they are kept readable only by
     the user, and removed when the stack stops.
 
+### Rebuilding a started stack
+
+27. `verifique stack rebuild <job>` puts the work in the folder it is run from, committed or not,
+    into the started stack's slot, runs the stack's `prepare` steps again and restarts its apps. It
+    returns once every ready path answers, and prints what `stack start` prints. The stack keeps its
+    slot, its addresses and its databases.
+28. `--fresh` also empties the slot's databases and runs the seed, and any extra seed the stack
+    started with, then the `setup` steps, as a new stack would. A change to the databases' structure
+    needs it, because the seed builds them and only ever runs on empty ones.
+29. Each rebuild starts the stack's time again: the minutes it started with, or `--minutes`, which
+    then holds for later rebuilds too.
+30. If the rebuild fails, it says why and where the logs are, and exits 2. The stack keeps its slot,
+    its data and its time, with its apps stopped, until a rebuild brings them back or it stops.
+31. It is refused on a check, before the stack is up, after it has stopped, while another rebuild of
+    it is under way, and from a checkout of a different repository.
+32. The stack's settings are those `verifique.yaml` had when it started: a change to them needs a new
+    stack.
+
 ## Never
 
 -   A started stack never gives a verdict.
@@ -106,7 +129,9 @@ their verdicts stay reproducible.
 
 -   With every slot taken by started stacks, checks wait until one stops or its time runs out.
 
--   A started stack does not follow the work: it has the code from when it started.
+-   A started stack follows the work only when it is rebuilt, and each rebuild waits for the
+    project's own build.
+-   A stop asked for during a rebuild takes effect once the rebuild ends.
 -   A started stack ends when the queue restarts, and whoever was using it loses it.
 
 ## Open questions
