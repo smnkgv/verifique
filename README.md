@@ -222,7 +222,13 @@ cargo build --release
 cargo test
 ```
 
-Then put `target/release/verifique` on your `PATH`, and if your queue runs this build, run
+Then put the binary on your `PATH`. On macOS or Linux, for example:
+
+```bash
+ln -s "$PWD/target/release/verifique" ~/.local/bin/verifique
+```
+
+On Windows, add `target\release` to your user `PATH`. If your queue runs this build, run
 `verifique service restart` after each build. `panel/bundle.sh` builds the panel on macOS,
 `panel/bundle-windows.ps1` on Windows and `panel/bundle-linux.sh` on Linux. The tests need `git`,
 `python3`, `psql`, `mongosh` and `redis-cli`, and running Postgres, Mongo and Redis.

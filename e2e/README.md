@@ -13,7 +13,9 @@ These tests treat verifique as a stranger or an agent does: the real binary, rea
 | Scoreboard | A real agent catches planted bugs and passes good changes | `python3 e2e/shop_cases.py` | About a dollar |
 | Blind setup | A fresh agent connects a project with nothing but `verifique init` | `sh e2e/blind.sh <copy>` | $5 to $10 |
 
-`sh e2e/run.sh` runs the free tiers, and `sh e2e/run.sh real` adds the shop and the scoreboard. To run the free tiers on a clean Linux machine:
+`sh e2e/run.sh` runs the free tiers, and `sh e2e/run.sh real` adds the shop and the scoreboard.
+`node e2e/panel/picture.mjs` redraws the pictures of the panel on the site and in the README from the
+same page, after the panel changes. To run the free tiers on a clean Linux machine:
 
 ```bash
 docker build -f e2e/Dockerfile -t verifique-e2e . && docker run --rm verifique-e2e
