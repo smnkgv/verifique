@@ -1,7 +1,5 @@
 # Design
 
-Licensed under Apache-2.0. The project is owned personally by its author.
-
 ## The problem
 
 One laptop runs swarms of coding agents across several repositories. Verifying locally gives the
@@ -22,8 +20,6 @@ content, and a verdict with proof.
 2. **The tool does the isolation.** A project declares its apps and the database servers they use in
    one short file. The tool gives each slot its own ports and databases, starts the apps and cleans
    up. A stack needs no apps, so a suite that only needs its own databases doesn't build the app.
-   Nothing runs on one before its check, so `doctor` takes its settings as proof for a database its
-   seed leaves alone, and says so.
 3. **Database servers are a prerequisite.** The tool uses what is already there, however it was
    installed, and never installs one. It only ever creates and drops databases named `verifique_*`.
 4. **Setup by the user's own agent.** `init` prints a guide for writing the project file. The agent
@@ -46,9 +42,9 @@ content, and a verdict with proof.
 9. **A built-in checker template** drives any agent command. Plain commands work too.
 10. **Each check starts clean.** Its databases are created fresh, the project's `seed` runs on them,
     and they are dropped afterwards. Seeding runs every time so data always matches the code. A
-    slot's ports must be free as well: a process left in the job's worktree by an earlier job is
-    stopped, and anything else on one of them ends the job with an error naming it, because
-    otherwise the check would run against that process instead of the code it came to verify.
+    slot's ports must be free as well: a process an earlier job left in the slot is stopped, and
+    anything else on one of them ends the job with an error naming it, so a check never runs against
+    someone else's server.
 11. **A project `setup` step** runs once the stack is ready. Its output reaches the checker, so it
     must only ever carry throwaway credentials.
 12. **A checker runs with the user's own agent settings.** It gets a browser and can write its verdict
@@ -66,26 +62,24 @@ content, and a verdict with proof.
 16. **Fair across repositories, retries first.** Repositories take turns for free slots. Within one,
     a resubmission after a failure goes first, then oldest first. `next` overrides this for one job.
 17. **Fixed slots.** The number is set per machine and defaults to 2. `verifique slots <n>` changes it
-    while the server runs, and the status-bar panel uses the same command. Lowering it never stops a
-    running check. A restart of the service goes back to the installed number.
+    while the server runs, from the CLI or the panel. Lowering it never stops a running check, and a
+    restart goes back to the installed number.
 18. **A check can take several slots,** for a suite with several workers. It gets as many as the
     machine has, sharing one build, and the scheduler holds slots back so it cannot starve.
 19. **Apps use the project's own `.env`,** as a user would. Slot values override it. Installing warns
     about the risk, and `doctor` names remote databases left in place without blocking.
 20. **Investigations take a slot.** An agent reproducing a bug starts a timed stack through the same
     queue, with the same isolation and no verdict. It stops by itself, so a forgotten stack or a
-    crashed agent cannot jam the queue. It takes a slot as a check does: the slot count is how many
-    copies run at once, whatever they are for. One slot used to be kept back for checks, but a count
-    that doesn't mean what it says read as a broken panel.
-    A person can ask for one of the project's `seeds` to fill it with real data; checks never do.
-    `stack exec` runs a command in it with its settings, as its seed runs, for the project's own
-    tools that need the apps up.
-    `stack rebuild` puts newer work into it, keeping its slot and data, so chasing a bug doesn't
-    mean queueing again and losing what reproduced it. It rebuilds the production build rather than
-    running a dev server, so what an agent sees by hand is what a check sees.
-21. **Slots keep their worktrees,** and `clean` removes them. When free disk falls below a floor, 5 GB by default, the copies no check is using are deleted, and checks wait if that isn't enough.
+    crashed agent cannot jam the queue. It counts against the slots as a check does: one slot used to
+    be kept back for checks, but a count that didn't mean what it said looked like a broken panel. A
+    person can load real data into it with one of the project's `seeds`, which checks never use, and
+    `stack exec` runs the project's own tools in it. `stack rebuild` puts newer work into it, keeping
+    its slot and data, and rebuilds the production build rather than running a dev server, so what
+    an agent sees by hand is what a check sees.
+21. **Slots keep their worktrees,** and `clean` removes them. Below a disk floor, 5 GB by default,
+    copies no check is using are deleted, and checks wait if that isn't enough.
 22. **An installed background service.** Installing it records the `PATH` the user works with: the
-    login shell's on macOS and Linux, the terminal's on Windows. A command shows what the service sees.
+    login shell's on macOS and Linux, the terminal's on Windows.
 
 ### Product
 
@@ -93,32 +87,26 @@ content, and a verdict with proof.
 24. **CLI, desktop notifications and JSON output.** Notifications fire only for `needs-you`, grouped
     per repository.
 25. **A status-bar panel, as Docker has Docker Desktop.** The CLI is the core and works alone. The
-    desktop install adds an icon with a simple dropdown of slots, the queue and what needs you, using
-    Tauri so one codebase covers the macOS menu bar, the Windows notification area and Linux trays. The icon is amber with the number of checks left while they
-    run, green after a pass, and red with a count when something needs you, with a blue dot at its
-    bottom right while an update is waiting (40). The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
-    with actions limited to viewing proof, handing a branch back, running a job next and updating
-    verifique (40). It reads the
-    core's `--json` output and acts only through the CLI. A CLI-only install stays available: the
-    panel is an add-on, which `verifique panel install` fetches from the same release, checked
-    against its checksums, puts where the OS keeps apps and opens at login, the same way on every
-    OS. CI signs and notarizes the Mac app with an Apple Developer ID once its secrets exist, which
-    also gives a `.dmg` for people who download it in a browser. Where
-    an OS lets an app do less, the panel goes without rather than imitate macOS: Windows puts no text
-    beside a tray icon, so the count is in a tooltip, and has no supported way to show a window on
-    every desktop; Linux trays pass an app only its menu, so the panel opens from the menu; and
-    neither blurs reliably behind a pinned panel, so it is less see-through there. On Wayland it runs
-    through XWayland, because Wayland lets no window place itself or stay on top.
-26. **Rehearsal:** three real repositories, web first and then native mobile, followed by an unrelated
-    project, each from a stripped copy. A rehearsal passes on: setup by a fresh agent with no help, `doctor` passing,
-    a real change reaching a verdict you have reviewed, at least 4 of 5 planted bugs caught with no good
-    change failed, and startup and memory within about 1.5 times the hand-built stack.
+    panel is a Tauri app, so one codebase covers the macOS menu bar, the Windows notification area
+    and Linux trays. It reads the CLI's `--json` output and acts only through the CLI, and it is an
+    add-on that `verifique panel install` fetches from the same release. [The queue
+    spec](../specs/queue.md) says what it shows and does. CI signs and notarizes the Mac app, which
+    also gives a `.dmg`. Where an OS lets an app do less, the panel goes without rather than imitate
+    macOS: Windows shows no text beside a tray icon and can't show a window on every desktop, Linux
+    trays open the panel from a menu, and neither blurs reliably behind a pinned panel. On Wayland it
+    runs through XWayland, because Wayland lets no window place itself or stay on top.
+26. **Rehearsal:** three real repositories, web first and then native mobile, followed by an
+    unrelated project, each from a stripped copy. A rehearsal passes on: setup by a fresh agent with
+    no help, `doctor` passing, a real change reaching a verdict you have reviewed, at least 4 of 5
+    planted bugs caught with no good change failed, and startup and memory within about 1.5 times the
+    hand-built stack.
 27. **Hand-built stacks are replaced** once a repository's rehearsal passes, including how its suite
     gets stacks on a laptop. CI keeps its own path.
 28. **Proof of the whole:** one real working day of about 15 sessions across all three repositories,
     with no stack collisions and verdicts worth trusting.
-29. **Built in public.** Version 0.1 was released before that day, so the release says what has and hasn't been tested. Project configuration and sign-in scripts
-    stay in each project's own repository, never here.
+29. **Built in public.** Version 0.1 was released before that day, so the release says what has and
+    hasn't been tested. Project configuration and sign-in scripts stay in each project's own
+    repository, never here.
 
 ### Platforms
 
@@ -127,23 +115,20 @@ content, and a verdict with proof.
     names an OS. Docs, installs and releases treat the three alike.
 31. **Commands are POSIX sh on every OS:** the system `sh` on macOS and Linux, and the `sh` that
     comes with Git for Windows, found through git because `bash.exe` in System32 is WSL's launcher.
-    An interpreter built into verifique was tried on real configs first: `deno_task_shell` has no
-    `eval`, `exec`, `if` or `for` and prints `${VAR:-x}` as text, `brush` has only placeholders for
-    processes and pipes on Windows, and both would still need Git for Windows for `grep`, `sort` and
-    the projects' own `.sh` scripts.
+    Two shells that could be built into verifique, `deno_task_shell` and `brush`, were tried on real
+    configs first. Neither could run them, and both would still have needed Git for Windows for
+    `grep`, `sort` and the projects' own `.sh` scripts.
 32. **A step and everything it starts end together.** On macOS and Linux it is a process group,
     asked to stop with SIGTERM, given 3 seconds, then killed. On Windows it is a Job Object, ended at
     once, because Windows has no signal a program without a window reliably answers. A job also ends
     when the queue dies, so nothing is left holding a slot's ports.
 33. **The queue starts at logon, as the user, with no admin rights,** and restarts after a crash: a
-    LaunchAgent, a systemd user unit, or a scheduled task. The task starts it through
-    `verifique-service`, a launcher with no window, because every console program a task starts opens
-    one. The launcher also brings the queue back whenever it ends, since a scheduled task only
-    restarts a program that fails to start. All three log to `~/.verifique/server.log`.
-34. **Each OS answers for its ports, processes and disk.** Who holds a port, a process's name and
-    folder, and free disk come from libraries that ask the OS directly, with no `lsof` or `ps`.
-    Windows has no tool that shows a process's folder, so asking it directly is the only way to tell
-    a leftover of verifique's own from someone else's server.
+    LaunchAgent, a systemd user unit, or a scheduled task. On Windows the task starts
+    `verifique-service`, a launcher with no window that also brings the queue back whenever it ends,
+    which a scheduled task alone does not. All three log to `~/.verifique/server.log`.
+34. **Each OS answers for its ports, processes and disk** through libraries that ask it directly,
+    with no `lsof` or `ps`. On Windows that is the only way to see a process's folder, which tells a
+    leftover of verifique's own from someone else's server.
 35. **Notifications are the OS's own:** `osascript`, `notify-send`, or a toast under verifique's own
     name, which `service install` registers for the user.
 36. **The settings `stack exec` reads stay with their owner:** mode 600 on macOS and Linux. On
@@ -164,79 +149,40 @@ content, and a verdict with proof.
 ### Installing
 
 39. **Each system installs verifique with its own package manager,** from repositories the project
-    keeps itself, so upgrades come with the rest of the system: a Homebrew tap, a Scoop bucket, and
-    for Linux, signed apt, dnf and pacman repositories on GitHub Pages. Each is made from the
-    release's own builds, checked against its checksums, and the Linux ones are installed in clean
-    Ubuntu, Debian, Fedora and Arch containers before they are published. An install script covers
-    everything else. Distributions' own repositories need a maintainer to sponsor each package and
-    months of review, and Snap and Flatpak run programs in a sandbox, while verifique has to start
-    your apps and reach your databases and worktrees.
+    keeps itself: a Homebrew tap, a Scoop bucket, and signed apt, dnf and pacman repositories on
+    GitHub Pages. Each is made from the release's own builds, checked against its checksums, and the
+    Linux ones are installed in clean containers before they are published. An install script covers
+    everything else. Distributions' own repositories need a sponsor for each package and months of
+    review, and Snap and Flatpak run programs in a sandbox, while verifique has to start your apps
+    and reach your databases and worktrees.
+
+### Stacks and doctor
+
 40. **A stack names the host its apps answer at,** `127.0.0.1` unless it says otherwise. Some apps
     accept cookies or origins at one name only, such as `localhost`, and one setting then replaces
     a rule every agent on that project would otherwise have to remember.
 41. **`doctor` runs with the queue's `PATH`,** which the queue records when it starts, because it
     proves what checks will do, and a check gets the queue's tools, not those of whoever runs
     `doctor`.
+
+### Updates
+
 42. **verifique says when a new release is out, and updates in one step when asked.** People
-    install it once and forget, and package managers upgrade only when asked. So the queue asks
-    GitHub's API for the latest release once a day, on a thread of its own and an hour later after a
-    failure, and records the answer in its database with its own version and the add-ons behind it.
-    `status`, `doctor`, `plugin list`, `updates` and the panel only read that record, so no command
-    waits on the network. The panel reads it through `verifique updates --json`, not `status --json`,
-    so nothing an agent parses changes, and the line goes to stderr on commands people read.
-    Telling alone would leave people at a terminal with a different command per install, and an
-    upgrade isn't finished until the queue restarts and the add-ons and panel follow. So
-    `verifique update`, and the panel's Update button, which runs it, do all of it: the upgrade the
-    way verifique was installed, then `service restart`, `plugin update` and `panel install`, each
-    run by the new program. How it was installed is told from where the program is: Homebrew's
-    Cellar, a Cargo `target` folder for a build from source (updated by hand), and, for `/usr/bin`,
-    which apt, dnf and pacman packages share, dpkg's or pacman's records or dnf's repository file.
-    Homebrew upgrades itself. apt, dnf and pacman need root, through sudo in a terminal or pkexec,
-    the desktop's own password window, from the panel; pacman updates verifique alone, which is
-    static and needs only git, rather than the whole system behind a click. Install scripts, and
-    every Windows install, get the release's archive, checked against its checksums and unpacked
-    in place of the program, moving running files aside as Windows allows. Scoop is swapped that way
-    too, because Scoop refuses to update while any verifique program runs, and an agent's `wait`
-    nearly always is; `scoop list` lags until Scoop next updates it. The new program's own
-    `--version` must say the new version, or nothing more happens, since a tap or repository can
-    lag behind the GitHub release. Restarting the queue ends started stacks, so the panel says what
-    will stop and asks first, and the CLI asks at a terminal and otherwise refuses without `--yes`,
-    which keeps agents, which have no terminal, from updating. The panel being replaced is the
-    one that asked, so `panel install` runs last and detached, and stops the running panel by the
-    process id it records while it holds its lock. `verifique updates off` stops the request and
-    the release notice, while the restart and add-on reminders, which come from the machine itself,
-    stay. This is the only request verifique itself makes to the internet unasked, and it goes to
-    GitHub, not to a server of the project's.
+    install it once and forget, and package managers upgrade only when asked. The queue asks GitHub
+    for the latest release once a day and records the answer, and commands and the panel only read
+    that record, so none waits on the network. It is the only request verifique makes to the
+    internet unasked, it goes to GitHub rather than a server of the project's, and
+    `verifique updates off` stops it. The notice goes to stderr, and the panel reads it from
+    `verifique updates --json`, so nothing an agent parses changes. An upgrade isn't finished until
+    the queue restarts and the add-ons and panel follow, so `verifique update`, which the panel's
+    Update button runs, does all of it: the upgrade the way verifique was installed, told from where
+    the program is, then the rest, each run by the new program. Install scripts and every Windows
+    install get the release's archive, checked against its checksums. That includes Scoop, which
+    won't update while an agent's `wait` runs. Nothing more happens until the new program reports
+    the new version, since a tap or repository can lag behind the release. Restarting the queue ends
+    started stacks, so `update` says what will stop and asks first, and without a terminal it needs
+    `--yes`, which keeps agents from updating.
 
 ## Known limits
 
--   On Windows, commands need Git for Windows. Its `sh` rewrites arguments that look like Unix
-    paths, such as `/api`, when it passes them to Windows programs, as Git Bash does everywhere.
--   On Windows, a step ends at once, with no grace period for it to tidy up.
--   Only macOS has run real projects so far.
--   The Postgres and Redis plugins don't speak TLS yet, so a server that requires it, such as
-    `sslmode=require` or `rediss://`, is refused. Local servers rarely do.
--   Fixed slots and rules only leave capacity and adoption to the user.
--   `.env` is used as it is, so a setting the project file does not override can reach a real service.
-    `doctor` only recognises database URLs: split host settings, email and payment keys go unnoticed.
--   Databases are separated per slot, but share one server, so one check's load can slow another.
--   Local suites and CI reach the same tests by different routes, so a failure can show in only one.
--   Proof shows that a check looked, not that it looked at the right thing. Each project's `ready`
-    and `setup` steps have to test something real, and planted bugs measure how far to trust a pass.
--   A checker's powers depend on the user's agent settings, so verdicts can rest on different
-    abilities from one machine to another.
--   Until CI has the Apple Developer ID's secrets, the Mac panel isn't signed or notarized, so it
-    installs only through `verifique panel install`: macOS refuses a copy downloaded in a browser.
-    The Windows panel isn't signed, so Windows warns about a copy downloaded in a browser.
--   The panel has run on macOS, and on Linux under X11 with a plain tray, but not yet in GNOME or
-    KDE. On Windows it compiles, but hasn't run yet.
--   `doctor` pauses every check on the machine while it runs, which on a slow build is minutes.
--   A server a checker starts by hand can outlive its job, using memory until the next job in that
-    slot stops it.
--   An agent can dodge the failure limit by moving to a new branch.
--   The request is passed on by the writing agent, and the tool cannot tell if it was trimmed.
--   Only the Claude Code checker preset has been run. Whether Codex wakes on a finished background
-    command, and how finely it can limit tools, is unconfirmed.
--   The Claude checker preset needs the `claude` command signed in on its own: a desktop session's
-    sign-in does not reach it. `doctor` checks this first.
--   A project that already has its own device broker could keep it or replace it. Decide per project.
+Each spec in [specs/](../specs/_index.md) ends with the limits of its own area.

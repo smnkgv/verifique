@@ -40,8 +40,8 @@ disk first and makes checks wait rather than letting them fail.
    <name>=<count>` (repeatable), `--min-free-gb` (default 5) and `--first-slot` (default 4), and
    keeps them for every later start.
 3. Installing again replaces the service. `verifique service restart` restarts it, such as after a
-   new build or an update (see [updates](updates.md)). `verifique service uninstall` stops and removes it. `verifique serve` runs the queue in
-   a terminal instead, with the same options.
+   new build or an update (see [updates](updates.md)). `verifique service uninstall` stops and
+   removes it. `verifique serve` runs the queue in a terminal instead, with the same options.
 4. Installing records the `PATH` the user works with (on macOS and Linux their login shell's, on
    Windows their terminal's) and the few other variables tools need to be found, such as
    the home folder, the language and SDK locations, and never credentials from the shell. Every step
@@ -115,9 +115,9 @@ disk first and makes checks wait rather than letting them fail.
     CLI cannot. The CLI works alone, and installing without the panel stays possible.
 28. The panel is an add-on: `verifique panel install` fetches it from the same release as the CLI,
     checked against that release's checksums, puts it where the system keeps apps with an entry in
-    its app menu, and opens it now and whenever the user logs in, closing one already open. `verifique panel remove` takes it
-    away. Where a system lets an app do less, the panel goes without rather than imitate macOS (see
-    [platforms](platforms.md)).
+    its app menu, and opens it now and whenever the user logs in, closing one already open.
+    `verifique panel remove` takes it away. Where a system lets an app do less, the panel goes
+    without rather than imitate macOS (see [platforms](platforms.md)).
 
 ## Never
 
@@ -127,11 +127,9 @@ disk first and makes checks wait rather than letting them fail.
 
 ## Limits
 
--   Fixed slots and rules only leave capacity and adoption to the user.
 -   Waiting a turn costs time: with agent checks of about five minutes and two slots, the last of
     fifteen agents that finish together waits about forty minutes.
--   Until the Mac panel is signed and notarized with an Apple developer identity, it installs only
-    through `verifique panel install`. macOS refuses a copy downloaded in a browser.
+-   The Windows panel isn't signed, so Windows warns about a copy downloaded in a browser.
 -   On Linux the panel needs WebKitGTK, an AppIndicator library, and a tray that shows app
     indicators.
 -   The panel has run on macOS and Linux, but on Windows only as far as starting in CI. The CLI does
@@ -143,6 +141,3 @@ disk first and makes checks wait rather than letting them fail.
     A queue given a home folder of its own (the `VERIFIQUE_HOME` variable) runs beside the default
     one, with its own service, and verifique's own self-check relies on that. Is a separate queue a
     supported feature, or only for testing? Settled by the owner.
--   **What can the panel do?** The decisions log limits the panel's actions to viewing proof, handing
-    a branch back and running a job next. The user guide and the panel itself also change the slot
-    count, which the decisions log allows elsewhere. Settled by aligning the log.

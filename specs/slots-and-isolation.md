@@ -104,7 +104,6 @@ checks, containers cost memory on a laptop, and phone simulators cannot run in o
 
 ## Limits
 
--   Databases are separate per slot but share one server, so one check's load can slow another.
 -   A server a checker starts by hand can outlive its job, using memory until the next job in that
     slot stops it.
 -   verifique isolates ports and the database servers it is told about. Other shared things, such as
@@ -113,11 +112,9 @@ checks, containers cost memory on a laptop, and phone simulators cannot run in o
 
 ## Open questions
 
--   **Should users know slots start at 4?** The user guide's example says an app runs on "base +
-    slot" but never says which slot numbers exist, so a reader expects port 3501. The first slot
-    went from 4 to 1 and back to 4 in recent releases, the second time to keep checks off Redis
-    database 1 and off the base port plus one. `--first-slot` has no help text. Settled by deciding
-    whether the first slot is part of the interface and documenting it.
+-   **Should users know slots start at 4?** The user guide says an app runs on "base + slot" but
+    not which slot numbers exist, so a reader expects port 3501, and `--first-slot` has no help
+    text. Settled by deciding whether the first slot is part of the interface and documenting it.
 -   **Should a check without a stack get `.env`?** It gets no copy of `.env` and no databases. The
     user guide's warning that "checks run your app unattended with the `.env`" reads as if it
     applied to every check. Settled by the owner confirming the behaviour and the guide saying it.

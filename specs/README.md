@@ -71,8 +71,6 @@ glossary_terms: [Slot, Stack]
 
 ## Where the specs came from
 
-The first versions were written on 2026-11-09 from the repository's `README.md`, `docs/DESIGN.md`,
-`verifique.yaml`, `examples/shop`, the guide `verifique init` prints and the project's web page,
-with the code read only to confirm behaviour. Where those sources disagreed, the spec records an
-open question. On 2026-11-10 they were brought up to version 0.3.0, which made Linux and Windows
-equals of macOS and moved database support into add-ons.
+The first versions were written on 2026-11-09 from the user guide, `docs/DESIGN.md` and the
+project's web page, with the code read only to confirm behaviour. Where those sources disagreed,
+the spec records an open question.

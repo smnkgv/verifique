@@ -34,9 +34,8 @@ queue behind the user's back.
 ### Installing
 
 1. The core is installed with each system's own package manager (see [platforms](platforms.md)):
-   with Homebrew on macOS, by the formula's full name so Homebrew trusts that formula alone; from
-   verifique's signed apt, dnf or pacman repository on Linux; with Scoop on Windows; or with an
-   install script on any of them. It can also be built from source.
+   Homebrew on macOS, verifique's signed apt, dnf or pacman repository on Linux, Scoop on Windows,
+   or an install script on any of them. It can also be built from source.
 2. Each kind of database a project uses is then added with `verifique plugin add` (see
    [add-ons](add-ons.md)). The installers say so as the next step.
 3. `verifique service install` then starts the queue in the background, and from then on at every
@@ -61,9 +60,9 @@ queue behind the user's back.
        them. If `.env` lacks something, tell the user what to add rather than filling it in.
        Make sure the queue's `PATH`, which `verifique service env` shows, gives the versions
        production uses. If the app only works at one host name, such as `localhost`, name it on the
-       stack. Keep every step from changing anything outside its slot, such as installers
-       that clean shared caches. For a phone app, run the backend as a stack and the app on a
-       simulator, declared as a limited resource.
+       stack. Keep every step from changing anything outside its slot, such as installers that
+       clean shared caches. For a phone app, run the backend as a stack and the app on a simulator,
+       declared as a limited resource.
     4. Only if the app hardcodes a value, make small edits so it reads the value from the
        environment, keeping today's value as the default, on a branch shown to the user. Anything
        larger is for the user to decide.
@@ -74,10 +73,10 @@ queue behind the user's back.
        resubmitting the check, because every failed check counts toward needs-you.
     6. Propose the rules to the user as a change to the project's agent instructions, written the
        way those instructions write their own rules and placed where they say such rules belong.
-       Before removing or narrowing a rule, find everything that still depends on it.
        Change every existing rule the setup makes untrue, such as how to start the app or run its
-       tests. Merge each rule with any the project keeps on the same subject, such as another way it
-       verifies work, so that no two contradict.
+       tests, and merge each rule with any the project keeps on the same subject, such as another
+       way it verifies work, so that no two contradict. Before removing or narrowing a rule, find
+       everything that still depends on it.
 7. The guide tells the agent never to stop a process by name or pattern, and to stop only what it
    started itself.
 8. `verifique init --rules` prints only the rules.
@@ -138,7 +137,6 @@ queue behind the user's back.
     since an emulator cannot always use the host's address.
 -   Setup is a one-off cost in the user's own agent time, a few dollars per project where it has
     been measured.
--   Real projects have been connected only on macOS so far (see [platforms](platforms.md)).
 
 ## Open questions
 

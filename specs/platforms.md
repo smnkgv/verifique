@@ -81,7 +81,6 @@ systems, and so should the queue they hand work to.
 
 -   Real projects have run only on macOS so far. Linux and Windows pass verifique's own tests and its
     example project.
--   On Windows, a project's commands depend on Git for Windows being installed.
 -   On Windows, Git's sh rewrites arguments that look like Unix paths, such as `/api`, when it passes
     them to Windows programs, as Git Bash does everywhere.
 -   On Windows, apps get no grace period to shut down cleanly when a step is stopped.

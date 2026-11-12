@@ -61,9 +61,8 @@ can be turned off.
 ### In the panel
 
 9. While any of those is waiting, the panel shows one line above its footer, such as
-   "verifique 0.3.4 is out", with an Update button, and its tick in the menu bar, notification area
-   or tray gets a blue dot at the bottom right, whatever its colour. On Windows the icon's tooltip
-   says it too.
+   "verifique 0.3.4 is out", with an Update button, and its tick gets a blue dot. On Windows the
+   icon's tooltip says it too.
 10. Clicking Update while checks or started stacks are running first says what restarting the queue
     will do, such as "1 started stack stops, and 2 running checks start again from the beginning",
     with Update now and Not now. With nothing running it updates at once.
@@ -115,24 +114,17 @@ can be turned off.
 ## Limits
 
 -   With no queue running, nothing asks, so a machine that never starts one is never told.
--   apt, dnf and pacman all put verifique in the same place, so which one did is told from their
-    own records. A copy put there by hand is told nothing but the install guide.
--   On Windows, Scoop refuses to update a program while any copy of it runs, and an agent waiting on
-    a check is one. So verifique puts the new files in place itself, and `scoop list` shows the old
-    version until Scoop next updates it, which reinstalls the same one.
--   pacman updates verifique on its own rather than the whole system, which Arch generally advises
-    against. verifique is built to need nothing but git, so nothing else depends on its version.
+-   On Windows, verifique puts the new files in place itself, because Scoop won't update a program
+    while an agent waits on a check. `scoop list` shows the old version until Scoop next updates it.
+-   pacman updates verifique on its own rather than the whole system, which Arch advises against.
+    verifique needs nothing but git, so nothing else depends on its version.
 -   Linux needs a desktop that shows the system's password window for the panel to update a
     package; otherwise `verifique update` in a terminal does it.
--   A panel from before this behaviour does not say how to stop it, so after an update from the
-    terminal on Linux or Windows the old one stays open until it is quit or the user logs in again.
 -   On Linux with Homebrew, the service is recorded at the program's own versioned folder, which
     Homebrew removes after an upgrade, so restarting the queue fails there until
     `verifique service install` runs again. macOS records the link Homebrew keeps.
--   A queue started by a version from before this behaviour records no version, so a newer CLI
-    tells it to restart without saying which version it runs.
--   GitHub limits how often one address may ask without signing in. One request a day per machine is
-    far below that, but many machines behind one address share the allowance.
+-   GitHub limits how often one address may ask without signing in. One request a day is far below
+    that, but many machines behind one address share the allowance.
 
 ## Open questions
 

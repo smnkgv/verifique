@@ -73,8 +73,6 @@ keeps their versions matched to the core without a package for each one in every
 -   Upgrading the core any other way than `verifique update` does not upgrade its add-ons: someone
     has to run `plugin update`, which `status` and the panel remind them to do. Until then, an
     add-on of the same protocol keeps working at its older version.
--   Someone upgrading from a version with database support built in has to add the add-ons before
-    the next check that needs a database, which otherwise ends in an error naming the command.
 -   The Postgres and Redis add-ons do not speak TLS yet (see [databases](databases.md)).
 
 ## Open questions

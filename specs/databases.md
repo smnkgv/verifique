@@ -79,10 +79,8 @@ slot's database can never be a real one, whatever a project's settings say.
 
 ### Databases left in `.env`
 
-14. `verifique doctor` warns about settings in `.env` that point at a database on another machine
-    and that `verifique.yaml` does not override (see [setup](setup.md)).
-15. `doctor` fails a stack whose copies never used one of their databases, because the app is still
-    reaching the database in `.env`.
+14. `verifique doctor` warns about databases on other machines left in `.env`, and fails a stack
+    whose copies never used their own (see [setup](setup.md)).
 
 ## Never
 
@@ -99,7 +97,6 @@ slot's database can never be a real one, whatever a project's settings say.
     The MongoDB add-on does. Local servers rarely require it.
 -   Redis servers usually have 16 numbered databases, so with the default first slot of 4, a machine
     can run at most 12 slots against Redis without raising that number.
--   `doctor` recognises only database URLs, not split host settings.
 
 ## Open questions
 
