@@ -1,6 +1,6 @@
 ---
 status: active
-last-reviewed: 2026-11-11
+last-reviewed: 2026-11-12
 owner: Hlib Semeniuk
 confidence: best-effort
 related: [slots-and-isolation, checks, databases, queue, setup]
@@ -75,7 +75,8 @@ their verdicts stay reproducible.
     stack there, and returns once it is up. When the project has more than one stack, the stack
     must be named. It runs for 30 minutes unless told otherwise.
 13. Once the stack is up, it prints each app's address, what `setup` printed, where the logs are, and
-    how to run a command in it and stop it. `--json` prints the same as JSON.
+    how to run a command in it, rebuild it keeping its data or with its databases seeded again, and
+    stop it. `--json` prints the same as JSON.
 14. If the stack ends before it comes up, `stack start` prints why and exits 2.
 15. A started stack has the code as it was when it started, committed or not, until it is rebuilt
     (see below).

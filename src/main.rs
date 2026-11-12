@@ -408,7 +408,8 @@ fn print_hold(job: &Job, until: u64, as_json: bool) -> Result<()> {
     }
     println!("\nlogs: {}", dir.display());
     println!("run a command in it with: {} stack exec {} -- <command>", paths::NAME, job.id);
-    println!("rebuild it with your latest work with: {} stack rebuild {}", paths::NAME, job.id);
+    println!("rebuild it with your latest work, keeping its data, with: {} stack rebuild {}", paths::NAME, job.id);
+    println!("or with its databases emptied and seeded again with: {} stack rebuild {} --fresh", paths::NAME, job.id);
     println!("stop it with: {} stack stop {}", paths::NAME, job.id);
     Ok(())
 }
