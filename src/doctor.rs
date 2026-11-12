@@ -15,7 +15,7 @@ use crate::paths;
 use crate::platform;
 use crate::plugins;
 use crate::process::{self, Ended, Env, Options};
-use crate::server::{self, KEY_FIRST_SLOT, KEY_PAUSED_BY};
+use crate::server::{self, KEY_FIRST_SLOT, KEY_PATH, KEY_PAUSED_BY};
 use crate::services::remote_database_host;
 use crate::store::Store;
 
@@ -35,6 +35,8 @@ struct Project<'a> {
     repo: &'a str,
     commit: &'a str,
     first_slot: u32,
+    /// The queue's PATH, so the tools doctor proves a stack with are the ones checks get.
+    path: Option<String>,
 }
 
 /// Settings a check would use as they stand, and could write real data through.
@@ -165,6 +167,11 @@ fn check_stack(name: &str, stack: &Stack, project: &Project) -> Result<()> {
             Instance::new(Some(stack), &project.config.services, project.repo, slot, &base, &log_dir)
         })
         .collect::<Result<Vec<_>>>()?;
+    if let Some(path) = &project.path {
+        for instance in &mut instances {
+            instance.env.insert("PATH".to_string(), path.clone());
+        }
+    }
     if let Some(collision) = Instance::shared_port(&instances) {
         bail!("stack {name}: {collision}");
     }
@@ -267,7 +274,11 @@ pub fn run(cwd: &Path) -> Result<()> {
         .setting(KEY_FIRST_SLOT)?
         .and_then(|value| value.parse().ok())
         .unwrap_or(DEFAULT_FIRST_SLOT);
-    let project = Project { config: &config, repo: &repo, commit: &snapshot.commit, first_slot };
+    let path = store.setting(KEY_PATH)?.filter(|path| !path.is_empty());
+    if path.is_none() {
+        println!("tools: this shell's, because no queue has run yet to say which it uses");
+    }
+    let project = Project { config: &config, repo: &repo, commit: &snapshot.commit, first_slot, path };
     for (name, stack) in &config.stacks {
         println!("stack {name}");
         check_stack(name, stack, &project)?;

@@ -399,8 +399,9 @@ fn print_hold(job: &Job, until: u64, as_json: bool) -> Result<()> {
         return Ok(());
     }
     println!("stack {} is up for {} minutes", job.id, left.div_ceil(60));
+    let host = stacks[0]["host"].as_str().unwrap_or("127.0.0.1");
     for (name, port) in stacks[0]["ports"].as_object().into_iter().flatten() {
-        println!("  {name}: http://127.0.0.1:{port}");
+        println!("  {name}: http://{host}:{port}");
     }
     if !setup.trim().is_empty() {
         println!("\nsetup printed:\n{}", setup.trim());

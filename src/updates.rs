@@ -149,7 +149,7 @@ pub struct Notice {
 #[derive(Clone, Debug, PartialEq)]
 enum Queue {
     Stopped,
-    /// With the version it recorded. Queues from before 0.3.4 record none.
+    /// With the version it recorded. Queues from releases before this record none.
     Runs(Option<String>),
 }
 

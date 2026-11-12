@@ -54,8 +54,13 @@ Commands get `{slot}`, `{port}`, `{port.<app>}`, `{app.<app>.url}`, and for each
 A stack needs no apps: one with only `prepare`, `seed` and `env` gives a test suite its own
 databases without building the app.
 
-A check also gets these variables: `VERIFIQUE_SLOT`, `VERIFIQUE_SLOTS`, `VERIFIQUE_STACKS` (a JSON file with
-every stack's ports and values), `VERIFIQUE_PORT_<APP>`, `VERIFIQUE_COMMIT`, `VERIFIQUE_TREE`,
+verifique reaches apps at `127.0.0.1`. `host: localhost` on a stack makes every address it gives out
+use that name instead, in `{app.<app>.url}`, ready checks, the checker's prompt and what
+`stack start` prints, for an app whose cookies or allowed origins only accept one name.
+
+A check, and a command run in a started stack with `stack exec`, also gets these variables:
+`VERIFIQUE_SLOT`, `VERIFIQUE_SLOTS`, `VERIFIQUE_STACKS` (a JSON file with every stack's host, ports
+and values), `VERIFIQUE_PORT_<APP>`, `VERIFIQUE_COMMIT`, `VERIFIQUE_TREE`,
 `VERIFIQUE_REQUEST`, `VERIFIQUE_BRIEF`, `VERIFIQUE_DIFF`, `VERIFIQUE_SETUP`, `VERIFIQUE_PROMPT`, `VERIFIQUE_RESULT`,
 `VERIFIQUE_EVIDENCE`, `VERIFIQUE_REPO` and `VERIFIQUE_JOB`.
 

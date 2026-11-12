@@ -43,6 +43,10 @@ their verdicts stay reproducible.
    steps), `seed`, `seeds` (named extra seeds), `setup`, `env`, `envFiles`, `needs` and `apps`.
 2. Each app has `run`, and may have `cwd` (a folder within the repository), `port` (its base port),
    `ready` (its ready path) and `env`.
+   A stack may also name the `host` its apps are reached at, such as `localhost`. Every address
+   verifique gives out for the stack uses it: in the values the stack's commands get, its ready
+   checks, what the checker is told and what `stack start` prints. Without it, the addresses name
+   `127.0.0.1`. It is a plain name, without `http://` or a port.
 3. An app with a ready path must have a port to check it on.
 4. A stack that uses a database server's values must declare that server under `services` (see
    [databases](databases.md)).
@@ -94,7 +98,7 @@ their verdicts stay reproducible.
 ### Running a command in a started stack
 
 23. `verifique stack exec <job> -- <command>` runs a command in the started stack's slot copy, with
-    the stack's settings and the queue's `PATH`, as its seed runs, but once the apps are up: such as
+    the stack's settings, the list of stacks a check gets and the queue's `PATH`, as its seed runs, but once the apps are up: such as
     one of the project's own tools that loads data through them. Its exit code is passed on.
 24. The command is joined and run by the shell, as ssh does, so whatever the user's own shell should
     not read, such as `&&`, must be quoted.
