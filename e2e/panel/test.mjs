@@ -22,6 +22,8 @@ const page = await browser.newPage({ viewport: { width: 400, height: 720 } });
 await page.addInitScript(() => {
     window.sample = null;
     window.pinnedNow = false;
+    window.notice = null;
+    window.updateFails = null;
     window.calls = [];
     window.__TAURI__ = {
         core: {
@@ -30,6 +32,11 @@ await page.addInitScript(() => {
                 if (name === "status") {
                     if (window.sample === null) throw "the queue can't be read";
                     return JSON.stringify(window.sample);
+                }
+                if (name === "updates") return JSON.stringify({ notice: window.notice });
+                if (name === "update") {
+                    if (window.updateFails) throw window.updateFails;
+                    return "up to date: verifique 0.3.4";
                 }
                 if (name === "is_pinned") return window.pinnedNow;
                 if (name === "set_pinned") window.pinnedNow = args.on;
@@ -66,7 +73,7 @@ assert.ok(panel.indexOf("Running") < panel.indexOf("Recent"), "Recent comes last
 assert.match(panel, /and 3 more/);
 assert.ok(panel.indexOf("urgent") > panel.indexOf("repo3"), "the next check sits nearest Running");
 assert.ok(panel.indexOf("urgent") < panel.indexOf("Running"));
-assert.deepEqual(await look(), { look: "working", count: 10 });
+assert.deepEqual(await look(), { look: "working", count: 10, update: "" });
 
 // A repository on Windows is named by its folder too.
 await show({ running: [{ ...running(1, "x", 4), repo: "C:\\src\\shop" }] });
@@ -83,14 +90,14 @@ assert.match(counts, /Running at once/);
 
 // The tick says what state the queue is in.
 await show({});
-assert.deepEqual(await look(), { look: "idle", count: 0 });
+assert.deepEqual(await look(), { look: "idle", count: 0, update: "" });
 await show({ recent: [finished(1, "shop", "passed")] });
-assert.deepEqual(await look(), { look: "passed", count: 0 });
+assert.deepEqual(await look(), { look: "passed", count: 0, update: "" });
 await show({ recent: [finished(1, "shop", "failed")] });
-assert.deepEqual(await look(), { look: "idle", count: 0 });
+assert.deepEqual(await look(), { look: "idle", count: 0, update: "" });
 const needs = [{ repo: "/src/api", branch: "fix", check: "tests", failures: 3, reason: "x" }];
 await show({ needs_you: needs, recent: [finished(1, "api", "failed")] });
-assert.deepEqual(await look(), { look: "needs", count: 1 });
+assert.deepEqual(await look(), { look: "needs", count: 1, update: "" });
 assert.match(await text(), /Needs you[\s\S]*api \/ fix failed 3 times in a row/);
 
 // Whatever stops the queue says so.
@@ -100,6 +107,64 @@ await show({ paused: true });
 assert.match(await text(), /Paused while verifique doctor runs/);
 await show({ low_disk: "Only 3 GB of disk is free, so checks are waiting until 5 GB is" });
 assert.match(await text(), /Disk nearly full[\s\S]*Only 3 GB/);
+
+// A newer verifique is one line with an Update button, and a blue dot on the tick.
+async function tell(notice) {
+    await page.evaluate(async (next) => {
+        window.notice = next;
+        await refreshUpdates();
+    }, notice);
+}
+const release = {
+    kind: "release",
+    line: "verifique 0.3.4 is out (this is 0.3.3): run `verifique update`, which restarts the queue",
+    short: "verifique 0.3.4 is out",
+    updatable: true,
+    restarts: true,
+    url: "https://github.com/smnkgv/verifique/releases/tag/v0.3.4",
+};
+const updated = () => page.evaluate(() => window.calls.filter((call) => call.name === "update").length);
+await show({ running: [running(1, "shop", 4), { ...running(2, "api", 5), check: "stack" }] });
+await tell(release);
+assert.match(await text(), /verifique 0\.3\.4 is out/);
+assert.deepEqual(await look(), { look: "working", count: 2, update: "verifique 0.3.4 is out" });
+
+// Updating restarts the queue, so with checks running it first says what that stops.
+await page.getByRole("button", { name: "Update", exact: true }).click();
+assert.match(await text(), /Updating restarts the queue: 1 started stack stops, and 1 running check starts again from the beginning\./);
+assert.equal(await updated(), 0);
+await page.getByRole("button", { name: "Not now" }).click();
+assert.doesNotMatch(await text(), /Updating restarts/);
+assert.equal(await updated(), 0);
+await page.getByRole("button", { name: "Update", exact: true }).click();
+await page.getByRole("button", { name: "Update now" }).click();
+await page.waitForFunction(() => document.getElementById("panel").innerText.includes("Updated."));
+assert.equal(await updated(), 1);
+
+// With nothing running it updates at once, and a failure stays with its reason.
+await show({});
+await page.evaluate(() => {
+    window.updateFails = "brew: no bottle for this machine";
+});
+await page.getByRole("button", { name: "Update", exact: true }).click();
+await page.waitForFunction(() => document.getElementById("panel").innerText.includes("no bottle"));
+assert.equal(await updated(), 1);
+assert.doesNotMatch(await text(), /Updating restarts/);
+await page.evaluate(() => {
+    window.updateFails = null;
+});
+
+// A build from source is updated by hand, so it gets what the release changed instead of a button.
+await tell({ ...release, line: "verifique 0.3.4 is out (this is 0.3.3): pull and build again in /src/verifique", updatable: false });
+assert.equal(await page.getByRole("button", { name: "Update", exact: true }).count(), 0);
+await page.getByRole("button", { name: "What's new" }).click();
+const opened = await page.evaluate(() => window.calls.filter((call) => call.name === "open_release").pop()?.args);
+assert.deepEqual(opened, { url: release.url });
+
+// Once there is nothing to update, the line and the dot go.
+await tell(null);
+assert.doesNotMatch(await text(), /is out/);
+assert.deepEqual(await look(), { look: "idle", count: 0, update: "" });
 
 // The pin keeps the panel out, and the page turns see-through.
 // A queue that stops being readable says so, instead of showing the last one it read.
