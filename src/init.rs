@@ -195,7 +195,9 @@ agent instructions: write them the way those instructions write their own rules,
 one means, and put them where the instructions say such rules belong. Change every rule or
 reference the setup makes untrue, such as how to start the app or run its tests, and keep any part
 of it that still holds. Before removing or narrowing a rule, find everything that still depends on
-it, such as tests or tools the project still runs itself.
+it, such as tests or tools the project still runs itself. Merge a rule below with any rule the
+project keeps on the same subject, so that no two contradict, such as a way the project verifies
+work {NAME} doesn't run.
 
 {rules}
 "#,

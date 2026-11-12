@@ -1,6 +1,6 @@
 ---
 status: active
-last-reviewed: 2026-11-11
+last-reviewed: 2026-11-12
 owner: Hlib Semeniuk
 confidence: best-effort
 related: [stacks, checks, databases, queue, safety, slots-and-isolation, platforms, add-ons]
@@ -76,7 +76,8 @@ queue behind the user's back.
        way those instructions write their own rules and placed where they say such rules belong.
        Before removing or narrowing a rule, find everything that still depends on it.
        Change every existing rule the setup makes untrue, such as how to start the app or run its
-       tests.
+       tests. Merge each rule with any the project keeps on the same subject, such as another way it
+       verifies work, so that no two contradict.
 7. The guide tells the agent never to stop a process by name or pattern, and to stop only what it
    started itself.
 8. `verifique init --rules` prints only the rules.
