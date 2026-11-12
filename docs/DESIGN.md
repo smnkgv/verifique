@@ -95,8 +95,10 @@ content, and a verdict with proof.
 25. **A status-bar panel, as Docker has Docker Desktop.** The CLI is the core and works alone. The
     desktop install adds an icon with a simple dropdown of slots, the queue and what needs you, using
     Tauri so one codebase covers the macOS menu bar, the Windows notification area and Linux trays. The icon is amber with the number of checks left while they
-    run, green after a pass, and red with a count when something needs you. The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
-    with actions limited to viewing proof, handing a branch back and running a job next. It reads the
+    run, green after a pass, and red with a count when something needs you, with a blue dot at its
+    bottom right while an update is waiting (40). The panel lists, in order, what needs you, what's running, what's queued and recent verdicts,
+    with actions limited to viewing proof, handing a branch back, running a job next and updating
+    verifique (40). It reads the
     core's `--json` output and acts only through the CLI. A CLI-only install stays available: the
     panel is an add-on, which `verifique panel install` fetches from the same release, checked
     against its checksums, puts where the OS keeps apps and opens at login, the same way on every
@@ -175,6 +177,36 @@ content, and a verdict with proof.
 41. **`doctor` runs with the queue's `PATH`,** which the queue records when it starts, because it
     proves what checks will do, and a check gets the queue's tools, not those of whoever runs
     `doctor`.
+42. **verifique says when a new release is out, and updates in one step when asked.** People
+    install it once and forget, and package managers upgrade only when asked. So the queue asks
+    GitHub's API for the latest release once a day, on a thread of its own and an hour later after a
+    failure, and records the answer in its database with its own version and the add-ons behind it.
+    `status`, `doctor`, `plugin list`, `updates` and the panel only read that record, so no command
+    waits on the network. The panel reads it through `verifique updates --json`, not `status --json`,
+    so nothing an agent parses changes, and the line goes to stderr on commands people read.
+    Telling alone would leave people at a terminal with a different command per install, and an
+    upgrade isn't finished until the queue restarts and the add-ons and panel follow. So
+    `verifique update`, and the panel's Update button, which runs it, do all of it: the upgrade the
+    way verifique was installed, then `service restart`, `plugin update` and `panel install`, each
+    run by the new program. How it was installed is told from where the program is: Homebrew's
+    Cellar, a Cargo `target` folder for a build from source (updated by hand), and, for `/usr/bin`,
+    which apt, dnf and pacman packages share, dpkg's or pacman's records or dnf's repository file.
+    Homebrew upgrades itself. apt, dnf and pacman need root, through sudo in a terminal or pkexec,
+    the desktop's own password window, from the panel; pacman updates verifique alone, which is
+    static and needs only git, rather than the whole system behind a click. Install scripts, and
+    every Windows install, get the release's archive, checked against its checksums and unpacked
+    in place of the program, moving running files aside as Windows allows. Scoop is swapped that way
+    too, because Scoop refuses to update while any verifique program runs, and an agent's `wait`
+    nearly always is; `scoop list` lags until Scoop next updates it. The new program's own
+    `--version` must say the new version, or nothing more happens, since a tap or repository can
+    lag behind the GitHub release. Restarting the queue ends started stacks, so the panel says what
+    will stop and asks first, and the CLI asks at a terminal and otherwise refuses without `--yes`,
+    which keeps agents, which have no terminal, from updating. The panel being replaced is the
+    one that asked, so `panel install` runs last and detached, and stops the running panel by the
+    process id it records while it holds its lock. `verifique updates off` stops the request and
+    the release notice, while the restart and add-on reminders, which come from the machine itself,
+    stay. This is the only request verifique itself makes to the internet unasked, and it goes to
+    GitHub, not to a server of the project's.
 
 ## Known limits
 

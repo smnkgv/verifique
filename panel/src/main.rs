@@ -25,8 +25,10 @@ const BLUR_STRENGTH: f64 = 0.72;
 #[cfg(not(target_os = "macos"))]
 const SCREEN_MARGIN: f64 = 8.0;
 /// The idle tick's colour where the tray shows icons as they are, on light and dark bars alike.
-#[cfg(not(target_os = "macos"))]
 const IDLE_GREY: [u8; 3] = [0x90, 0x90, 0x90];
+/// The dot that says an update is waiting: blue, the usual sign of something new, which reads on
+/// every colour of tick and never as something needing you.
+const UPDATE_BLUE: [u8; 3] = [0x0a, 0x84, 0xff];
 
 struct PinItem(CheckMenuItem<Wry>);
 
@@ -335,6 +337,34 @@ fn status() -> Result<String, String> {
     cli(&["status", "--json"], None)
 }
 
+/// Whether a newer verifique is out, or an update still needs finishing, as the CLI tells it.
+#[tauri::command]
+fn updates() -> Result<String, String> {
+    cli(&["updates", "--json"], None)
+}
+
+/// Updates verifique, the queue, its add-ons and this panel, once the person has agreed in the panel.
+/// It takes a while, so it runs off the thread that draws the panel.
+#[tauri::command]
+async fn update() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(|| cli(&["update", "--yes"], None)).await.map_err(|error| error.to_string())?
+}
+
+/// Opens a release's page in the browser. Only verifique's own releases.
+#[tauri::command]
+fn open_release(url: String) -> Result<(), String> {
+    if !url.starts_with("https://github.com/smnkgv/verifique/releases/") {
+        return Err("that isn't a verifique release".to_string());
+    }
+    #[cfg(target_os = "macos")]
+    let mut opener = command("open");
+    #[cfg(target_os = "linux")]
+    let mut opener = command("xdg-open");
+    #[cfg(windows)]
+    let mut opener = command("explorer");
+    opener.arg(url).status().map(|_| ()).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn proof(job: i64) -> Result<String, String> {
     cli(&["show", &job.to_string(), "--json"], None)
@@ -391,19 +421,60 @@ fn open_logs() -> Result<(), String> {
 fn idle_icon() -> tauri::Result<Image<'static>> {
     let icon = Image::from_bytes(IDLE_ICON)?;
     #[cfg(not(target_os = "macos"))]
-    let icon = {
-        let mut rgba = icon.rgba().to_vec();
-        for pixel in rgba.as_chunks_mut::<4>().0 {
-            pixel[..3].copy_from_slice(&IDLE_GREY);
-        }
-        Image::new_owned(rgba, icon.width(), icon.height())
-    };
+    let icon = grey(icon);
     Ok(icon)
 }
 
-/// Windows shows no text beside a tray icon, so there the count is in the icon's tooltip.
+/// The idle tick in a grey that reads on light and dark bars, for where it can't follow the bar.
+fn grey(icon: Image<'_>) -> Image<'static> {
+    let mut rgba = icon.rgba().to_vec();
+    for pixel in rgba.as_chunks_mut::<4>().0 {
+        pixel[..3].copy_from_slice(&IDLE_GREY);
+    }
+    Image::new_owned(rgba, icon.width(), icon.height())
+}
+
+/// A blue dot at the icon's bottom right, which the tick leaves empty, while an update is waiting.
+fn with_dot(icon: Image<'_>) -> Image<'static> {
+    const SAMPLES: u32 = 4;
+    let (width, height) = (icon.width(), icon.height());
+    let mut rgba = icon.rgba().to_vec();
+    let size = f64::from(width);
+    let (centre, radius) = (size * 0.82, size * 0.15);
+    for (index, pixel) in rgba.as_chunks_mut::<4>().0.iter_mut().enumerate() {
+        let (x, y) = ((index as u32 % width) as f64, (index as u32 / width) as f64);
+        // How much of the pixel the dot covers, so its edge is smooth.
+        let covered = (0..SAMPLES * SAMPLES)
+            .filter(|sample| {
+                let at_x = x + (f64::from(sample % SAMPLES) + 0.5) / f64::from(SAMPLES);
+                let at_y = y + (f64::from(sample / SAMPLES) + 0.5) / f64::from(SAMPLES);
+                (at_x - centre).hypot(at_y - centre) <= radius
+            })
+            .count() as f64
+            / f64::from(SAMPLES * SAMPLES);
+        let kept = f64::from(pixel[3]) / 255.0 * (1.0 - covered);
+        let alpha = kept + covered;
+        if alpha > 0.0 {
+            for channel in 0..3 {
+                pixel[channel] = ((f64::from(pixel[channel]) * kept + f64::from(UPDATE_BLUE[channel]) * covered) / alpha).round() as u8;
+            }
+        }
+        pixel[3] = (alpha * 255.0).round() as u8;
+    }
+    Image::new_owned(rgba, width, height)
+}
+
+/// Windows shows no text beside a tray icon, so there the count is in the icon's tooltip, with what
+/// an update waiting needs.
 #[cfg(windows)]
-fn tooltip(look: &str, count: usize) -> String {
+fn tooltip(look: &str, count: usize, update: &str) -> String {
+    let state = tooltip_state(look, count);
+    // The tray cuts a tooltip off at 127 characters.
+    if update.is_empty() { state } else { format!("{state}\n{update}").chars().take(127).collect() }
+}
+
+#[cfg(windows)]
+fn tooltip_state(look: &str, count: usize) -> String {
     match (look, count) {
         ("needs", 0) => "verifique: can't read the queue".to_string(),
         ("needs", 1) => "verifique: 1 needs you".to_string(),
@@ -416,26 +487,31 @@ fn tooltip(look: &str, count: usize) -> String {
 }
 
 /// Amber while checks run, green when they have just passed, and red when something needs you. The
-/// number is how many checks are left, or how many need you.
+/// number is how many checks are left, or how many need you. `update` is the panel's line about a
+/// newer verifique, or empty, and puts a blue dot on the tick while there is one. macOS colours a
+/// template icon all one colour, so there the idle tick turns grey while the dot shows.
 #[tauri::command]
-fn show_progress(app: AppHandle, look: String, count: usize) -> Result<(), String> {
+fn show_progress(app: AppHandle, look: String, count: usize, update: String) -> Result<(), String> {
     let tray = app.tray_by_id("main").ok_or("no tray icon")?;
     tray.set_title((count > 0).then(|| count.to_string())).map_err(|error| error.to_string())?;
     #[cfg(windows)]
-    tray.set_tooltip(Some(tooltip(&look, count))).map_err(|error| error.to_string())?;
+    tray.set_tooltip(Some(tooltip(&look, count, &update))).map_err(|error| error.to_string())?;
+    let wanted = format!("{look}{}", if update.is_empty() { "" } else { " with a dot" });
     let mut shown = LOOK.lock().map_err(|error| error.to_string())?;
-    if *shown == look {
+    if *shown == wanted {
         return Ok(());
     }
     let (icon, template) = match look.as_str() {
         "needs" => (Image::from_bytes(NEEDS_ICON), false),
         "working" => (Image::from_bytes(WORKING_ICON), false),
         "passed" => (Image::from_bytes(PASSED_ICON), false),
+        _ if !update.is_empty() => (Image::from_bytes(IDLE_ICON).map(grey), false),
         _ => (idle_icon(), true),
     };
     let icon = icon.map_err(|error| error.to_string())?;
+    let icon = if update.is_empty() { icon } else { with_dot(icon) };
     tray.set_icon_with_as_template(Some(icon), template).map_err(|error| error.to_string())?;
-    *shown = look;
+    *shown = wanted;
     Ok(())
 }
 
@@ -561,6 +637,8 @@ fn main() {
     if another_panel_runs(&lock) {
         return;
     }
+    // Read only while this panel holds the lock, so that installing a new panel can stop this one.
+    let _ = fs::write(home().join("panel.pid"), std::process::id().to_string());
     // Wayland lets no window place itself or stay on top, and the panel does both, so it runs
     // through XWayland where there is one, unless told otherwise.
     #[cfg(target_os = "linux")]
@@ -569,7 +647,7 @@ fn main() {
         CHOSE_X11.store(true, Ordering::Relaxed);
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![is_pinned, set_pinned, blurs_behind, status, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
+        .invoke_handler(tauri::generate_handler![is_pinned, set_pinned, blurs_behind, status, updates, update, open_release, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {

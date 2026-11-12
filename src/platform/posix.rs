@@ -194,3 +194,82 @@ pub fn run(program: &str, args: &[&str]) -> Result<()> {
     }
     Ok(())
 }
+
+/// The ending of verifique's own release archive for macOS and Linux.
+pub const RELEASE_ARCHIVE: &str = ".tar.gz";
+
+/// Homebrew keeps each formula's program in `Cellar/<formula>/<version>`, on macOS and Linux alike,
+/// and links it from its `bin`, which `program` has already been followed through.
+pub fn from_homebrew(program: &Path) -> bool {
+    let parts: Vec<&std::ffi::OsStr> = program.components().map(|part| part.as_os_str()).collect();
+    parts.windows(2).any(|pair| pair[0] == "Cellar" && pair[1] == crate::paths::NAME)
+}
+
+/// Installed by its full name, as the user guide does, so Homebrew trusts that formula alone.
+pub const HOMEBREW_UPDATE: &str = "brew upgrade smnkgv/verifique/verifique";
+
+/// Homebrew's own upgrade, run by the Homebrew `program` belongs to, which a panel started from the
+/// desktop wouldn't find on its short PATH. Returns where Homebrew links the new program.
+pub fn homebrew_upgrade(program: &Path) -> Result<PathBuf> {
+    let prefix: PathBuf = program.components().take_while(|part| part.as_os_str() != "Cellar").collect();
+    let brew = prefix.join("bin/brew");
+    let status = Command::new(&brew)
+        .args(["upgrade", "smnkgv/verifique/verifique"])
+        .status()
+        .with_context(|| format!("running {}", brew.display()))?;
+    if !status.success() {
+        bail!("Homebrew couldn't upgrade {}: run `{HOMEBREW_UPDATE}` to see why", crate::paths::NAME);
+    }
+    Ok(prefix.join("bin").join(crate::paths::NAME))
+}
+
+/// Start `command` on its own, with nothing to read or write, so it carries on after this process.
+pub fn spawn_detached(mut command: Command) -> io::Result<()> {
+    use std::process::Stdio;
+    command.process_group(0).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map(drop)
+}
+
+/// install.sh again, into the folder this copy is in. It puts it in `~/.local/bin` unless
+/// `VERIFIQUE_INSTALL_DIR` says otherwise, so only another folder needs naming.
+pub fn script_update(program: &Path) -> String {
+    let script = "curl -fsSL https://raw.githubusercontent.com/smnkgv/verifique/main/install.sh";
+    let folder = program.parent().unwrap_or(Path::new("."));
+    if folder == crate::paths::user_home().join(".local/bin") {
+        format!("{script} | sh")
+    } else {
+        format!("{script} | VERIFIQUE_INSTALL_DIR={} sh", sh_quote(&folder.to_string_lossy()))
+    }
+}
+
+/// `text` as one word to sh, quoted only when it has to be.
+fn sh_quote(text: &str) -> String {
+    let plain = !text.is_empty() && text.chars().all(|c| c.is_ascii_alphanumeric() || "/._-~+:@%".contains(c));
+    if plain {
+        text.to_string()
+    } else {
+        format!("'{}'", text.replace('\'', r"'\''"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn homebrew_is_told_by_its_cellar() {
+        assert!(from_homebrew(Path::new("/opt/homebrew/Cellar/verifique/0.3.3/bin/verifique")));
+        assert!(from_homebrew(Path::new("/home/linuxbrew/.linuxbrew/Cellar/verifique/0.3.3/bin/verifique")));
+        assert!(!from_homebrew(Path::new("/opt/homebrew/Cellar/other/1.0/bin/verifique")));
+        assert!(!from_homebrew(Path::new("/Users/me/.local/bin/verifique")));
+    }
+
+    #[test]
+    fn the_install_script_names_only_a_folder_of_its_own() {
+        let home = crate::paths::user_home();
+        let default = script_update(&home.join(".local/bin/verifique"));
+        assert!(default.ends_with("install.sh | sh"), "{default}");
+        assert!(script_update(Path::new("/opt/tools/verifique")).ends_with("| VERIFIQUE_INSTALL_DIR=/opt/tools sh"));
+        assert!(script_update(Path::new("/opt/my tools/verifique")).ends_with("| VERIFIQUE_INSTALL_DIR='/opt/my tools' sh"));
+        assert_eq!(sh_quote("it's"), r"'it'\''s'");
+    }
+}

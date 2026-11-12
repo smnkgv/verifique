@@ -33,6 +33,11 @@ fn env_file() -> PathBuf {
     paths::home().join("service.env")
 }
 
+/// Whether `service install` has run, and `uninstall` hasn't since.
+pub fn installed() -> bool {
+    env_file().is_file()
+}
+
 fn read_env() -> Result<BTreeMap<String, String>> {
     let raw = fs::read_to_string(env_file()).context("the service is not installed")?;
     Ok(raw

@@ -16,6 +16,7 @@ mod server;
 mod service;
 mod services;
 mod store;
+mod updates;
 mod worker;
 
 use std::collections::BTreeMap;
@@ -136,6 +137,20 @@ enum Commands {
         #[command(subcommand)]
         action: PanelAction,
     },
+    /// Update verifique, the queue, its add-ons and the panel to the latest release, as it was installed
+    Update {
+        /// Go ahead without asking, even though restarting the queue ends started stacks
+        #[arg(long)]
+        yes: bool,
+    },
+    /// Whether the queue asks GitHub for new releases, and what it found
+    Updates {
+        /// Turn the daily request on or off, at once
+        #[arg(value_enum)]
+        switch: Option<Switch>,
+        #[arg(long)]
+        json: bool,
+    },
     /// Ask the queue running from this home to stop, as its service manager would
     #[command(hide = true)]
     StopServer,
@@ -227,6 +242,12 @@ enum PanelAction {
     },
     /// Uninstall the panel
     Remove,
+}
+
+#[derive(Clone, clap::ValueEnum)]
+enum Switch {
+    On,
+    Off,
 }
 
 #[derive(Subcommand)]
@@ -778,7 +799,13 @@ fn run(cli: Cli) -> Result<ExitCode> {
         },
         Commands::Cancel { job } => cancel(job),
         Commands::Wait { job } => wait(job),
-        Commands::Status { json } => status(json),
+        Commands::Status { json } => {
+            let code = status(json)?;
+            if !json {
+                updates::print_notice();
+            }
+            Ok(code)
+        }
         Commands::Show { job, json } => show(job, json),
         Commands::List { json } => list(json),
         Commands::Verdict { check, json } => verdict(check, json),
@@ -802,9 +829,23 @@ fn run(cli: Cli) -> Result<ExitCode> {
         Commands::Plugin { action } => {
             match action {
                 PluginAction::Add { names } => plugins::add(&names)?,
-                PluginAction::List => plugins::list()?,
+                PluginAction::List => {
+                    plugins::list()?;
+                    updates::print_notice();
+                }
                 PluginAction::Update => plugins::update()?,
                 PluginAction::Remove { names } => plugins::remove(&names)?,
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Update { yes } => {
+            updates::update(yes)?;
+            Ok(ExitCode::SUCCESS)
+        }
+        Commands::Updates { switch, json } => {
+            match switch {
+                Some(switch) => updates::set(matches!(switch, Switch::On))?,
+                None => updates::show(json)?,
             }
             Ok(ExitCode::SUCCESS)
         }
@@ -820,7 +861,9 @@ fn run(cli: Cli) -> Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
         Commands::Doctor => {
-            doctor::run(&std::env::current_dir()?)?;
+            let proved = doctor::run(&std::env::current_dir()?);
+            updates::print_notice();
+            proved?;
             Ok(ExitCode::SUCCESS)
         }
         Commands::Init { rules } => {

@@ -14,4 +14,5 @@ for the words. When you add, retire or re-review a spec, update its line here in
 | [databases](databases.md) | active | best-effort | Supported database servers, one set of databases per slot, the `verifique_` prefix rule, Redis numbered databases and slot 0 |
 | [safety](safety.md) | active | best-effort | What verifique touches, what is live in `.env`, what leaves the machine, what a checker may do |
 | [platforms](platforms.md) | active | best-effort | macOS, Linux and Windows as equals: installing, one command language, stopping steps, the service, notifications, private files |
+| [updates](updates.md) | active | best-effort | Asking GitHub once a day for the latest release, the notice in `status` and the panel, updating everything with `verifique update` or the panel's Update button, `verifique updates off` |
 | [add-ons](add-ons.md) | active | best-effort | Database support as add-ons: `verifique plugin add`, `list`, `update` and `remove`, finding them, the protocol version, safety |

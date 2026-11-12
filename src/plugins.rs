@@ -152,7 +152,15 @@ pub fn add(names: &[String]) -> Result<()> {
         let _ = fs::remove_file(&aside);
         println!("added {name} {VERSION}");
     }
+    record();
     Ok(())
+}
+
+/// Tell the queue which add-ons are behind now, so its reminder goes away once they aren't.
+fn record() {
+    if let Ok(store) = crate::store::Store::open() {
+        crate::updates::record_plugins(&store);
+    }
 }
 
 /// The plugins `plugin add` installed, by name.
@@ -186,12 +194,28 @@ pub fn update() -> Result<()> {
     add(&names)
 }
 
+/// The add-ons verifique publishes that the queue would use at another version than this one,
+/// by name. Each is asked its version, so this runs a program per add-on found.
+pub fn behind() -> Vec<String> {
+    PUBLISHED
+        .iter()
+        .filter(|name| find(name).and_then(|program| describe(&program).ok()).is_some_and(|description| description.version != VERSION))
+        .map(|name| name.to_string())
+        .collect()
+}
+
+/// Whether `plugin add` has installed any add-on, which `plugin update` would then bring along.
+pub fn any_installed() -> bool {
+    !installed().is_empty()
+}
+
 pub fn remove(names: &[String]) -> Result<()> {
     for name in names {
         let file = installed_file(name);
         if file.is_file() {
             fs::remove_file(&file)?;
             println!("removed {name}");
+            record();
         } else if let Some(elsewhere) = find(name) {
             bail!("{name} is at {}, which `{NAME} plugin add` didn't put there. Remove it there", elsewhere.display());
         } else {

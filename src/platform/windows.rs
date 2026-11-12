@@ -40,6 +40,8 @@ const RUN_KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
 const RUN_VALUE: &str = "verifique panel";
 
 pub const PANEL_PACKAGE: &str = ".exe";
+/// The ending of verifique's own release archive for Windows.
+pub const RELEASE_ARCHIVE: &str = ".zip";
 const NO_GIT_SH: &str = "verifique runs commands with the sh that comes with Git for Windows, and found none. \
     Install Git for Windows (winget install Git.Git, or https://git-scm.com/download/win), or point \
     VERIFIQUE_SH at another sh.exe";
@@ -455,6 +457,50 @@ fn known_folder(variable: &str, fallback: &str) -> PathBuf {
     env::var_os(variable).map_or_else(|| paths::user_home().join(fallback), PathBuf::from)
 }
 
+/// Scoop's apps folder, or else install.ps1, the only other way verifique reaches Windows.
+pub fn update_command(program: &Path) -> Option<String> {
+    if from_scoop(program) {
+        return Some(format!("scoop update {NAME}"));
+    }
+    let script = "irm https://raw.githubusercontent.com/smnkgv/verifique/main/install.ps1 | iex";
+    let folder = program.parent().unwrap_or(Path::new("."));
+    let default = known_folder("LOCALAPPDATA", r"AppData\Local").join(r"Programs\verifique");
+    if is_within(folder, &default) && is_within(&default, folder) {
+        return Some(script.to_string());
+    }
+    Some(format!("$env:VERIFIQUE_INSTALL_DIR={}; {script}", powershell_quote(&folder.to_string_lossy())))
+}
+
+/// The release swapped in as install.ps1 would, for Scoop too. Windows lets a running program be
+/// moved aside but not replaced, which is how Windows programs update themselves. Scoop instead
+/// refuses to update while any verifique program runs, such as an agent waiting on a check, so
+/// `scoop list` shows the old version until Scoop next updates it, which reinstalls the same one.
+pub fn upgrade(program: &Path, version: &str, _interactive: bool) -> Result<Option<PathBuf>> {
+    crate::release::install_over(program, version).map(Some)
+}
+
+/// Start `command` on its own, with no console and nothing to read or write, so it carries on
+/// after this process.
+pub fn spawn_detached(mut command: Command) -> io::Result<()> {
+    use std::process::Stdio;
+    // DETACHED_PROCESS and CREATE_NEW_PROCESS_GROUP.
+    command.creation_flags(0x0000_0008 | 0x0000_0200).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map(drop)
+}
+
+pub fn panel_installed() -> bool {
+    panel_program().exists()
+}
+
+/// Scoop keeps each app in `apps\<name>\<version>`, reached through `current`, beside the `shims`
+/// folder that puts it on PATH, wherever the user put Scoop itself.
+fn from_scoop(program: &Path) -> bool {
+    let parts: Vec<&std::ffi::OsStr> = program.components().map(|part| part.as_os_str()).collect();
+    (1..parts.len()).any(|at| {
+        let named = |part: &std::ffi::OsStr, name: &str| part.to_string_lossy().eq_ignore_ascii_case(name);
+        named(parts[at - 1], "apps") && named(parts[at], NAME) && parts[..at - 1].iter().collect::<PathBuf>().join("shims").is_dir()
+    })
+}
+
 /// Beside verifique.exe where install.ps1 puts it, so the panel finds the CLI there.
 fn panel_program() -> PathBuf {
     known_folder("LOCALAPPDATA", r"AppData\Local").join(r"Programs\verifique\verifique-panel.exe")
@@ -515,7 +561,30 @@ pub fn remove_panel() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::quote_arg;
+    use super::{from_scoop, quote_arg, update_command};
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn scoop_is_told_by_its_apps_folder_beside_its_shims() {
+        let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let scoop = std::env::temp_dir().join(format!("verifique-scoop-{unique}"));
+        let program = scoop.join(r"apps\verifique\current\verifique.exe");
+        assert!(!from_scoop(&program), "no shims folder, so not Scoop");
+        fs::create_dir_all(scoop.join("shims")).unwrap();
+        assert!(from_scoop(&program));
+        assert_eq!(update_command(&program).as_deref(), Some("scoop update verifique"));
+        let _ = fs::remove_dir_all(scoop);
+    }
+
+    #[test]
+    fn the_install_script_names_only_a_folder_of_its_own() {
+        let local = std::env::var("LOCALAPPDATA").unwrap();
+        let default = Path::new(&local).join(r"Programs\verifique\verifique.exe");
+        assert!(update_command(&default).unwrap().starts_with("irm "));
+        let elsewhere = update_command(Path::new(r"D:\it's\verifique.exe")).unwrap();
+        assert!(elsewhere.starts_with(r"$env:VERIFIQUE_INSTALL_DIR='D:\it''s'; irm "), "{elsewhere}");
+    }
 
     #[test]
     fn arguments_survive_the_command_line() {

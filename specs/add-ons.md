@@ -3,7 +3,7 @@ status: active
 last-reviewed: 2026-11-10
 owner: Hlib Semeniuk
 confidence: best-effort
-related: [databases, platforms, setup]
+related: [databases, platforms, setup, updates]
 glossary_terms: [Add-on, Database server, Slot]
 ---
 
@@ -35,7 +35,9 @@ keeps their versions matched to the core without a package for each one in every
 4. `verifique plugin list` shows each add-on, where it is and its version, or that it is not
    installed and the command that adds it.
 5. After the core is upgraded, `verifique plugin update` brings every installed add-on verifique
-   publishes to the core's version. `plugin list` and `verifique doctor` say when one is behind.
+   publishes to the core's version. `plugin list` and `verifique doctor` say when one is behind, and
+   so do `verifique status` and the panel once the queue runs the new core. `verifique update`
+   brings them along with the core (see [updates](updates.md)).
 6. `verifique plugin remove <name>` removes an add-on `plugin add` installed. For one installed some
    other way, it says where it is and leaves it.
 
@@ -68,8 +70,9 @@ keeps their versions matched to the core without a package for each one in every
 
 ## Limits
 
--   Upgrading the core does not upgrade its add-ons: someone has to run `plugin update`. Until then,
-    an add-on of the same protocol keeps working at its older version.
+-   Upgrading the core any other way than `verifique update` does not upgrade its add-ons: someone
+    has to run `plugin update`, which `status` and the panel remind them to do. Until then, an
+    add-on of the same protocol keeps working at its older version.
 -   Someone upgrading from a version with database support built in has to add the add-ons before
     the next check that needs a database, which otherwise ends in an error naming the command.
 -   The Postgres and Redis add-ons do not speak TLS yet (see [databases](databases.md)).

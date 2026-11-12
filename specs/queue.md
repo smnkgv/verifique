@@ -3,8 +3,8 @@ status: active
 last-reviewed: 2026-11-10
 owner: Hlib Semeniuk
 confidence: best-effort
-related: [hand-off-and-verdicts, checks, slots-and-isolation, stacks, platforms]
-glossary_terms: [Queue, The service, Slot, Job, Retry, Resource, Disk floor, Needs-you, Panel, Started stack]
+related: [hand-off-and-verdicts, checks, slots-and-isolation, stacks, platforms, updates]
+glossary_terms: [Queue, The service, Slot, Job, Retry, Resource, Disk floor, Needs-you, Panel, Started stack, Update notice]
 ---
 
 # The queue and its service
@@ -40,7 +40,7 @@ disk first and makes checks wait rather than letting them fail.
    <name>=<count>` (repeatable), `--min-free-gb` (default 5) and `--first-slot` (default 4), and
    keeps them for every later start.
 3. Installing again replaces the service. `verifique service restart` restarts it, such as after a
-   new build. `verifique service uninstall` stops and removes it. `verifique serve` runs the queue in
+   new build or an update (see [updates](updates.md)). `verifique service uninstall` stops and removes it. `verifique serve` runs the queue in
    a terminal instead, with the same options.
 4. Installing records the `PATH` the user works with (on macOS and Linux their login shell's, on
    Windows their terminal's) and the few other variables tools need to be found, such as
@@ -92,7 +92,8 @@ disk first and makes checks wait rather than letting them fail.
 
 20. `verifique status` shows whether the queue is running, how many slots are busy, what is running
     and where, what is queued, what needs you and why, and the latest verdicts. It also says when
-    checks wait for disk or for `doctor`.
+    checks wait for disk or for `doctor`, and ends with an update notice while one is waiting (see
+    [updates](updates.md)).
 21. `verifique list` shows recent jobs and `verifique show <job>` shows one in full (see
     [the hand-off](hand-off-and-verdicts.md)). All three take `--json`.
 22. Slots keep their copies of the code between checks, so builds stay fast. `verifique clean`
@@ -104,16 +105,17 @@ disk first and makes checks wait rather than letting them fail.
     Linux tray. Clicking it opens the panel on the desktop in front of the user, over a full-screen
     window too, listing what needs you, what is running, what is queued and the recent verdicts with
     their proof.
-24. From the panel, a person can view a job's proof, hand a branch back, run a queued job next and
-    change how many copies run at once.
+24. From the panel, a person can view a job's proof, hand a branch back, run a queued job next,
+    change how many copies run at once and update verifique (see [updates](updates.md)).
 25. The tick is amber with the number of checks left while they run, green for five minutes after the
-    last one passes, and red with a count when something needs you.
+    last one passes, and red with a count when something needs you. A blue dot on it, and a line
+    above the panel's footer, mean an update is waiting (see [updates](updates.md)).
 26. Pinning the panel keeps it on screen in the top right corner, semi-transparent, on every desktop.
 27. The panel reads the CLI's `--json` output and acts only through the CLI, so it can do nothing the
     CLI cannot. The CLI works alone, and installing without the panel stays possible.
 28. The panel is an add-on: `verifique panel install` fetches it from the same release as the CLI,
     checked against that release's checksums, puts it where the system keeps apps with an entry in
-    its app menu, and opens it now and whenever the user logs in. `verifique panel remove` takes it
+    its app menu, and opens it now and whenever the user logs in, closing one already open. `verifique panel remove` takes it
     away. Where a system lets an app do less, the panel goes without rather than imitate macOS (see
     [platforms](platforms.md)).
 

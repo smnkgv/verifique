@@ -11,9 +11,10 @@ use anyhow::Result;
 
 pub use super::posix::{
     alive, ask_to_stop, canonical, is_within, end_orphaned_tree, end_quietly_on_closed_output, free_bytes, make_executable,
-    on_stop_request, open_log, program_file_names, session_environment, shell, shell_program, stop_process, write_private, Tree,
+    on_stop_request, open_log, program_file_names, session_environment, shell, shell_program, spawn_detached, stop_process,
+    write_private, Tree, RELEASE_ARCHIVE,
 };
-use super::posix::run;
+use super::posix::{from_homebrew, homebrew_upgrade, run, script_update, HOMEBREW_UPDATE};
 use super::ServiceSpec;
 use crate::paths::user_home as home_dir;
 use crate::paths;
@@ -29,6 +30,22 @@ pub fn notify(title: &str, message: &str) {
     let quote = |text: &str| text.replace('\\', "\\\\").replace('"', "\\\"");
     let script = format!("display notification \"{}\" with title \"{}\"", quote(message), quote(title));
     let _ = Command::new("osascript").arg("-e").arg(script).stdout(Stdio::null()).stderr(Stdio::null()).status();
+}
+
+/// Homebrew's Cellar, or else install.sh, the only other way verifique reaches a Mac.
+pub fn update_command(program: &Path) -> Option<String> {
+    if from_homebrew(program) {
+        return Some(HOMEBREW_UPDATE.to_string());
+    }
+    Some(script_update(program))
+}
+
+/// Homebrew's own upgrade, or else the release swapped in as install.sh would.
+pub fn upgrade(program: &Path, version: &str, _interactive: bool) -> Result<Option<PathBuf>> {
+    if from_homebrew(program) {
+        return homebrew_upgrade(program).map(Some);
+    }
+    crate::release::install_over(program, version).map(Some)
 }
 
 fn label() -> String {
@@ -123,6 +140,10 @@ pub fn uninstall_service() -> Result<()> {
 
 fn panel_app() -> PathBuf {
     home_dir().join("Applications/verifique.app")
+}
+
+pub fn panel_installed() -> bool {
+    panel_app().exists()
 }
 
 fn panel_plist() -> PathBuf {

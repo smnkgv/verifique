@@ -173,6 +173,8 @@ impl World {
             .env("VERIFIQUE_NOTIFY", "off")
             // Only the plugins built with this binary, never ones installed on this machine.
             .env("VERIFIQUE_PLUGINS", self.root.join("plugins"))
+            // GitHub as `publish_latest` leaves it, which is nothing at first, never the real one.
+            .env("VERIFIQUE_LATEST", file_url(&self.root.join("latest.json")))
             .env("LOG", self.root.join("events.log"));
         command
     }
@@ -322,7 +324,38 @@ checks:
         let out = self.run(&["status", "--json"]);
         serde_json::from_slice(&out.stdout).unwrap()
     }
+
+    /// The latest release, as GitHub tells the queue when it asks.
+    fn publish_latest(&self, version: &str) {
+        fs::write(self.root.join("latest.json"), format!(r#"{{"tag_name": "v{version}", "draft": false}}"#)).unwrap();
+    }
+
+    fn updates_json(&self) -> serde_json::Value {
+        let out = self.run(&["updates", "--json"]);
+        assert!(out.status.success(), "updates --json: {}", String::from_utf8_lossy(&out.stderr));
+        serde_json::from_slice(&out.stdout).unwrap()
+    }
+
+    /// Until the queue has asked for the latest release and found `version`.
+    fn until_asked(&self, version: &str) {
+        let started = Instant::now();
+        while self.updates_json()["latest"] != version {
+            assert!(started.elapsed() < Duration::from_secs(20), "the queue never found {version}: {}", self.updates_json());
+            sleep(Duration::from_millis(100));
+        }
+    }
+
+    /// What `status` tells a person at a terminal, below what it lists.
+    fn told(&self, args: &[&str]) -> String {
+        String::from_utf8_lossy(&self.run(args).stderr).into_owned()
+    }
 }
+
+fn file_url(path: &Path) -> String {
+    format!("file:///{}", path.display().to_string().replace('\\', "/").trim_start_matches('/'))
+}
+
+const THIS: &str = env!("CARGO_PKG_VERSION");
 
 impl Drop for World {
     fn drop(&mut self) {
@@ -1741,4 +1774,90 @@ fn doctor_runs_the_setup_step_a_check_depends_on() {
     let out = world.run(&["doctor"]);
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("setup failed"));
+}
+
+#[test]
+fn a_newer_release_is_told_to_people_and_never_to_agents() {
+    let mut world = World::new();
+    world.publish_latest("99.0.0");
+    world.serve(1, &[]);
+    world.until_asked("99.0.0");
+
+    let status = world.run(&["status"]);
+    let told = String::from_utf8_lossy(&status.stderr);
+    // This binary was built from a checkout, so updating it is pulling and building again.
+    assert!(told.contains(&format!("verifique 99.0.0 is out (this is {THIS}): pull and build again in ")), "{told}");
+    assert!(!String::from_utf8_lossy(&status.stdout).contains("99.0.0"));
+    for args in [&["plugin", "list"][..], &["updates"]] {
+        assert!(world.told(args).contains("99.0.0 is out"), "{args:?} says nothing");
+    }
+
+    let json = world.run(&["status", "--json"]);
+    assert!(!String::from_utf8_lossy(&json.stdout).contains("99.0.0"));
+    assert!(!String::from_utf8_lossy(&json.stderr).contains("99.0.0"));
+    let job = world.submit("manual", "pass");
+    let (code, verdict) = world.wait(&job);
+    assert_eq!(code, 0);
+    assert!(!verdict.contains("99.0.0"));
+    for args in [&["show", job.as_str()][..], &["list"], &["verdict", "--check", "manual"]] {
+        let out = world.run(args);
+        let said = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(!said.contains("99.0.0"), "{args:?} told an agent: {said}");
+    }
+
+    let notice = &world.updates_json()["notice"];
+    assert_eq!(notice["kind"], "release");
+    assert_eq!(notice["url"], "https://github.com/smnkgv/verifique/releases/tag/v99.0.0");
+    assert_eq!(notice["short"], "verifique 99.0.0 is out: pull and build again");
+    assert_eq!(notice["updatable"], false, "a build from source is updated by hand");
+}
+
+#[test]
+fn turning_updates_off_silences_the_notice_at_once_and_on_asks_again() {
+    let mut world = World::new();
+    world.publish_latest("99.0.0");
+    world.serve(1, &[]);
+    world.until_asked("99.0.0");
+    assert!(world.told(&["status"]).contains("99.0.0 is out"));
+
+    assert!(world.run(&["updates", "off"]).status.success());
+    assert!(!world.told(&["status"]).contains("is out"));
+    let off = world.updates_json();
+    assert_eq!(off["checking"], false);
+    assert!(off["notice"].is_null(), "{off}");
+    assert!(String::from_utf8_lossy(&world.run(&["updates"]).stdout).starts_with("off: "));
+
+    assert!(world.run(&["updates", "on"]).status.success());
+    world.until_asked("99.0.0");
+    assert!(world.told(&["status"]).contains("99.0.0 is out"));
+}
+
+#[test]
+fn the_release_this_already_is_goes_untold() {
+    let mut world = World::new();
+    world.publish_latest(THIS);
+    world.serve(1, &[]);
+    world.until_asked(THIS);
+    assert!(!world.told(&["status"]).contains("is out"));
+    assert!(world.updates_json()["notice"].is_null());
+    let shown = String::from_utf8_lossy(&world.run(&["updates"]).stdout).into_owned();
+    assert!(shown.contains(&format!("{THIS} is the latest, and this is {THIS}")), "{shown}");
+}
+
+#[test]
+fn a_queue_older_than_this_verifique_is_told_to_restart() {
+    let mut world = World::new();
+    world.publish_latest(THIS);
+    world.serve(1, &[]);
+    world.until_asked(THIS);
+    // As a queue started before an upgrade leaves its record.
+    let older = "import sqlite3, sys; db = sqlite3.connect(sys.argv[1]); db.execute(\"update settings set value = '0.0.1' where key = 'server_version'\"); db.commit()";
+    let changed = Command::new("python3").args(["-c", older]).arg(world.home.join("queue.db")).status().unwrap();
+    assert!(changed.success());
+    let told = world.told(&["status"]);
+    assert!(told.contains(&format!("the queue still runs 0.0.1, and verifique {THIS} is installed: run `verifique update`")), "{told}");
+    let notice = &world.updates_json()["notice"];
+    assert_eq!(notice["kind"], "restart");
+    assert_eq!(notice["updatable"], true);
+    assert_eq!(notice["restarts"], true);
 }

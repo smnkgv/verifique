@@ -171,6 +171,12 @@ gives no verdict and stops by itself.
 : Handing work over for checking with `verifique submit`: which check to run, the request, the
 brief, and the content.
 
+**Update notice**
+: What verifique says while an update is waiting: a newer release is out, the queue still runs an
+older version than the one installed, or add-ons are behind. One line after `status` and the other
+commands people read, saying to run `verifique update`, and in the panel a line with an Update button
+and a blue dot on the tick. verifique never updates without being asked.
+
 **Verdict**
 : The result of a check on a piece of content: passed, failed or blocked. A check that breaks ends
 in an error instead.
