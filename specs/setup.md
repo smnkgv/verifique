@@ -1,6 +1,6 @@
 ---
 status: active
-last-reviewed: 2026-11-12
+last-reviewed: 2026-11-16
 owner: Hlib Semeniuk
 confidence: best-effort
 related: [stacks, checks, databases, queue, safety, slots-and-isolation, platforms, add-ons]
@@ -20,6 +20,11 @@ verifique works with any project, from nothing, and knows nothing about framewor
 The user's coding agent can read the code and find what two copies of the app would fight over, so
 verifique gives it a guide instead of trying to guess. The guide keeps the agent honest: small edits
 only, on a branch, and stop on anything bigger.
+
+Setup covers every app the project ships and every way it verifies work, because whatever is left
+without a check gives agents a reason to verify outside the queue, where they fight over the machine
+again. It runs only a few tests of each, because it proves the wiring, not the product, and running
+every suite whole would hold the machine for hours.
 
 A file that looks right proves nothing. `doctor` starts two copies side by side and checks that each
 really used its own databases, which catches the most common mistake: an app that ignores its
@@ -50,10 +55,12 @@ queue behind the user's back.
     1. Check that the database servers are already running. If one is missing, tell the user and
        stop: neither verifique nor the agent installs one. If the add-on for one is not installed,
        ask the user to run `verifique plugin add <name>`.
-    2. List everything two copies of the app would collide over (ports, databases, cache and queue
+    2. List every app the project ships and every way it verifies work on them today, such as its
+       test suites, each platform's end-to-end tests and its manual passes. Each becomes a check.
+    3. List everything two copies of the app would collide over (ports, databases, cache and queue
        names, uploads, temporary folders, scheduled jobs) and the exact settings the app reads for
        each.
-    3. Write `verifique.yaml`, keeping it short. Run the app as a production build, with the exact
+    4. Write `verifique.yaml`, keeping it short. Run the app as a production build, with the exact
        start command production uses. Point every setting that names a port, a database or a shared
        resource at the slot's values. Set the time zone and anything else production sets that
        changes behaviour. Point cloud credentials in the home folder at nothing unless a check needs
@@ -61,22 +68,26 @@ queue behind the user's back.
        Make sure the queue's `PATH`, which `verifique service env` shows, gives the versions
        production uses. If the app only works at one host name, such as `localhost`, name it on the
        stack. Keep every step from changing anything outside its slot, such as installers that
-       clean shared caches. For a phone app, run the backend as a stack and the app on a simulator,
-       declared as a limited resource.
-    4. Only if the app hardcodes a value, make small edits so it reads the value from the
+       clean shared caches. A check runs whatever the project's own tests run, including a
+       simulator or emulator they start, and anything the machine has only a few of, such as
+       simulators, is declared as a limited resource. If a check needs the queue started with an
+       option it lacks, ask the user to add it and wait.
+    5. Only if the app hardcodes a value, make small edits so it reads the value from the
        environment, keeping today's value as the default, on a branch shown to the user. Anything
        larger is for the user to decide.
-    5. Prove it with `verifique doctor`, never weakening a ready path to make it pass, and report
-       any remote-database warning to the user. Then submit every check once and read each verdict.
-       A test suite runs whole. Setup is finished only when every check has passed, or its only
-       failures also happen without verifique. A failure is studied in a started stack, never by
-       resubmitting the check, because every failed check counts toward needs-you.
-    6. Propose the rules to the user as a change to the project's agent instructions, written the
+    6. Prove it with `verifique doctor`, never weakening a ready path to make it pass, and report
+       any remote-database warning to the user. Then submit every check once and read each verdict,
+       pointing each check that runs tests at a few of them that between them reach every app and
+       database its stack provides. Setup is finished only when everything listed in step 2 has a
+       check and every check has passed, or its only failures also happen without verifique.
+       Something is left out only when the user says so, and the report names it. A failure is
+       studied in a started stack, never by resubmitting the check, because every failed check
+       counts toward needs-you.
+    7. Propose the rules to the user as a change to the project's agent instructions, written the
        way those instructions write their own rules and placed where they say such rules belong.
        Change every existing rule the setup makes untrue, such as how to start the app or run its
-       tests, and merge each rule with any the project keeps on the same subject, such as another
-       way it verifies work, so that no two contradict. Before removing or narrowing a rule, find
-       everything that still depends on it.
+       tests, and merge each rule with any the project keeps on the same subject, so that no two
+       contradict. Before removing or narrowing a rule, find everything that still depends on it.
 7. The guide tells the agent never to stop a process by name or pattern, and to stop only what it
    started itself.
 8. `verifique init --rules` prints only the rules.

@@ -53,12 +53,19 @@ the user what is missing and stop. Support for each kind of database is a plugin
 `mongo` and `redis` so far. `{NAME} plugin list` shows which are installed. If the project needs one
 that isn't, ask the user to run `{NAME} plugin add <name>`.
 
-## 2. Find what two copies of the app would fight over
+## 2. List everything the project verifies
+
+List every app the project ships, such as a website, an API, a phone app or a desktop app, and every
+way it verifies work on them today, such as its test suites, each platform's end-to-end tests and
+any manual pass its instructions describe. Its CI workflows, scripts and agent instructions show
+them. Each one becomes a check, so that no agent has a reason to verify work outside {NAME}.
+
+## 3. Find what two copies of the app would fight over
 
 Read the code and list everything that would collide: ports, databases, cache and queue names,
 uploads, temporary folders, scheduled jobs. Find the exact settings the app reads for each one.
 
-## 3. Write {CONFIG_FILE}
+## 4. Write {CONFIG_FILE}
 
 Copy the shape of this and keep it short. The app runs as a production build rather than a dev server:
 it starts faster, and uses far less memory across several copies. Use the exact command production
@@ -165,30 +172,40 @@ same Node, and tell the user if it doesn't. A step must change nothing outside t
 installers clean shared caches, such as `playwright install`, which deletes browser versions other
 projects use unless `PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
 
-If the product is a phone app, a stack runs its backend and the app runs on a simulator or emulator.
-A phone is limited, so start the queue with `--resource simulator=1` and name it under `needs` on the
-check. Reach the slot the way the project's own device tests do: an emulator can't always use the
-host's address, and `doctor` only proves the backend, so prove the app reaches it with a real check.
+A check runs whatever the project's own tests run, including a simulator, an emulator or a helper
+they start, since {NAME} starts only a stack's apps and a check's commands. A phone app's check runs
+on a stack that runs its backend. Name anything the machine has only a few of, such as simulators,
+under `needs` on the check: the queue then runs only as many at once as it was started with, such as
+`--resource simulator=1`. Reach the slot the way the project's own device tests do: an emulator
+can't always use the host's address, and `doctor` only proves the backend, so prove the app reaches
+it with a real check.
 
-## 4. Only if the app hardcodes something
+If a check needs the queue started with an option it lacks, such as a resource, ask the user to add
+it to `{NAME} service install`, along with the options the queue already has, and wait for them to
+say it's done. Never leave a check out to avoid asking.
+
+## 5. Only if the app hardcodes something
 
 You may make small edits so the app reads a value from the environment, keeping today's value as
 the default, such as `process.env.PORT ?? 3000`. Make them on a branch and show the user. Anything
 larger is for the user to decide: stop and explain what is needed.
 
-## 5. Prove it
+## 6. Prove it
 
 Run `{NAME} doctor`. It starts two copies side by side, runs `setup`, confirms each used its own
 database, and stops them. Never weaken a `ready` check to make it pass. Read any warning it gives
 about a remote database, and tell the user.
 
-Then submit every check once with `{NAME} submit` and read each verdict. A test suite runs whole, not
-a sample of it. Setup is finished only when every check has passed, or its only failures also happen
-without {NAME}: report those rather than skipping a test. Every failed check counts toward needs-you,
-so don't resubmit one to study a failure: investigate in a started stack, which never counts, and run
-the tests there with `{NAME} stack exec`.
+Then submit every check once with `{NAME} submit` and read each verdict. Setup proves the wiring,
+not the product, so point each check that runs tests at a few of them after `--`, chosen so that
+between them they reach every app and database its stack provides. Setup is finished only when
+everything you listed in step 2 has a check and every check has passed, or its only failures also
+happen without {NAME}: report those rather than swapping in a test that passes. Leave something out
+only when the user says to, and name it in your report. Every failed check counts toward needs-you,
+so don't resubmit one to study a failure: investigate in a started stack, which never counts, and
+run the tests there with `{NAME} stack exec`.
 
-## 6. Propose the rules
+## 7. Propose the rules
 
 The project's agents need the rules below. Propose them to the user as a change to the project's
 agent instructions: write them the way those instructions write their own rules, keeping what each
@@ -196,8 +213,7 @@ one means, and put them where the instructions say such rules belong. Change eve
 reference the setup makes untrue, such as how to start the app or run its tests, and keep any part
 of it that still holds. Before removing or narrowing a rule, find everything that still depends on
 it, such as tests or tools the project still runs itself. Merge a rule below with any rule the
-project keeps on the same subject, so that no two contradict, such as a way the project verifies
-work {NAME} doesn't run.
+project keeps on the same subject, so that no two contradict.
 
 {rules}
 "#,
