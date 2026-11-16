@@ -138,7 +138,7 @@ jobs:
                   "$bin" service restart
                   up
                   "$bin" service uninstall
-                  if [ "$RUNNER_OS" = macOS ]; then cargo test --release --locked --test service -- --ignored; fi
+                  cargo test --release --locked --test service -- --ignored
 
     # The status-bar panel on each OS: built the way the README builds it, started, and its page run in
     # the browser whose engine it uses there. Nobody is at a runner to click the tick, so the rest is by hand.

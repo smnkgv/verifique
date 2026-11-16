@@ -47,14 +47,12 @@ pub fn now() -> u64 {
 
 /// Whether a server is alive. Agents and people need telling when nothing will run their job.
 pub fn is_running(store: &Store) -> Result<bool> {
-    let beat = store.setting(KEY_HEARTBEAT)?.and_then(|value| value.parse::<u64>().ok());
-    Ok(beat.is_some_and(|beat| now().saturating_sub(beat) < HEARTBEAT_LIMIT))
+    Ok(last_beat(store)?.is_some_and(|beat| now().saturating_sub(beat) < HEARTBEAT_LIMIT))
 }
 
-/// The pid of the server that is alive, if one is.
-pub fn serving(store: &Store) -> Result<Option<u32>> {
-    let pid = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
-    Ok(if is_running(store)? { pid } else { None })
+/// When a server last showed it was alive, in seconds since the epoch.
+pub fn last_beat(store: &Store) -> Result<Option<u64>> {
+    Ok(store.setting(KEY_HEARTBEAT)?.and_then(|value| value.parse::<u64>().ok()))
 }
 
 pub fn is_paused(store: &Store) -> Result<bool> {
@@ -350,9 +348,11 @@ pub fn serve(options: Options) -> Result<()> {
 /// Ask the running queue to finish what it holds and exit, the way its service manager does. A pid
 /// a dead server left behind may belong to someone else by now, so only a live server is asked.
 pub fn ask_to_stop() -> Result<()> {
-    match serving(&Store::open()?)? {
-        Some(pid) => platform::ask_to_stop(pid),
-        None => bail!("no {} server is running", paths::NAME),
+    let store = Store::open()?;
+    let pid = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
+    match pid {
+        Some(pid) if is_running(&store)? => platform::ask_to_stop(pid),
+        _ => bail!("no {} server is running", paths::NAME),
     }
 }
 

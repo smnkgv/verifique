@@ -100,11 +100,12 @@ pub fn restart() -> Result<()> {
         bail!("the service is not installed: run `{} service install`", paths::NAME);
     }
     let store = Store::open()?;
-    let before = server::serving(&store)?;
     platform::restart_service()?;
+    // The old queue has exited by the time the service manager returns, so only the new one beats
+    // after this. A new queue records its pid before it is ready, so the pid can't tell.
+    let since = server::now();
     let deadline = Instant::now() + BACK_WITHIN;
-    // A queue that was ended rather than stopped still looks alive for a few seconds.
-    while server::serving(&store)?.is_none_or(|pid| Some(pid) == before) {
+    while !server::last_beat(&store)?.is_some_and(|beat| beat > since) {
         if Instant::now() >= deadline {
             bail!(
                 "the queue did not come back within {} seconds of restarting the service. Its log is {}",
