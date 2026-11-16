@@ -64,14 +64,17 @@ queue behind the user's back.
        start command production uses. Point every setting that names a port, a database or a shared
        resource at the slot's values. Set the time zone and anything else production sets that
        changes behaviour. Point cloud credentials in the home folder at nothing unless a check needs
-       them. If `.env` lacks something, tell the user what to add rather than filling it in.
+       them. If `.env` lacks something, tell the user what to add rather than filling it in. Let
+       verifique's settings through any tool that passes on only some environment variables.
        Make sure the queue's `PATH`, which `verifique service env` shows, gives the versions
        production uses. If the app only works at one host name, such as `localhost`, name it on the
        stack. Keep every step from changing anything outside its slot, such as installers that
-       clean shared caches. A check runs whatever the project's own tests run, including a
-       simulator or emulator they start, and anything the machine has only a few of, such as
-       simulators, is declared as a limited resource. If a check needs the queue started with an
-       option it lacks, ask the user to add it and wait.
+       clean shared caches. Have a check on several slots hand each worker of its suite one copy of
+       the stack, and fit the time limits to the longest run the project's agents will submit.
+       Make sure what `setup` prints works as printed. A check runs whatever the project's own
+       tests run, including a simulator or emulator they start, and anything the machine has only
+       a few of, such as simulators, is declared as a limited resource. If a check needs the queue
+       started with an option it lacks, ask the user to add it and wait.
     5. Only if the app hardcodes a value, make small edits so it reads the value from the
        environment, keeping today's value as the default, on a branch shown to the user. Anything
        larger is for the user to decide.

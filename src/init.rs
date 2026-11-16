@@ -132,6 +132,15 @@ When an agent submits, anything it adds after `--` goes on the end of the check'
 check that runs tests can be pointed at some of them. Never make a check pick its tests out of the
 brief or the request: they are prose, and a test named there to be left out would run.
 
+A check with `slots` gets one copy of its stack per worker. `VERIFIQUE_STACKS` names a JSON file
+listing every copy's slot, host, ports and values, and `VERIFIQUE_SLOTS` lists their slot numbers:
+have the suite hand each worker one copy.
+
+Every step has a time limit: 30 minutes for `prepare` and for the check, less for the rest. If a run
+the project's agents submit can take longer, such as a whole suite, raise it under `timeouts` at the
+top of {CONFIG_FILE}, in seconds, such as `timeouts: {{ runSec: 5400 }}`. The others are
+`prepareSec`, `seedSec`, `readySec` and `setupSec`.
+
 A stack needs no apps. A check that only needs its own databases, such as a test suite, gets them
 from a stack with just `prepare`, `seed` and `env`, without building the app. With nothing running
 before the check, `doctor` takes its settings as proof for a database its seed leaves alone.
@@ -146,9 +155,13 @@ Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}
 
 The `.env` in the repository's main checkout is copied into each slot, even for work submitted from a
 worktree, and loaded for every step and app, so a production start command needs no dotenv of its
-own. If it lacks something the app needs, tell the user what to add rather than filling it in here. Everything in {CONFIG_FILE} wins over it. Add other
-gitignored files under `envFiles`. Every setting that names a port, a database or a shared
-resource must be overridden here, or two copies will collide or a check will reach the real thing.
+own. If it lacks something the app needs, tell the user what to add rather than filling it in
+here. Everything in {CONFIG_FILE} wins over it. Add other gitignored files under `envFiles`. Every
+setting that names a port, a database or a shared resource must be overridden here, or two copies
+will collide or a check will reach the real thing.
+
+Some tools pass the commands they run only the environment variables they are told to, such as
+turbo: let {NAME}'s settings through in that tool's own config, or those commands never see them.
 
 Settings that do not name a resource can still change what the app does. Set the time zone production
 uses, and anything else production sets that affects behaviour. Cloud SDKs read credentials from the
@@ -164,7 +177,8 @@ needs them up runs with `{NAME} stack exec <job> -- <command>` once the stack is
 slot and with its settings.
 
 Whatever `setup` prints reaches the checker agent and its model provider, so only print throwaway
-credentials.
+credentials. Make sure they work as printed, such as an account that can already sign in, because
+the checker starts from nothing else.
 
 The queue runs every step with the PATH recorded when it was installed, which `{NAME} service env`
 shows, and `doctor` uses the same. Make sure that gives the versions production uses, such as the
@@ -175,10 +189,10 @@ projects use unless `PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
 A check runs whatever the project's own tests run, including a simulator, an emulator or a helper
 they start, since {NAME} starts only a stack's apps and a check's commands. A phone app's check runs
 on a stack that runs its backend. Name anything the machine has only a few of, such as simulators,
-under `needs` on the check: the queue then runs only as many at once as it was started with, such as
-`--resource simulator=1`. Reach the slot the way the project's own device tests do: an emulator
-can't always use the host's address, and `doctor` only proves the backend, so prove the app reaches
-it with a real check.
+under `needs` on the check with how many it takes, such as `needs: {{ simulator: 1 }}`: the queue
+then runs only as many at once as it was started with, such as `--resource simulator=1`. Reach the
+slot the way the project's own device tests do: an emulator can't always use the host's address,
+and `doctor` only proves the backend, so prove the app reaches it with a real check.
 
 If a check needs the queue started with an option it lacks, such as a resource, ask the user to add
 it to `{NAME} service install`, along with the options the queue already has, and wait for them to
