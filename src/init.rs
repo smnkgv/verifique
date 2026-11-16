@@ -153,9 +153,10 @@ Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}
 `.url`, `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and
 `.prefix`: use `.url` if the app takes a database number, or `.prefix` if it prefixes its keys.
 
-The `.env` in the repository's main checkout is copied into each slot, even for work submitted from a
-worktree, and loaded for every step and app, so a production start command needs no dotenv of its
-own. If it lacks something the app needs, tell the user what to add rather than filling it in
+The `.env` in the repository's main checkout is copied into every stack's slot, even for work
+submitted from a worktree, and loaded for every step and app, so a production start command needs no
+dotenv of its own. A check without a stack gets none, since it has no databases of its own: give a
+check that needs `.env` a stack with no apps. If it lacks something the app needs, tell the user what to add rather than filling it in
 here. Everything in {CONFIG_FILE} wins over it. Add other gitignored files under `envFiles`. Every
 setting that names a port, a database or a shared resource must be overridden here, or two copies
 will collide or a check will reach the real thing.
@@ -216,7 +217,8 @@ everything you listed in step 2 has a check and every check has passed, or its o
 happen without {NAME}: report those rather than swapping in a test that passes. Leave something out
 only when the user says to, and name it in your report. Every failed check counts toward needs-you,
 so don't resubmit one to study a failure: investigate in a started stack, which never counts, and
-run the tests there with `{NAME} stack exec`.
+run the tests there with `{NAME} stack exec`. A started stack keeps the {CONFIG_FILE} it started
+with, so start a new one after changing that file.
 
 ## 7. Propose the rules
 
