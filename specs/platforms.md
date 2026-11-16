@@ -84,6 +84,9 @@ systems, and so should the queue they hand work to.
 -   On Windows, Git's sh rewrites arguments that look like Unix paths, such as `/api`, when it passes
     them to Windows programs, as Git Bash does everywhere.
 -   On Windows, apps get no grace period to shut down cleanly when a step is stopped.
+-   On macOS, the system holds a queue it started at logon to the program it found then. Once a new
+    build or an update replaces the program, that queue does not come back after a crash until
+    `verifique service restart` runs or the user logs in again.
 -   The panel does less on Windows and Linux, which let an app do less: on Windows the count is in
     a tooltip and a pinned panel stays on one desktop, and Linux trays open the panel from a menu
     (see [queue](queue.md)).

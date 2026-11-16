@@ -99,7 +99,7 @@ fn plist(program: &Path, args: &[String], environment: &BTreeMap<String, String>
 }
 
 // `launchctl bootout` returns before the old service has stopped, and until it has, bootstrapping
-// the same label fails with an I/O error. So a reinstall has to keep trying for a moment.
+// the same label fails with an I/O error. So loading it again has to keep trying for a moment.
 fn bootstrap(domain: &str, plist: &Path) -> Result<()> {
     let path = plist.to_string_lossy();
     let mut attempts = BOOTSTRAP_ATTEMPTS;
@@ -121,15 +121,22 @@ pub fn install_service(spec: &ServiceSpec) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let domain = domain();
-    // Reinstalling replaces the service, so a missing one is fine here.
-    let _ = run("launchctl", &["bootout", &format!("{domain}/{}", label())]);
     fs::write(&path, plist(program, args, env, log))?;
-    bootstrap(&domain, &path)
+    reload()
 }
 
+/// A job launchd loaded at login is held to the program it found then, and once an update replaces
+/// that program launchd refuses to start it, even when asked to restart it. A job loaded afresh
+/// takes the program as it is now.
 pub fn restart_service() -> Result<()> {
-    run("launchctl", &["kickstart", "-k", &format!("{}/{}", domain(), label())])
+    reload()
+}
+
+fn reload() -> Result<()> {
+    let domain = domain();
+    // Loading the service is the point, so one that isn't loaded is fine here.
+    let _ = run("launchctl", &["bootout", &format!("{domain}/{}", label())]);
+    bootstrap(&domain, &plist_path())
 }
 
 pub fn uninstall_service() -> Result<()> {

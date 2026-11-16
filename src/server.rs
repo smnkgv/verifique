@@ -47,8 +47,12 @@ pub fn now() -> u64 {
 
 /// Whether a server is alive. Agents and people need telling when nothing will run their job.
 pub fn is_running(store: &Store) -> Result<bool> {
-    let beat = store.setting(KEY_HEARTBEAT)?.and_then(|value| value.parse::<u64>().ok());
-    Ok(beat.is_some_and(|beat| now().saturating_sub(beat) < HEARTBEAT_LIMIT))
+    Ok(last_beat(store)?.is_some_and(|beat| now().saturating_sub(beat) < HEARTBEAT_LIMIT))
+}
+
+/// When a server last showed it was alive, in seconds since the epoch.
+pub fn last_beat(store: &Store) -> Result<Option<u64>> {
+    Ok(store.setting(KEY_HEARTBEAT)?.and_then(|value| value.parse::<u64>().ok()))
 }
 
 pub fn is_paused(store: &Store) -> Result<bool> {

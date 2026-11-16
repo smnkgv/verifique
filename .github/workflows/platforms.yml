@@ -136,9 +136,9 @@ jobs:
                   "$bin" service install --slots 1 --first-slot 12
                   up
                   "$bin" service restart
-                  sleep 3
                   up
                   "$bin" service uninstall
+                  cargo test --release --locked --test service -- --ignored
 
     # The status-bar panel on each OS: built the way the README builds it, started, and its page run in
     # the browser whose engine it uses there. Nobody is at a runner to click the tick, so the rest is by hand.

@@ -2,11 +2,15 @@ use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::paths;
 use crate::platform::{self, ServiceSpec};
+use crate::server;
+use crate::store::Store;
 
 /// Only what tools need to be found. A service must not inherit credentials from a shell.
 const RECORDED: [&str; 12] = [
@@ -15,6 +19,10 @@ const RECORDED: [&str; 12] = [
 ];
 
 const LOOKED_FOR: [&str; 6] = ["git", "node", "pnpm", "npm", "docker", "claude"];
+
+/// A queue that is stopping first ends what it runs, and a busy machine is slow to start anything.
+const BACK_WITHIN: Duration = Duration::from_secs(60);
+const BACK_POLL: Duration = Duration::from_millis(250);
 
 const WARNING: &str = "Before you connect a project: checks run your app unattended, with its own .env.
 Anything in that file is live. A check can send real email to real people, charge real
@@ -31,6 +39,10 @@ pub struct Install {
 
 fn env_file() -> PathBuf {
     paths::home().join("service.env")
+}
+
+fn log_file() -> PathBuf {
+    paths::home().join("server.log")
 }
 
 /// Whether `service install` has run, and `uninstall` hasn't since.
@@ -75,15 +87,34 @@ pub fn install(options: &Install) -> Result<()> {
 
     let program = env::current_exe()?;
     let args = serve_args(options);
-    let log = paths::home().join("server.log");
-    platform::install_service(&ServiceSpec { program: &program, args: &args, env: &environment, env_file: &env_file(), log: &log })?;
+    platform::install_service(&ServiceSpec { program: &program, args: &args, env: &environment, env_file: &env_file(), log: &log_file() })?;
     println!("installed: {} slot(s), starting at login", options.slots);
     println!("\n{WARNING}\n");
     show_env()
 }
 
+/// Says "restarted" only once a new queue runs, because a service manager can accept a restart and
+/// then never start the program.
 pub fn restart() -> Result<()> {
+    if !installed() {
+        bail!("the service is not installed: run `{} service install`", paths::NAME);
+    }
+    let store = Store::open()?;
     platform::restart_service()?;
+    // The old queue has exited by the time the service manager returns, so only the new one beats
+    // after this. A new queue records its pid before it is ready, so the pid can't tell.
+    let since = server::now();
+    let deadline = Instant::now() + BACK_WITHIN;
+    while !server::last_beat(&store)?.is_some_and(|beat| beat > since) {
+        if Instant::now() >= deadline {
+            bail!(
+                "the queue did not come back within {} seconds of restarting the service. Its log is {}",
+                BACK_WITHIN.as_secs(),
+                log_file().display()
+            );
+        }
+        sleep(BACK_POLL);
+    }
     println!("restarted");
     Ok(())
 }

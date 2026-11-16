@@ -125,7 +125,11 @@ content, and a verdict with proof.
 33. **The queue starts at logon, as the user, with no admin rights,** and restarts after a crash: a
     LaunchAgent, a systemd user unit, or a scheduled task. On Windows the task starts
     `verifique-service`, a launcher with no window that also brings the queue back whenever it ends,
-    which a scheduled task alone does not. All three log to `~/.verifique/server.log`.
+    which a scheduled task alone does not. All three log to `~/.verifique/server.log`. On macOS a
+    restart boots the LaunchAgent out and in again rather than kickstarting it: launchd holds a job it
+    loaded at login to the code signature it found then, and refuses to start a rebuilt or upgraded
+    program, while a job loaded with `launchctl bootstrap` has no such hold until the next login.
+    `service restart` reports success only once the queue records a heartbeat after the restart.
 34. **Each OS answers for its ports, processes and disk** through libraries that ask it directly,
     with no `lsof` or `ps`. On Windows that is the only way to see a process's folder, which tells a
     leftover of verifique's own from someone else's server.

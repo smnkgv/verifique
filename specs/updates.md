@@ -77,7 +77,8 @@ can be turned off.
 
 14. `verifique update` asks GitHub for the latest release there and then, and brings everything to
     it, in order: verifique itself, the queue, the add-ons verifique publishes, then the panel. It
-    does only the steps still needed, and says so when there are none.
+    does only the steps still needed, and says so when there are none. A step that fails, such as a
+    queue that does not come back after restarting, stops the update there and says which.
 15. verifique itself is updated the way it was installed:
     -   with Homebrew, by Homebrew's own upgrade;
     -   from the apt, dnf or pacman repository, by that package manager, which asks for the
