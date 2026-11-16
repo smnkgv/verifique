@@ -51,6 +51,12 @@ pub fn is_running(store: &Store) -> Result<bool> {
     Ok(beat.is_some_and(|beat| now().saturating_sub(beat) < HEARTBEAT_LIMIT))
 }
 
+/// The pid of the server that is alive, if one is.
+pub fn serving(store: &Store) -> Result<Option<u32>> {
+    let pid = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
+    Ok(if is_running(store)? { pid } else { None })
+}
+
 pub fn is_paused(store: &Store) -> Result<bool> {
     let holder = store.setting(KEY_PAUSED_BY)?.and_then(|value| value.parse::<u32>().ok());
     Ok(holder.is_some_and(alive))
@@ -344,11 +350,9 @@ pub fn serve(options: Options) -> Result<()> {
 /// Ask the running queue to finish what it holds and exit, the way its service manager does. A pid
 /// a dead server left behind may belong to someone else by now, so only a live server is asked.
 pub fn ask_to_stop() -> Result<()> {
-    let store = Store::open()?;
-    let pid = store.setting(KEY_PID)?.and_then(|value| value.parse::<u32>().ok());
-    match pid {
-        Some(pid) if is_running(&store)? => platform::ask_to_stop(pid),
-        _ => bail!("no {} server is running", paths::NAME),
+    match serving(&Store::open()?)? {
+        Some(pid) => platform::ask_to_stop(pid),
+        None => bail!("no {} server is running", paths::NAME),
     }
 }
 

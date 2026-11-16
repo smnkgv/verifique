@@ -40,8 +40,10 @@ disk first and makes checks wait rather than letting them fail.
    <name>=<count>` (repeatable), `--min-free-gb` (default 5) and `--first-slot` (default 4), and
    keeps them for every later start.
 3. Installing again replaces the service. `verifique service restart` restarts it, such as after a
-   new build or an update (see [updates](updates.md)). `verifique service uninstall` stops and
-   removes it. `verifique serve` runs the queue in a terminal instead, with the same options.
+   new build or an update (see [updates](updates.md)), and the queue that comes back runs the
+   program as it is then. It says "restarted" only once that queue runs. When none has come back
+   within a minute, it says so, names the queue's log and fails. `verifique service uninstall` stops
+   and removes it. `verifique serve` runs the queue in a terminal instead, with the same options.
 4. Installing records the `PATH` the user works with (on macOS and Linux their login shell's, on
    Windows their terminal's) and the few other variables tools need to be found, such as
    the home folder, the language and SDK locations, and never credentials from the shell. Every step
