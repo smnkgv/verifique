@@ -160,8 +160,8 @@ here. Everything in {CONFIG_FILE} wins over it. Add other gitignored files under
 setting that names a port, a database or a shared resource must be overridden here, or two copies
 will collide or a check will reach the real thing.
 
-Some tools pass the commands they run only the environment variables they are told to, such as
-turbo: let {NAME}'s settings through in that tool's own config, or those commands never see them.
+Some tools pass the commands they run only the environment variables they are told to: let
+{NAME}'s settings through in that tool's own config, or those commands never see them.
 
 Settings that do not name a resource can still change what the app does. Set the time zone production
 uses, and anything else production sets that affects behaviour. Cloud SDKs read credentials from the
@@ -186,13 +186,12 @@ same Node, and tell the user if it doesn't. A step must change nothing outside t
 installers clean shared caches, such as `playwright install`, which deletes browser versions other
 projects use unless `PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
 
-A check runs whatever the project's own tests run, including a simulator, an emulator or a helper
-they start, since {NAME} starts only a stack's apps and a check's commands. A phone app's check runs
-on a stack that runs its backend. Name anything the machine has only a few of, such as simulators,
-under `needs` on the check with how many it takes, such as `needs: {{ simulator: 1 }}`: the queue
-then runs only as many at once as it was started with, such as `--resource simulator=1`. Reach the
-slot the way the project's own device tests do: an emulator can't always use the host's address,
-and `doctor` only proves the backend, so prove the app reaches it with a real check.
+A check runs whatever the project's own tests run, including a device, a simulator or a helper they
+start, since {NAME} starts only a stack's apps and a check's commands. Name anything the machine has
+only a few of under `needs` on the check, with how many it takes, such as `needs: {{ simulator: 1 }}`:
+the queue then runs only as many at once as it was started with, such as `--resource simulator=1`.
+Whatever runs outside the stack must reach the slot the way the project's own tests reach it, and
+`doctor` proves only the stack, so prove it with a real check.
 
 If a check needs the queue started with an option it lacks, such as a resource, ask the user to add
 it to `{NAME} service install`, along with the options the queue already has, and wait for them to
