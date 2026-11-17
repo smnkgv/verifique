@@ -211,8 +211,8 @@ database, and stops them. Never weaken a `ready` check to make it pass. Read any
 about a remote database, and tell the user.
 
 Then submit every check once with `{NAME} submit` and read each verdict. Setup proves the wiring,
-not the product, so point each check that runs tests at a few of them after `--`, chosen so that
-between them they reach every app and database its stack provides. Setup is finished only when
+not the product, so point each check that runs tests, after `--`, at the fewest tests that between
+them reach every app and database its stack provides. Setup is finished only when
 everything you listed in step 2 has a check and every check has passed, or its only failures also
 happen without {NAME}: report those rather than swapping in a test that passes. Leave something out
 only when the user says to, and name it in your report. Every failed check counts toward needs-you,

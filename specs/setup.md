@@ -23,8 +23,8 @@ only, on a branch, and stop on anything bigger.
 
 Setup covers every app the project ships and every way it verifies work, because whatever is left
 without a check gives agents a reason to verify outside the queue, where they fight over the machine
-again. It runs only a few tests of each, because it proves the wiring, not the product, and running
-every suite whole would hold the machine for hours.
+again. It runs only the fewest tests that reach every app and database, because it proves the
+wiring, not the product, and every test beyond those holds the machine for nothing.
 
 A file that looks right proves nothing. `doctor` starts two copies side by side and checks that each
 really used its own databases, which catches the most common mistake: an app that ignores its
@@ -81,8 +81,8 @@ queue behind the user's back.
        larger is for the user to decide.
     6. Prove it with `verifique doctor`, never weakening a ready path to make it pass, and report
        any remote-database warning to the user. Then submit every check once and read each verdict,
-       pointing each check that runs tests at a few of them that between them reach every app and
-       database its stack provides. Setup is finished only when everything listed in step 2 has a
+       pointing each check that runs tests at the fewest tests that between them reach every app
+       and database its stack provides. Setup is finished only when everything listed in step 2 has a
        check and every check has passed, or its only failures also happen without verifique.
        Something is left out only when the user says so, and the report names it. A failure is
        studied in a started stack, never by resubmitting the check, because every failed check
