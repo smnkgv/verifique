@@ -6,6 +6,8 @@ if [ "$(uname)" != Darwin ]; then
     exit 1
 fi
 cd "$(dirname "$0")"
+VERSION=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' ../Cargo.toml)
+[ -n "$VERSION" ] || { echo "no version under [workspace.package] in ../Cargo.toml" >&2; exit 1; }
 # A processor to build for, such as x86_64-apple-darwin, or this Mac's own when none is given.
 if [ -n "${1:-}" ]; then
     cargo build --release --target "$1"
@@ -37,7 +39,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleExecutable</key><string>verifique</string>
     <key>CFBundleIconFile</key><string>icon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1.0</string>
+    <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>LSUIElement</key><true/>
     <key>LSMinimumSystemVersion</key><string>11.0</string>
 </dict>
