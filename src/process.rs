@@ -12,6 +12,9 @@ use crate::platform::{self, Pid, Tree};
 
 const TICK: Duration = Duration::from_millis(100);
 pub const GRACE: Duration = Duration::from_secs(3);
+/// A step or check told to stop may still have to stop what it started outside itself, such as a
+/// simulator, which only it can reach.
+const CLEAN_UP: Duration = Duration::from_secs(30);
 
 pub type Env = BTreeMap<String, String>;
 
@@ -77,11 +80,11 @@ pub fn run(
             return Ok(Ended::Exited(status.code().unwrap_or(128)));
         }
         if stop.load(Ordering::Relaxed) {
-            proc.stop();
+            proc.tree.stop(CLEAN_UP);
             return Ok(Ended::Interrupted);
         }
         if Instant::now() > deadline {
-            proc.stop();
+            proc.tree.stop(CLEAN_UP);
             return Ok(Ended::TimedOut);
         }
         sleep(TICK);

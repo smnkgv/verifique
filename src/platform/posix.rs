@@ -69,18 +69,84 @@ impl Tree {
     }
 
     pub fn stop(&mut self, grace: Duration) {
+        let strays = strays(self.id());
         signal_group(self.id(), libc::SIGTERM);
+        signal_strays(&strays, libc::SIGTERM);
         let deadline = Instant::now() + grace;
-        while self.exited().is_none() && Instant::now() < deadline {
+        loop {
+            let leader_running = self.exited().is_none();
+            if !(leader_running || strays.iter().any(|stray| alive(stray.pid))) || Instant::now() >= deadline {
+                break;
+            }
             sleep(TICK);
         }
         // A stack's children can outlive its leader, so the group always gets the final word.
         self.kill();
+        signal_strays(&strays, libc::SIGKILL);
         let _ = self.child.wait();
     }
 
     pub fn kill(&mut self) {
         signal_group(self.id(), libc::SIGKILL);
+    }
+}
+
+/// A process the tree started that left its group, such as each command a coding agent runs, which
+/// the agent puts in a group of its own. Its start time tells it apart from a later process that
+/// takes the same id.
+struct Stray {
+    pid: Pid,
+    started: u64,
+}
+
+fn group_of(pid: Pid) -> Option<Pid> {
+    // SAFETY: getpgid takes a plain integer and touches no memory.
+    let group = unsafe { libc::getpgid(pid as i32) };
+    (group > 0).then_some(group as Pid)
+}
+
+fn strays(leader: Pid) -> Vec<Stray> {
+    let Ok(mut system) = sysinfo::System::new() else { return Vec::new() };
+    system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, sysinfo::ProcessRefreshKind::nothing());
+    let mut children: BTreeMap<Pid, Vec<(Pid, u64)>> = BTreeMap::new();
+    for (pid, process) in system.processes() {
+        if let Some(parent) = process.parent() {
+            children.entry(parent.as_u32()).or_default().push((pid.as_u32(), process.start_time()));
+        }
+    }
+    let mut found = Vec::new();
+    let mut next = vec![leader];
+    while let Some(pid) = next.pop() {
+        for &(child, started) in children.get(&pid).into_iter().flatten() {
+            next.push(child);
+            if group_of(child) != Some(leader) {
+                found.push(Stray { pid: child, started });
+            }
+        }
+    }
+    found
+}
+
+fn signal_strays(strays: &[Stray], signal: i32) {
+    if strays.is_empty() {
+        return;
+    }
+    let Ok(mut system) = sysinfo::System::new() else { return };
+    let pids: Vec<_> = strays.iter().map(|stray| sysinfo::Pid::from_u32(stray.pid)).collect();
+    system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::Some(&pids), true, sysinfo::ProcessRefreshKind::nothing());
+    for stray in strays {
+        let same = system.process(sysinfo::Pid::from_u32(stray.pid)).is_some_and(|p| p.start_time() == stray.started);
+        if !same {
+            continue;
+        }
+        // SAFETY: kill takes plain integers and touches no memory.
+        unsafe {
+            libc::kill(stray.pid as i32, signal);
+        }
+        // A group it leads also holds whatever it starts after this.
+        if group_of(stray.pid) == Some(stray.pid) {
+            signal_group(stray.pid, signal);
+        }
     }
 }
 

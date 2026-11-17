@@ -65,6 +65,8 @@ checks:
   leaves: {{ run: sh {helpers}/leave.sh {base_port} }}
   named: {{ run: printf '%s\n' > "$VERIFIQUE_EVIDENCE/args" }}
   sleeper: {{ stack: web, run: sleep 60 }}
+  tidies: {{ run: sh {helpers}/tidy.sh }}
+  scatters: {{ run: sh {helpers}/scatter.sh }}
   agent:
     type: agent
     stack: signed-in
@@ -121,6 +123,27 @@ print(server.pid)
 until curl -fsS "http://127.0.0.1:$port/" > /dev/null; do sleep 0.1; done
 "#;
 
+// Stopping what it started outside itself takes a while, as shutting down a simulator does.
+const TIDY: &str = r#"
+here="$(dirname "$0")"
+trap 'sleep 5; echo done > "$here/tidied"; exit 0' TERM
+echo started > "$here/tidy.started"
+sleep 300 &
+wait
+"#;
+
+// A coding agent runs each command in a process group of its own, and stays up while it runs.
+const SCATTER: &str = r#"
+python3 -c '
+import os, subprocess, sys
+child = subprocess.Popen(["sleep", "300"], preexec_fn=os.setpgrp)
+with open(sys.argv[1] + ".part", "w") as f:
+    f.write(str(child.pid))
+os.rename(sys.argv[1] + ".part", sys.argv[1])
+child.wait()
+' "$(dirname "$0")/scattered.pid"
+"#;
+
 // An app with no database driver: it reports the environment it was started with.
 const APP: &str = r#"
 import http.server, json, os
@@ -150,6 +173,8 @@ impl World {
         fs::write(root.join("project/agent.sh"), AGENT).unwrap();
         fs::write(root.join("project/app.py"), APP).unwrap();
         fs::write(root.join("project/leave.sh"), LEAVE).unwrap();
+        fs::write(root.join("project/tidy.sh"), TIDY).unwrap();
+        fs::write(root.join("project/scatter.sh"), SCATTER).unwrap();
         let world = Self { root, home, repo, base_port, server: None };
         world.write_repo(&world.repo.clone());
         world
@@ -1497,6 +1522,52 @@ fn a_cancelled_job_stops_counts_for_nothing_and_tells_whoever_waits() {
     let url = format!("127.0.0.1:{}", world.base_port + FIRST_SLOT);
     assert!(std::net::TcpStream::connect(url).is_err(), "the cancelled check's stack is still up");
     assert_eq!(world.status_json()["needs_you"], serde_json::json!([]));
+}
+
+fn until_file(path: &Path) -> String {
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        if let Ok(text) = fs::read_to_string(path) {
+            return text;
+        }
+        assert!(Instant::now() < deadline, "{} never appeared", path.display());
+        sleep(Duration::from_millis(50));
+    }
+}
+
+// A Windows job ends everything at once, with no signal to clean up on.
+#[cfg(unix)]
+#[test]
+fn a_cancelled_check_gets_time_to_stop_what_it_started_outside_itself() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let job = world.submit("tidies", "");
+    until_file(&world.helpers().join("tidy.started"));
+    assert!(world.run(&["cancel", &job]).status.success());
+    assert_eq!(world.wait(&job).0, 3);
+    assert!(world.helpers().join("tidied").exists(), "the check's clean-up was cut short");
+}
+
+// On Windows a job already holds every process a step starts.
+#[cfg(unix)]
+#[test]
+fn a_cancelled_check_stops_what_it_started_in_a_group_of_its_own() {
+    let mut world = World::new();
+    world.serve(1, &[]);
+    let job = world.submit("scatters", "");
+    let pid = until_file(&world.helpers().join("scattered.pid"));
+    assert!(world.run(&["cancel", &job]).status.success());
+    assert_eq!(world.wait(&job).0, 3);
+    let alive = || Command::new("kill").args(["-0", pid.trim()]).stderr(Stdio::null()).status().unwrap().success();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while alive() && Instant::now() < deadline {
+        sleep(Duration::from_millis(50));
+    }
+    let survived = alive();
+    if survived {
+        let _ = Command::new("kill").args(["-9", pid.trim()]).status();
+    }
+    assert!(!survived, "a process the check started in a group of its own outlived the cancel");
 }
 
 #[test]
