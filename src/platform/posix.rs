@@ -74,8 +74,10 @@ impl Tree {
         signal_strays(&strays, libc::SIGTERM);
         let deadline = Instant::now() + grace;
         loop {
-            let leader_running = self.exited().is_none();
-            if !(leader_running || strays.iter().any(|stray| alive(stray.pid))) || Instant::now() >= deadline {
+            // Reaped, the leader stops counting as a member of its own group.
+            let _ = self.exited();
+            let running = group_alive(self.id()) || strays.iter().any(|stray| alive(stray.pid));
+            if !running || Instant::now() >= deadline {
                 break;
             }
             sleep(TICK);
@@ -97,6 +99,11 @@ impl Tree {
 struct Stray {
     pid: Pid,
     started: u64,
+}
+
+fn group_alive(group: Pid) -> bool {
+    // SAFETY: as in signal_group; signal 0 only asks whether any member is left.
+    unsafe { libc::killpg(group as i32, 0) == 0 }
 }
 
 fn group_of(pid: Pid) -> Option<Pid> {

@@ -65,7 +65,7 @@ checks:
   leaves: {{ run: sh {helpers}/leave.sh {base_port} }}
   named: {{ run: printf '%s\n' > "$VERIFIQUE_EVIDENCE/args" }}
   sleeper: {{ stack: web, run: sleep 60 }}
-  tidies: {{ run: sh {helpers}/tidy.sh }}
+  tidies: {{ run: "true && sh {helpers}/tidy.sh" }}
   scatters: {{ run: sh {helpers}/scatter.sh }}
   agent:
     type: agent
@@ -123,7 +123,9 @@ print(server.pid)
 until curl -fsS "http://127.0.0.1:$port/" > /dev/null; do sleep 0.1; done
 "#;
 
-// Stopping what it started outside itself takes a while, as shutting down a simulator does.
+// Stopping what it started outside itself takes a while, as shutting down a simulator does. The
+// check runs it after another command, as real checks often do, so the step's first process is a
+// shell that ends at once while the script is still cleaning up.
 const TIDY: &str = r#"
 here="$(dirname "$0")"
 trap 'sleep 5; echo done > "$here/tidied"; exit 0' TERM
@@ -1067,7 +1069,10 @@ fn doctor_catches_two_slots_that_would_collide() {
 fn doctor_catches_a_stack_that_leaves_a_process_behind() {
     let world = World::new();
     let port = world.base_port;
-    let start = format!("nohup setsid python3 -m http.server $(( {port} + {{slot}} )) --bind 127.0.0.1 > /dev/null 2>&1 & sleep 60");
+    // Started from a subshell that exits at once, the server has no parent in the stack, so it is
+    // out of the stack's reach, as a server that forks itself away is.
+    let start =
+        format!("(nohup setsid python3 -m http.server $(( {port} + {{slot}} )) --bind 127.0.0.1 > /dev/null 2>&1 &); sleep 60");
     if Command::new("sh").args(["-c", "command -v setsid"]).output().unwrap().status.code() != Some(0) {
         return; // macOS has no setsid, and a stack cannot leave its process group without it.
     }
