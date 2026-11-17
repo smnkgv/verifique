@@ -42,10 +42,12 @@ systems, and so should the queue they hand work to.
 ### Stopping what a step started
 
 6. Stopping a step stops everything it started, on every system, including processes its processes
-   started. When the queue itself dies, what its jobs started ends with it, so nothing is left
+   started and those it started in a process group of their own, such as each command a coding
+   agent runs. When the queue itself dies, what its jobs started ends with it, so nothing is left
    holding a slot's ports.
-7. On macOS and Linux, what a step started is first asked to stop and gets 3 seconds before it is
-   ended.
+7. On macOS and Linux, what a step started is first asked to stop, and is ended once it has stopped
+   or its time is up: 3 seconds for an app, and 30 for a step or check, which may still have to stop
+   something only it can reach, such as a simulator.
 8. On Windows, it is ended at once, with no grace period.
 
 ### The queue in the background

@@ -106,6 +106,9 @@ checks, containers cost memory on a laptop, and phone simulators cannot run in o
 
 -   A server a checker starts by hand can outlive its job, using memory until the next job in that
     slot stops it.
+-   Something a check starts that is not one of its processes, such as a simulator a system service
+    runs, is stopped only by the check itself. A check ended before it can clean up, such as an agent
+    check that is cancelled, leaves it running.
 -   verifique isolates ports and the database servers it is told about. Other shared things, such as
     cache and queue names, uploads, temporary folders and scheduled jobs, are isolated only if the
     project points their settings at slot values. The setup guide asks the setup agent to find them.

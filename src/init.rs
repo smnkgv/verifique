@@ -195,7 +195,9 @@ start, since {NAME} starts only a stack's apps and a check's commands. Name anyt
 only a few of under `needs` on the check, with how many it takes, such as `needs: {{ simulator: 1 }}`:
 the queue then runs only as many at once as it was started with, such as `--resource simulator=1`.
 Whatever runs outside the stack must reach the slot the way the project's own tests reach it, and
-`doctor` proves only the stack, so prove it with a real check.
+`doctor` proves only the stack, so prove it with a real check. A check that is cancelled or runs out
+of time is asked to stop and, on macOS and Linux, gets 30 seconds before it is ended: in that time
+it must stop whatever only it can reach, such as a simulator, which runs under a system service.
 
 If a check needs the queue started with an option it lacks, such as a resource, ask the user to add
 it to `{NAME} service install`, along with the options the queue already has, and wait for them to
