@@ -71,7 +71,8 @@ queue behind the user's back.
        stack. Keep every step from changing anything outside its slot, such as installers that
        clean shared caches. Have a check on several slots hand each worker of its suite one copy of
        the stack, and fit the time limits to the longest run the project's agents will submit.
-       Make sure what `setup` prints works as printed. A check runs whatever the project's own
+       Have each check keep the files worth keeping, such as a test report, in its evidence folder,
+       since the next check reuses the slot. Make sure what `setup` prints works as printed. A check runs whatever the project's own
        tests run, including a device, a simulator or a helper they start, and anything the machine
        has only a few of is declared as a limited resource. A real check proves that whatever runs
        outside the stack reaches the slot. If a check needs the queue started with an option it
@@ -82,7 +83,9 @@ queue behind the user's back.
     6. Prove it with `verifique doctor`, never weakening a ready path to make it pass, and report
        any remote-database warning to the user. Then submit every check once and read each verdict,
        pointing each check that runs tests at the fewest tests that between them reach every app
-       and database its stack provides. Setup is finished only when everything listed in step 2 has a
+       and database its stack provides. Each request asks only for what setup needs from that check,
+       because an agent check judges its pass against the request and setup isn't finished until
+       step 7. Setup is finished only when everything listed in step 2 has a
        check and every check has passed, or its only failures also happen without verifique.
        Something is left out only when the user says so, and the report names it. A failure is
        studied in a started stack, never by resubmitting the check, because every failed check

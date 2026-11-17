@@ -136,6 +136,9 @@ A check with `slots` gets one copy of its stack per worker. `VERIFIQUE_STACKS` n
 listing every copy's slot, host, ports and values, and `VERIFIQUE_SLOTS` lists their slot numbers:
 have the suite hand each worker one copy.
 
+The next check reuses the slot's copy of the code, so a check writes anything worth keeping, such as
+a test report or screenshots, to the folder `VERIFIQUE_EVIDENCE` names, which stays with the job.
+
 Every step has a time limit: 30 minutes for `prepare` and for the check, less for the rest. If a run
 the project's agents submit can take longer, such as a whole suite, raise it under `timeouts` at the
 top of {CONFIG_FILE}, in seconds, such as `timeouts: {{ runSec: 5400 }}`. The others are
@@ -212,7 +215,9 @@ about a remote database, and tell the user.
 
 Then submit every check once with `{NAME} submit` and read each verdict. Setup proves the wiring,
 not the product, so point each check that runs tests, after `--`, at the fewest tests that between
-them reach every app and database its stack provides. Setup is finished only when
+them reach every app and database its stack provides. An agent check judges its pass against the
+request, and setup isn't finished until step 7, so ask in each request only for what setup needs
+from that check, such as proof that it reaches and uses the app. Setup is finished only when
 everything you listed in step 2 has a check and every check has passed, or its only failures also
 happen without {NAME}: report those rather than swapping in a test that passes. Leave something out
 only when the user says to, and name it in your report. Every failed check counts toward needs-you,
