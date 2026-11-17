@@ -53,12 +53,19 @@ the user what is missing and stop. Support for each kind of database is a plugin
 `mongo` and `redis` so far. `{NAME} plugin list` shows which are installed. If the project needs one
 that isn't, ask the user to run `{NAME} plugin add <name>`.
 
-## 2. Find what two copies of the app would fight over
+## 2. List everything the project verifies
+
+List every app the project ships, such as a website, an API, a phone app or a desktop app, and every
+way it verifies work on them today, such as its test suites, each platform's end-to-end tests and
+any manual pass its instructions describe. Its CI workflows, scripts and agent instructions show
+them. Each one becomes a check, so that no agent has a reason to verify work outside {NAME}.
+
+## 3. Find what two copies of the app would fight over
 
 Read the code and list everything that would collide: ports, databases, cache and queue names,
 uploads, temporary folders, scheduled jobs. Find the exact settings the app reads for each one.
 
-## 3. Write {CONFIG_FILE}
+## 4. Write {CONFIG_FILE}
 
 Copy the shape of this and keep it short. The app runs as a production build rather than a dev server:
 it starts faster, and uses far less memory across several copies. Use the exact command production
@@ -125,6 +132,18 @@ When an agent submits, anything it adds after `--` goes on the end of the check'
 check that runs tests can be pointed at some of them. Never make a check pick its tests out of the
 brief or the request: they are prose, and a test named there to be left out would run.
 
+A check with `slots` gets one copy of its stack per worker. `VERIFIQUE_STACKS` names a JSON file
+listing every copy's slot, host, ports and values, and `VERIFIQUE_SLOTS` lists their slot numbers:
+have the suite hand each worker one copy.
+
+The next check reuses the slot's copy of the code, so a check writes anything worth keeping, such as
+a test report or screenshots, to the folder `VERIFIQUE_EVIDENCE` names, which stays with the job.
+
+Every step has a time limit: 30 minutes for `prepare` and for the check, less for the rest. If a run
+the project's agents submit can take longer, such as a whole suite, raise it under `timeouts` at the
+top of {CONFIG_FILE}, in seconds, such as `timeouts: {{ runSec: 5400 }}`. The others are
+`prepareSec`, `seedSec`, `readySec` and `setupSec`.
+
 A stack needs no apps. A check that only needs its own databases, such as a test suite, gets them
 from a stack with just `prepare`, `seed` and `env`, without building the app. With nothing running
 before the check, `doctor` takes its settings as proof for a database its seed leaves alone.
@@ -137,11 +156,16 @@ Values you can use: `{{slot}}`, `{{port}}`, `{{port.<app>}}`, `{{app.<app>.url}}
 `.url`, `.server`, `.database`, `.host`, `.port`, `.user` and `.password`. Redis adds `.db` and
 `.prefix`: use `.url` if the app takes a database number, or `.prefix` if it prefixes its keys.
 
-The `.env` in the repository's main checkout is copied into each slot, even for work submitted from a
-worktree, and loaded for every step and app, so a production start command needs no dotenv of its
-own. If it lacks something the app needs, tell the user what to add rather than filling it in here. Everything in {CONFIG_FILE} wins over it. Add other
-gitignored files under `envFiles`. Every setting that names a port, a database or a shared
-resource must be overridden here, or two copies will collide or a check will reach the real thing.
+The `.env` in the repository's main checkout is copied into every stack's slot, even for work
+submitted from a worktree, and loaded for every step and app, so a production start command needs no
+dotenv of its own. A check without a stack gets none, since it has no databases of its own: give a
+check that needs `.env` a stack with no apps. If it lacks something the app needs, tell the user what to add rather than filling it in
+here. Everything in {CONFIG_FILE} wins over it. Add other gitignored files under `envFiles`. Every
+setting that names a port, a database or a shared resource must be overridden here, or two copies
+will collide or a check will reach the real thing.
+
+Some tools pass the commands they run only the environment variables they are told to: let
+{NAME}'s settings through in that tool's own config, or those commands never see them.
 
 Settings that do not name a resource can still change what the app does. Set the time zone production
 uses, and anything else production sets that affects behaviour. Cloud SDKs read credentials from the
@@ -157,7 +181,8 @@ needs them up runs with `{NAME} stack exec <job> -- <command>` once the stack is
 slot and with its settings.
 
 Whatever `setup` prints reaches the checker agent and its model provider, so only print throwaway
-credentials.
+credentials. Make sure they work as printed, such as an account that can already sign in, because
+the checker starts from nothing else.
 
 The queue runs every step with the PATH recorded when it was installed, which `{NAME} service env`
 shows, and `doctor` uses the same. Make sure that gives the versions production uses, such as the
@@ -165,30 +190,42 @@ same Node, and tell the user if it doesn't. A step must change nothing outside t
 installers clean shared caches, such as `playwright install`, which deletes browser versions other
 projects use unless `PLAYWRIGHT_SKIP_BROWSER_GC=1` is set.
 
-If the product is a phone app, a stack runs its backend and the app runs on a simulator or emulator.
-A phone is limited, so start the queue with `--resource simulator=1` and name it under `needs` on the
-check. Reach the slot the way the project's own device tests do: an emulator can't always use the
-host's address, and `doctor` only proves the backend, so prove the app reaches it with a real check.
+A check runs whatever the project's own tests run, including a device, a simulator or a helper they
+start, since {NAME} starts only a stack's apps and a check's commands. Name anything the machine has
+only a few of under `needs` on the check, with how many it takes, such as `needs: {{ simulator: 1 }}`:
+the queue then runs only as many at once as it was started with, such as `--resource simulator=1`.
+Whatever runs outside the stack must reach the slot the way the project's own tests reach it, and
+`doctor` proves only the stack, so prove it with a real check.
 
-## 4. Only if the app hardcodes something
+If a check needs the queue started with an option it lacks, such as a resource, ask the user to add
+it to `{NAME} service install`, along with the options the queue already has, and wait for them to
+say it's done. Never leave a check out to avoid asking.
+
+## 5. Only if the app hardcodes something
 
 You may make small edits so the app reads a value from the environment, keeping today's value as
 the default, such as `process.env.PORT ?? 3000`. Make them on a branch and show the user. Anything
 larger is for the user to decide: stop and explain what is needed.
 
-## 5. Prove it
+## 6. Prove it
 
 Run `{NAME} doctor`. It starts two copies side by side, runs `setup`, confirms each used its own
 database, and stops them. Never weaken a `ready` check to make it pass. Read any warning it gives
 about a remote database, and tell the user.
 
-Then submit every check once with `{NAME} submit` and read each verdict. A test suite runs whole, not
-a sample of it. Setup is finished only when every check has passed, or its only failures also happen
-without {NAME}: report those rather than skipping a test. Every failed check counts toward needs-you,
-so don't resubmit one to study a failure: investigate in a started stack, which never counts, and run
-the tests there with `{NAME} stack exec`.
+Then submit every check once with `{NAME} submit` and read each verdict. Setup proves the wiring,
+not the product, so point each check that runs tests, after `--`, at the fewest tests that between
+them reach every app and database its stack provides. An agent check judges its pass against the
+request, and setup isn't finished until step 7, so ask in each request only for what setup needs
+from that check, such as proof that it reaches and uses the app. Setup is finished only when
+everything you listed in step 2 has a check and every check has passed, or its only failures also
+happen without {NAME}: report those rather than swapping in a test that passes. Leave something out
+only when the user says to, and name it in your report. Every failed check counts toward needs-you,
+so don't resubmit one to study a failure: investigate in a started stack, which never counts, and
+run the tests there with `{NAME} stack exec`. A started stack keeps the {CONFIG_FILE} it started
+with, so start a new one after changing that file.
 
-## 6. Propose the rules
+## 7. Propose the rules
 
 The project's agents need the rules below. Propose them to the user as a change to the project's
 agent instructions: write them the way those instructions write their own rules, keeping what each
@@ -196,8 +233,7 @@ one means, and put them where the instructions say such rules belong. Change eve
 reference the setup makes untrue, such as how to start the app or run its tests, and keep any part
 of it that still holds. Before removing or narrowing a rule, find everything that still depends on
 it, such as tests or tools the project still runs itself. Merge a rule below with any rule the
-project keeps on the same subject, so that no two contradict, such as a way the project verifies
-work {NAME} doesn't run.
+project keeps on the same subject, so that no two contradict.
 
 {rules}
 "#,

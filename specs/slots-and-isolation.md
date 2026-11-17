@@ -1,6 +1,6 @@
 ---
 status: active
-last-reviewed: 2026-11-09
+last-reviewed: 2026-11-16
 owner: Hlib Semeniuk
 confidence: best-effort
 related: [databases, stacks, queue, safety, checks]
@@ -46,7 +46,7 @@ checks, containers cost memory on a laptop, and phone simulators cannot run in o
    copied into the slot from the repository's main checkout, even for work submitted from a
    worktree.
 7. A check without a stack runs in its slot's clean copy of the code, with no apps, no databases and
-   no copy of `.env`.
+   no copy of `.env`, because with no databases of its own, `.env` would point it at the real ones.
 8. `verifique clean` removes the slot copies no running job is using, the copies of repositories
    that no longer exist, and snapshots no queued or running job needs. A check rebuilds whatever is
    missing, so only time is lost.
@@ -115,6 +115,3 @@ checks, containers cost memory on a laptop, and phone simulators cannot run in o
 -   **Should users know slots start at 4?** The user guide says an app runs on "base + slot" but
     not which slot numbers exist, so a reader expects port 3501, and `--first-slot` has no help
     text. Settled by deciding whether the first slot is part of the interface and documenting it.
--   **Should a check without a stack get `.env`?** It gets no copy of `.env` and no databases. The
-    user guide's warning that "checks run your app unattended with the `.env`" reads as if it
-    applied to every check. Settled by the owner confirming the behaviour and the guide saying it.
