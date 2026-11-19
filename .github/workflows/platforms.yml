@@ -183,6 +183,9 @@ jobs:
                   Linux) panel/bundle-linux.sh ;;
                   Windows) pwsh -NoProfile -ExecutionPolicy Bypass -File panel/bundle-windows.ps1 ;;
                   esac
+            - name: Tests
+              # What the tick shows, which the Tauri side works out from the CLI's JSON.
+              run: cd panel && cargo test --release --locked
             - name: CLI
               # The released verifique, so the panel reads a real queue, empty here.
               env:
