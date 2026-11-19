@@ -109,10 +109,11 @@ disk first and makes checks wait rather than letting them fail.
     their proof.
 24. From the panel, a person can view a job's proof, hand a branch back, run a queued job next,
     change how many copies run at once and update verifique (see [updates](updates.md)).
-25. The tick is amber with the number of checks left while they run, green for five minutes after the
-    last one passes, and red with a count when something needs you. It keeps up with the queue
-    within a few seconds whether the panel is open or closed. A blue dot on it, and a line above the
-    panel's footer, mean an update is waiting (see [updates](updates.md)).
+25. The tick is amber with the number of checks left while they run, green for five minutes after
+    the last one passes, and red with a count when something needs you. A stack that is up is not a
+    check left, so it leaves the tick as it would be without it. It keeps up with the queue within a
+    few seconds whether the panel is open or closed. A blue dot on it, and a line above the panel's
+    footer, mean an update is waiting (see [updates](updates.md)).
 26. Pinning the panel keeps it on screen in the top right corner, semi-transparent, on every desktop.
 27. The panel reads the CLI's `--json` output and acts only through the CLI, so it can do nothing the
     CLI cannot. The CLI works alone, and installing without the panel stays possible.

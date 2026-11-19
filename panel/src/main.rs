@@ -427,10 +427,11 @@ fn keep_tray_current(app: AppHandle) {
 /// in seconds since 1970: red with how many need you, amber with how many checks are left, green for
 /// a while after the last check passed, or idle.
 fn progress(status: &Value, now: i64) -> (&'static str, usize) {
-    let count = |key: &str| status[key].as_array().map_or(0, Vec::len);
-    let (needs, left) = (count("needs_you"), count("running") + count("queued"));
-    let recent = status["recent"].as_array().map(Vec::as_slice).unwrap_or_default();
-    let last = recent.iter().find(|job| !STACKS.iter().any(|stack| job["check"] == *stack));
+    let jobs = |key: &str| status[key].as_array().map(Vec::as_slice).unwrap_or_default();
+    let is_check = |job: &&Value| !STACKS.iter().any(|stack| job["check"] == *stack);
+    let needs = jobs("needs_you").len();
+    let left = jobs("running").iter().chain(jobs("queued")).filter(is_check).count();
+    let last = jobs("recent").iter().find(is_check);
     let finished = |job: &Value| job["finished_at"].as_str().and_then(unix_seconds);
     let just_passed = last.is_some_and(|job| job["status"] == "passed" && finished(job).is_some_and(|at| now - at < PASSED_SHOWN_S));
     if needs > 0 {
@@ -880,7 +881,14 @@ mod tests {
     #[test]
     fn the_tick_counts_the_checks_left() {
         let queued: Vec<Value> = (0..8).map(|_| job("tests")).collect();
-        assert_eq!(tick(json!({ "running": [job("tests"), job("stack")], "queued": queued })), ("working", 10));
+        assert_eq!(tick(json!({ "running": [job("tests"), job("e2e")], "queued": queued })), ("working", 10));
+    }
+
+    #[test]
+    fn stacks_that_are_up_are_not_checks_left() {
+        assert_eq!(tick(json!({ "running": [job("tests"), job("stack")], "queued": [job("hold"), job("e2e")] })), ("working", 2));
+        assert_eq!(tick(json!({ "running": [job("stack"), job("hold")], "queued": [job("stack")] })), ("idle", 0));
+        assert_eq!(tick(json!({ "running": [job("stack")], "recent": [finished("tests", "passed", NOW)] })), ("passed", 0));
     }
 
     #[test]
