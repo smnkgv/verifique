@@ -1,5 +1,5 @@
 // The panel as a person sees it: the real page in a real browser, fed the CLI's JSON. The window and the
-// tray icon are native, so what the Tauri side does with them is checked by hand on each OS.
+// tray icon are native: what the tick shows is tested with the Tauri side, and the rest by hand on each OS.
 // The browser is the installed Chrome, or Edge on Windows, whose engine is the one the panel runs in
 // there. PANEL_BROWSER names another Playwright channel.
 import assert from "node:assert/strict";
@@ -59,7 +59,6 @@ async function show(state) {
     }, { ...quiet, ...state });
 }
 const text = () => page.locator("#panel").innerText();
-const look = () => page.evaluate(() => window.calls.filter((call) => call.name === "show_progress").pop().args);
 
 // A check moves down the panel: Queued, then Running, then Recent, with the next one above Running.
 await show({
@@ -73,7 +72,6 @@ assert.ok(panel.indexOf("Running") < panel.indexOf("Recent"), "Recent comes last
 assert.match(panel, /and 3 more/);
 assert.ok(panel.indexOf("urgent") > panel.indexOf("repo3"), "the next check sits nearest Running");
 assert.ok(panel.indexOf("urgent") < panel.indexOf("Running"));
-assert.deepEqual(await look(), { look: "working", count: 10, update: "" });
 
 // A repository on Windows is named by its folder too.
 await show({ running: [{ ...running(1, "x", 4), repo: "C:\\src\\shop" }] });
@@ -88,16 +86,9 @@ assert.match(counts, /shop · testing · manual/);
 assert.match(counts, /api · kept running for you/);
 assert.match(counts, /Running at once/);
 
-// The tick says what state the queue is in.
-await show({});
-assert.deepEqual(await look(), { look: "idle", count: 0, update: "" });
-await show({ recent: [finished(1, "shop", "passed")] });
-assert.deepEqual(await look(), { look: "passed", count: 0, update: "" });
-await show({ recent: [finished(1, "shop", "failed")] });
-assert.deepEqual(await look(), { look: "idle", count: 0, update: "" });
+// Something that needs you says what and why.
 const needs = [{ repo: "/src/api", branch: "fix", check: "tests", failures: 3, reason: "x" }];
 await show({ needs_you: needs, recent: [finished(1, "api", "failed")] });
-assert.deepEqual(await look(), { look: "needs", count: 1, update: "" });
 assert.match(await text(), /Needs you[\s\S]*api \/ fix failed 3 times in a row/);
 
 // Whatever stops the queue says so.
@@ -108,7 +99,7 @@ assert.match(await text(), /Paused while verifique doctor runs/);
 await show({ low_disk: "Only 3 GB of disk is free, so checks are waiting until 5 GB is" });
 assert.match(await text(), /Disk nearly full[\s\S]*Only 3 GB/);
 
-// A newer verifique is one line with an Update button, and a blue dot on the tick.
+// A newer verifique is one line with an Update button.
 async function tell(notice) {
     await page.evaluate(async (next) => {
         window.notice = next;
@@ -127,7 +118,6 @@ const updated = () => page.evaluate(() => window.calls.filter((call) => call.nam
 await show({ running: [running(1, "shop", 4), { ...running(2, "api", 5), check: "stack" }] });
 await tell(release);
 assert.match(await text(), /verifique 0\.3\.4 is out/);
-assert.deepEqual(await look(), { look: "working", count: 2, update: "verifique 0.3.4 is out" });
 
 // Updating restarts the queue, so with checks running it first says what that stops.
 await page.getByRole("button", { name: "Update", exact: true }).click();
@@ -161,10 +151,9 @@ await page.getByRole("button", { name: "What's new" }).click();
 const opened = await page.evaluate(() => window.calls.filter((call) => call.name === "open_release").pop()?.args);
 assert.deepEqual(opened, { url: release.url });
 
-// Once there is nothing to update, the line and the dot go.
+// Once there is nothing to update, the line goes.
 await tell(null);
 assert.doesNotMatch(await text(), /is out/);
-assert.deepEqual(await look(), { look: "idle", count: 0, update: "" });
 
 // The pin keeps the panel out, and the page turns see-through.
 // A queue that stops being readable says so, instead of showing the last one it read.
@@ -173,7 +162,6 @@ await page.evaluate(async () => {
     await refresh();
 });
 assert.match(await text(), /Can't read the queue/);
-assert.equal((await look()).look, "needs");
 
 await show({});
 assert.equal(await page.locator("body.pinned").count(), 0);

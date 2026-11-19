@@ -6,10 +6,12 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use serde_json::Value;
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -29,6 +31,15 @@ const IDLE_GREY: [u8; 3] = [0x90, 0x90, 0x90];
 /// The dot that says an update is waiting: blue, the usual sign of something new, which reads on
 /// every colour of tick and never as something needing you.
 const UPDATE_BLUE: [u8; 3] = [0x0a, 0x84, 0xff];
+/// How long the tray waits for the page to read the queue before reading it itself. The page reads
+/// it every 1.5 seconds while the OS lets it.
+const TRAY_WAITS: Duration = Duration::from_secs(2);
+/// How often the tray reads whether an update is waiting, which the CLI only learns once a day.
+const NOTICE_EVERY: Duration = Duration::from_secs(60);
+/// How long the tick stays green after the last check passed.
+const PASSED_SHOWN_S: i64 = 300;
+/// A started stack, which was called a hold before; it is not a check.
+const STACKS: [&str; 2] = ["stack", "hold"];
 
 struct PinItem(CheckMenuItem<Wry>);
 
@@ -37,7 +48,21 @@ const WORKING_ICON: &[u8] = include_bytes!("../icons/tray-working.png");
 const PASSED_ICON: &[u8] = include_bytes!("../icons/tray-passed.png");
 const NEEDS_ICON: &[u8] = include_bytes!("../icons/tray-needs.png");
 
-static LOOK: Mutex<String> = Mutex::new(String::new());
+/// What the tray last learnt of the queue and of an update, and the icon it shows for them.
+struct Tray {
+    /// The tick's look and number, or None while the queue can't be read.
+    progress: Option<(&'static str, usize)>,
+    /// The panel's short line about a newer verifique, or empty.
+    notice: String,
+    /// When the reads that the tray now shows started, or None before the first.
+    status_read: Option<Instant>,
+    notice_read: Option<Instant>,
+    icon: String,
+}
+
+/// Locked only off the main thread, because a tray change made from another thread waits for the
+/// main thread to make it.
+static TRAY: Mutex<Tray> = Mutex::new(Tray { progress: None, notice: String::new(), status_read: None, notice_read: None, icon: String::new() });
 static PINNED: AtomicBool = AtomicBool::new(false);
 static HIDDEN_AT: Mutex<Option<Instant>> = Mutex::new(None);
 /// Where the panel's bottom edge stays while it is open above its icon, as it is over a taskbar at
@@ -332,15 +357,106 @@ fn cli(args: &[&str], cwd: Option<&str>) -> Result<String, String> {
     }
 }
 
+/// The queue's status for the page, read off the thread that draws the panel. The tick follows it.
 #[tauri::command]
-fn status() -> Result<String, String> {
-    cli(&["status", "--json"], None)
+async fn status(app: AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || read_status(&app)).await.map_err(|error| error.to_string())?
 }
 
-/// Whether a newer verifique is out, or an update still needs finishing, as the CLI tells it.
+/// Whether a newer verifique is out, or an update still needs finishing, as the CLI tells it. The
+/// tick's blue dot follows it.
 #[tauri::command]
-fn updates() -> Result<String, String> {
-    cli(&["updates", "--json"], None)
+async fn updates(app: AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || read_updates(&app)).await.map_err(|error| error.to_string())?
+}
+
+fn read_status(app: &AppHandle) -> Result<String, String> {
+    let started = Instant::now();
+    let read = cli(&["status", "--json"], None);
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |since| since.as_secs() as i64);
+    let progress = read.as_deref().ok().and_then(|json| serde_json::from_str(json).ok()).map(|status| progress(&status, now));
+    let mut tray = TRAY.lock().unwrap();
+    // A read that started before the one shown would bring back an older queue.
+    if tray.status_read.is_none_or(|shown| shown < started) {
+        tray.status_read = Some(started);
+        tray.progress = progress;
+        let _ = show(app, &mut tray);
+    }
+    read
+}
+
+fn read_updates(app: &AppHandle) -> Result<String, String> {
+    let started = Instant::now();
+    let read = cli(&["updates", "--json"], None);
+    let notice = read.as_deref().ok().and_then(|json| serde_json::from_str::<Value>(json).ok());
+    let notice = notice.and_then(|updates| updates["notice"]["short"].as_str().map(str::to_string)).unwrap_or_default();
+    let mut tray = TRAY.lock().unwrap();
+    if tray.notice_read.is_none_or(|shown| shown < started) {
+        tray.notice_read = Some(started);
+        tray.notice = notice;
+        // Before the queue is first read there is nothing to put the dot on.
+        if tray.status_read.is_some() {
+            let _ = show(app, &mut tray);
+        }
+    }
+    read
+}
+
+/// The OS slows or stops the timers of a page whose window is hidden, so the page can't be what keeps
+/// the tick current: with the panel closed, its number would stay as it was when the panel was last
+/// open. So whenever the page hasn't read the queue lately, the tray reads it itself.
+fn keep_tray_current(app: AppHandle) {
+    let due_in = |read: Option<Instant>, every: Duration| read.map_or(Duration::ZERO, |at| every.saturating_sub(at.elapsed()));
+    loop {
+        let (status_read, notice_read) = {
+            let tray = TRAY.lock().unwrap();
+            (tray.status_read, tray.notice_read)
+        };
+        let (status_in, notice_in) = (due_in(status_read, TRAY_WAITS), due_in(notice_read, NOTICE_EVERY));
+        if status_in.is_zero() {
+            let _ = read_status(&app);
+        } else if notice_in.is_zero() {
+            let _ = read_updates(&app);
+        } else {
+            thread::sleep(status_in.min(notice_in));
+        }
+    }
+}
+
+/// The tick's look and number for the queue's status as `verifique status --json` prints it, at `now`
+/// in seconds since 1970: red with how many need you, amber with how many checks are left, green for
+/// a while after the last check passed, or idle.
+fn progress(status: &Value, now: i64) -> (&'static str, usize) {
+    let count = |key: &str| status[key].as_array().map_or(0, Vec::len);
+    let (needs, left) = (count("needs_you"), count("running") + count("queued"));
+    let recent = status["recent"].as_array().map(Vec::as_slice).unwrap_or_default();
+    let last = recent.iter().find(|job| !STACKS.iter().any(|stack| job["check"] == *stack));
+    let finished = |job: &Value| job["finished_at"].as_str().and_then(unix_seconds);
+    let just_passed = last.is_some_and(|job| job["status"] == "passed" && finished(job).is_some_and(|at| now - at < PASSED_SHOWN_S));
+    if needs > 0 {
+        ("needs", needs)
+    } else if left > 0 {
+        ("working", left)
+    } else if just_passed {
+        ("passed", 0)
+    } else {
+        ("idle", 0)
+    }
+}
+
+/// Seconds since 1970 for a time as SQLite's datetime() writes it, such as "2026-11-19 10:04:05", in UTC.
+fn unix_seconds(stamp: &str) -> Option<i64> {
+    let numbers = |text: &str, separator| text.split(separator).map(|part| part.parse::<i64>().ok()).collect::<Option<Vec<_>>>();
+    let (date, time) = stamp.split_once(' ')?;
+    let (date, time) = (numbers(date, '-')?, numbers(time.split('.').next()?, ':')?);
+    let (&[year, month, day], &[hour, minute, second]) = (date.as_slice(), time.as_slice()) else { return None };
+    // Days since 1970 by Howard Hinnant's days_from_civil, which starts each year in March.
+    let year = if month <= 2 { year - 1 } else { year };
+    let era = year.div_euclid(400);
+    let of_era = year - era * 400;
+    let of_year = (153 * ((month + 9) % 12) + 2) / 5 + day - 1;
+    let days = era * 146_097 + of_era * 365 + of_era / 4 - of_era / 100 + of_year - 719_468;
+    Some(days * 86_400 + hour * 3_600 + minute * 60 + second)
 }
 
 /// Updates verifique, the queue, its add-ons and this panel, once the person has agreed in the panel.
@@ -486,22 +602,28 @@ fn tooltip_state(look: &str, count: usize) -> String {
     }
 }
 
-/// Amber while checks run, green when they have just passed, and red when something needs you. The
-/// number is how many checks are left, or how many need you. `update` is the panel's line about a
-/// newer verifique, or empty, and puts a blue dot on the tick while there is one. macOS colours a
-/// template icon all one colour, so there the idle tick turns grey while the dot shows.
-#[tauri::command]
-fn show_progress(app: AppHandle, look: String, count: usize, update: String) -> Result<(), String> {
+/// What the tick shows for what the tray last learnt: its look, its number, and the line about an
+/// update that puts a blue dot on it. While the queue can't be read, that it needs you, and no more.
+fn shown<'a>(progress: Option<(&'static str, usize)>, notice: &'a str) -> (&'static str, usize, &'a str) {
+    match progress {
+        Some((look, count)) => (look, count, notice),
+        None => ("needs", 0, ""),
+    }
+}
+
+/// Puts what the tray last learnt on the tick. macOS colours a template icon all one colour, so there
+/// the idle tick turns grey while the blue dot shows.
+fn show(app: &AppHandle, state: &mut Tray) -> Result<(), String> {
+    let (look, count, update) = shown(state.progress, &state.notice);
     let tray = app.tray_by_id("main").ok_or("no tray icon")?;
     tray.set_title((count > 0).then(|| count.to_string())).map_err(|error| error.to_string())?;
     #[cfg(windows)]
-    tray.set_tooltip(Some(tooltip(&look, count, &update))).map_err(|error| error.to_string())?;
+    tray.set_tooltip(Some(tooltip(look, count, update))).map_err(|error| error.to_string())?;
     let wanted = format!("{look}{}", if update.is_empty() { "" } else { " with a dot" });
-    let mut shown = LOOK.lock().map_err(|error| error.to_string())?;
-    if *shown == wanted {
+    if state.icon == wanted {
         return Ok(());
     }
-    let (icon, template) = match look.as_str() {
+    let (icon, template) = match look {
         "needs" => (Image::from_bytes(NEEDS_ICON), false),
         "working" => (Image::from_bytes(WORKING_ICON), false),
         "passed" => (Image::from_bytes(PASSED_ICON), false),
@@ -511,7 +633,7 @@ fn show_progress(app: AppHandle, look: String, count: usize, update: String) -> 
     let icon = icon.map_err(|error| error.to_string())?;
     let icon = if update.is_empty() { icon } else { with_dot(icon) };
     tray.set_icon_with_as_template(Some(icon), template).map_err(|error| error.to_string())?;
-    *shown = wanted;
+    state.icon = wanted;
     Ok(())
 }
 
@@ -647,7 +769,7 @@ fn main() {
         CHOSE_X11.store(true, Ordering::Relaxed);
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![is_pinned, set_pinned, blurs_behind, status, updates, update, open_release, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, show_progress, set_height, quit])
+        .invoke_handler(tauri::generate_handler![is_pinned, set_pinned, blurs_behind, status, updates, update, open_release, proof, run_next, set_slots, hand_back, open_path, evidence_image, open_logs, set_height, quit])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -693,6 +815,8 @@ fn main() {
                     }
                 })
                 .build(app)?;
+            let handle = app.handle().clone();
+            thread::spawn(move || keep_tray_current(handle));
             if pinned() {
                 if let Some(window) = app.get_webview_window("panel") {
                     show_pinned(&window);
@@ -713,4 +837,73 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("the panel could not start");
     drop(lock);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    const NOW: &str = "2026-11-19 10:04:05";
+
+    fn queue(extra: Value) -> Value {
+        let mut status = json!({ "server": true, "slots": 2, "running": [], "queued": [], "needs_you": [], "recent": [] });
+        for (key, value) in extra.as_object().unwrap() {
+            status[key] = value.clone();
+        }
+        status
+    }
+
+    fn job(check: &str) -> Value {
+        json!({ "repo": "/src/shop", "branch": "main", "check": check })
+    }
+
+    fn finished(check: &str, status: &str, at: &str) -> Value {
+        json!({ "repo": "/src/shop", "branch": "main", "check": check, "status": status, "finished_at": at })
+    }
+
+    fn tick(extra: Value) -> (&'static str, usize) {
+        progress(&queue(extra), unix_seconds(NOW).unwrap())
+    }
+
+    #[test]
+    fn reads_sqlite_times() {
+        assert_eq!(unix_seconds("1970-01-01 00:00:00"), Some(0));
+        assert_eq!(unix_seconds(NOW), Some(1_795_082_645));
+        assert_eq!(unix_seconds("2000-02-29 23:59:59"), Some(951_868_799));
+        assert_eq!(unix_seconds("1999-12-31 00:00:00"), Some(946_598_400));
+        assert_eq!(unix_seconds("2026-11-19 10:04:05.250"), Some(1_795_082_645));
+        assert_eq!(unix_seconds("2026-11-19"), None);
+        assert_eq!(unix_seconds("yesterday at noon"), None);
+    }
+
+    #[test]
+    fn the_tick_counts_the_checks_left() {
+        let queued: Vec<Value> = (0..8).map(|_| job("tests")).collect();
+        assert_eq!(tick(json!({ "running": [job("tests"), job("stack")], "queued": queued })), ("working", 10));
+    }
+
+    #[test]
+    fn the_tick_says_what_state_the_queue_is_in() {
+        assert_eq!(tick(json!({})), ("idle", 0));
+        assert_eq!(tick(json!({ "recent": [finished("tests", "passed", NOW)] })), ("passed", 0));
+        assert_eq!(tick(json!({ "recent": [finished("tests", "failed", NOW)] })), ("idle", 0));
+        let needs = json!([{ "repo": "/src/api", "branch": "fix", "check": "tests", "failures": 3, "reason": "x" }]);
+        assert_eq!(tick(json!({ "needs_you": needs, "recent": [finished("tests", "failed", NOW)], "queued": [job("e2e")] })), ("needs", 1));
+    }
+
+    #[test]
+    fn green_lasts_five_minutes_and_goes_by_checks_not_stacks() {
+        assert_eq!(tick(json!({ "recent": [finished("tests", "passed", "2026-11-19 10:00:00")] })), ("passed", 0));
+        assert_eq!(tick(json!({ "recent": [finished("tests", "passed", "2026-11-19 09:59:00")] })), ("idle", 0));
+        assert_eq!(tick(json!({ "recent": [finished("stack", "cancelled", NOW), finished("tests", "passed", NOW)] })), ("passed", 0));
+        assert_eq!(tick(json!({ "recent": [finished("hold", "passed", NOW), finished("tests", "failed", NOW)] })), ("idle", 0));
+    }
+
+    #[test]
+    fn a_queue_that_cant_be_read_needs_you_without_a_number_or_a_dot() {
+        assert_eq!(shown(None, "verifique 0.3.4 is out"), ("needs", 0, ""));
+        assert_eq!(shown(Some(("working", 2)), "verifique 0.3.4 is out"), ("working", 2, "verifique 0.3.4 is out"));
+        assert_eq!(shown(Some(("idle", 0)), ""), ("idle", 0, ""));
+    }
 }

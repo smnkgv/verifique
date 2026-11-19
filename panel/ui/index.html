@@ -317,7 +317,6 @@ ol li + li {
 const REFRESH_MS = 1500;
 const MAX_SLOTS = 8;
 const MAX_HEIGHT = 640;
-const PASSED_SHOWN_S = 300;
 const QUEUED_SHOWN = 5;
 const UPDATES_MS = 60000;
 const UPDATED_SHOWN_MS = 5000;
@@ -443,14 +442,6 @@ function paint() {
     invoke("set_height", { height: Math.min(MAX_HEIGHT, Math.ceil(panel.scrollHeight) + 2) });
 }
 
-function showProgress(s) {
-    const left = s.running.length + s.queued.length;
-    const last = s.recent.find((job) => !STACKS.includes(job.check));
-    const justPassed = last?.status === "passed" && since(last.finished_at) < PASSED_SHOWN_S;
-    const look = s.needs_you.length ? "needs" : left ? "working" : justPassed ? "passed" : "idle";
-    invoke("show_progress", { look, count: s.needs_you.length || left, update: update?.short ?? "" });
-}
-
 // The CLI asks GitHub nothing here: it says what the queue found when it last asked, once a day.
 async function refreshUpdates() {
     if (updating) return;
@@ -460,7 +451,6 @@ async function refreshUpdates() {
         update = null;
     }
     if (!update) confirming = false;
-    if (state) showProgress(state);
     if (!proof) paint();
 }
 
@@ -490,11 +480,9 @@ async function refresh() {
         pinned = await invoke("is_pinned");
         document.body.classList.toggle("pinned", pinned);
         lastError = "";
-        showProgress(state);
     } catch (error) {
         lastError = String(error);
         state = null;
-        invoke("show_progress", { look: "needs", count: 0, update: "" });
     }
     if (!proof) paint();
 }
